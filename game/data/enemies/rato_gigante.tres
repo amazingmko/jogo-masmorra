@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/enemy_data.gd" id="1_y6klw"]
+
+[resource]
+script = ExtResource("1_y6klw")
+id = &"rato_gigante"
+display_name = "Rato Gigante"
+element = 3
+color = Color(0.5411765, 0.41568628, 0.30980393, 1)
+body_scale = 0.7
+max_health = 12
+move_speed = 4.2
+attack_range = 1.0
+windup_time = 0.45
+recover_time = 0.7
+drop_table_id = &"rato_gigante"

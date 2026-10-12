@@ -10,6 +10,8 @@ description = "Leve, para ataques à distância."
 kind = 1
 max_stack = 1
 stats = {
-"attack_speed": 1.4,
-"damage": 4
+"attack_range": 11.0,
+"attack_speed": 3.0,
+"damage": 5,
+"projectile_speed": 20.0
 }

@@ -31,3 +31,7 @@ func get_profession(id: StringName) -> ProfessionData:
 
 func get_hero(id: StringName) -> HeroData:
 	return catalog.get_hero(id)
+
+
+func get_enemy(id: StringName) -> EnemyData:
+	return catalog.get_enemy(id)

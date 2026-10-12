@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/enemy_data.gd" id="1_4oe0h"]
+
+[resource]
+script = ExtResource("1_4oe0h")
+id = &"esqueleto_bruto"
+display_name = "Esqueleto Bruto"
+color = Color(0.61960787, 0.56078434, 0.47843137, 1)
+body_scale = 1.5
+max_health = 70
+damage = 2
+move_speed = 2.0
+attack_range = 1.8
+windup_time = 0.9
+recover_time = 1.2
+drop_table_id = &"chefe_rei_ossudo"

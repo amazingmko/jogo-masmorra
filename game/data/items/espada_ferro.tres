@@ -10,6 +10,7 @@ description = "Simples e confiável."
 kind = 1
 max_stack = 1
 stats = {
-"attack_speed": 1.0,
-"damage": 6
+"attack_range": 1.9,
+"attack_speed": 2.0,
+"damage": 8
 }

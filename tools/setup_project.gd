@@ -1,6 +1,7 @@
 extends SceneTree
-## Gera os dados de exemplo, as cenas da fundação e o mapa de controles.
-## Rodar uma vez (já foi rodado; os arquivos gerados estão no repositório):
+## Gera os dados de exemplo, as cenas, o mapa de controles e as camadas de colisão.
+## ATENÇÃO: rodar de novo SOBRESCREVE os dados em game/data/ e as cenas.
+## Já foi rodado; os arquivos gerados estão no repositório. Comando:
 ##   godot --headless --path . --script res://tools/setup_project.gd
 ## Depois disso, edite tudo pelo editor do Godot.
 
@@ -28,6 +29,7 @@ func _build() -> void:
 	_make_recipes()
 	_make_drop_tables()
 	_make_buffs()
+	_make_enemies()
 	_make_player_scene()
 	_make_main_scene()
 	print("setup_project: concluído")
@@ -41,6 +43,7 @@ func _setup_input_map() -> void:
 		"move_right": [KEY_D, KEY_RIGHT],
 		"move_up": [KEY_W, KEY_UP],
 		"move_down": [KEY_S, KEY_DOWN],
+		"attack": [KEY_SPACE, KEY_J],
 	}
 	for action in actions:
 		var events := []
@@ -49,6 +52,11 @@ func _setup_input_map() -> void:
 			ev.physical_keycode = key
 			events.append(ev)
 		ProjectSettings.set_setting("input/" + action, {"deadzone": 0.2, "events": events})
+	# No PC, o mouse faz as vezes do dedo (para testar o joystick de toque).
+	ProjectSettings.set_setting("input_devices/pointing/emulate_touch_from_mouse", true)
+	var layer_names := ["mundo", "jogador", "inimigos", "coletaveis"]
+	for i in layer_names.size():
+		ProjectSettings.set_setting("layer_names/3d_physics/layer_%d" % (i + 1), layer_names[i])
 	ProjectSettings.save()
 
 
@@ -75,9 +83,9 @@ func _make_items() -> void:
 	_item("couro_rasgado", "Couro Rasgado", "Pode ser costurado em armaduras leves.", K.MATERIAL, GameEnums.Rarity.COMMON, 1, 99)
 	_item("erva_vermelha", "Erva Vermelha", "Planta que cresce no escuro. Usada em poções.", K.MATERIAL, GameEnums.Rarity.COMMON, 1, 99)
 	_item("pocao_vida", "Poção de Vida", "Recupera 2 de vida.", K.CONSUMABLE, GameEnums.Rarity.COMMON, 1, 20, {"heal": 2})
-	_item("espada_ferro", "Espada de Ferro", "Simples e confiável.", K.WEAPON, GameEnums.Rarity.COMMON, 1, 1, {"damage": 6, "attack_speed": 1.0})
-	_item("arco_simples", "Arco Simples", "Leve, para ataques à distância.", K.WEAPON, GameEnums.Rarity.COMMON, 1, 1, {"damage": 4, "attack_speed": 1.4})
-	_item("cajado_aprendiz", "Cajado de Aprendiz", "Canaliza magia básica.", K.WEAPON, GameEnums.Rarity.COMMON, 1, 1, {"damage": 5, "attack_speed": 0.9})
+	_item("espada_ferro", "Espada de Ferro", "Simples e confiável.", K.WEAPON, GameEnums.Rarity.COMMON, 1, 1, {"damage": 8, "attack_speed": 2.0, "attack_range": 1.9})
+	_item("arco_simples", "Arco Simples", "Leve, para ataques à distância.", K.WEAPON, GameEnums.Rarity.COMMON, 1, 1, {"damage": 5, "attack_speed": 3.0, "attack_range": 11.0, "projectile_speed": 20.0})
+	_item("cajado_aprendiz", "Cajado de Aprendiz", "Canaliza magia básica.", K.WEAPON, GameEnums.Rarity.COMMON, 1, 1, {"damage": 9, "attack_speed": 1.5, "attack_range": 10.0, "projectile_speed": 13.0})
 	_item("armadura_couro", "Armadura de Couro", "Proteção leve.", K.ARMOR, GameEnums.Rarity.UNCOMMON, 1, 1, {"armor": 2})
 
 
@@ -194,6 +202,32 @@ func _make_buffs() -> void:
 	_buff("recarga_rapida", "Mente Afiada", "Habilidade recarrega 25% mais rápido.", "skill_cooldown", 0.75, M.MULTIPLY)
 
 
+func _enemy(id: String, name: String, element: int, color: Color, body_scale: float,
+		hp: int, damage: int, speed: float, attack_range: float, windup: float, recover: float,
+		drop_table: String) -> void:
+	var e := EnemyData.new()
+	e.id = StringName(id)
+	e.display_name = name
+	e.element = element
+	e.color = color
+	e.body_scale = body_scale
+	e.max_health = hp
+	e.damage = damage
+	e.move_speed = speed
+	e.attack_range = attack_range
+	e.windup_time = windup
+	e.recover_time = recover
+	e.drop_table_id = StringName(drop_table)
+	_save(e, "res://game/data/enemies/%s.tres" % id)
+
+
+func _make_enemies() -> void:
+	var E := GameEnums.Element
+	_enemy("esqueleto", "Esqueleto", E.NEUTRAL, Color("cfc8b8"), 1.0, 24, 1, 2.6, 1.3, 0.6, 0.8, "esqueleto")
+	_enemy("rato_gigante", "Rato Gigante", E.NATURE, Color("8a6a4f"), 0.7, 12, 1, 4.2, 1.0, 0.45, 0.7, "rato_gigante")
+	_enemy("esqueleto_bruto", "Esqueleto Bruto", E.NEUTRAL, Color("9e8f7a"), 1.5, 70, 2, 2.0, 1.8, 0.9, 1.2, "chefe_rei_ossudo")
+
+
 # ---------- cenas ----------
 
 func _material(color: Color) -> StandardMaterial3D:
@@ -241,6 +275,11 @@ func _make_player_scene() -> void:
 	nose.material_override = _material(Color("2b2240"))
 	_add(body, nose, player)
 
+	var health := Health.new()
+	health.name = "Health"
+	health.invulnerability_time = 0.6
+	_add(player, health, player)
+
 	_pack(player, "res://game/scenes/player.tscn")
 
 
@@ -266,10 +305,16 @@ func _make_main_scene() -> void:
 	sun.shadow_enabled = true
 	_add(root, sun, root)
 
-	_add_box(root, "Floor", Vector3(24, 0.5, 24), Vector3(0, -0.25, 0), Color("4a4458"))
-	# Pilares só para dar noção de escala e testar colisão.
+	_add_box(root, "Floor", Vector3(22, 0.5, 22), Vector3(0, -0.25, 0), Color("4a4458"))
+	# Paredes da sala, para inimigos e disparos não saírem da arena.
+	var wall_color := Color("5c5470")
+	_add_box(root, "Wall", Vector3(22, 1.5, 0.6), Vector3(0, 0.75, -11), wall_color)
+	_add_box(root, "Wall", Vector3(22, 1.5, 0.6), Vector3(0, 0.75, 11), wall_color)
+	_add_box(root, "Wall", Vector3(0.6, 1.5, 22), Vector3(-11, 0.75, 0), wall_color)
+	_add_box(root, "Wall", Vector3(0.6, 1.5, 22), Vector3(11, 0.75, 0), wall_color)
+	# Pilares: obstáculos para usar como cobertura.
 	var pillar_color := Color("7a6f94")
-	for pos in [Vector3(-5, 1, -4), Vector3(5, 1, -4), Vector3(-5, 1, 5), Vector3(5, 1, 5)]:
+	for pos in [Vector3(-4.5, 1, -4.5), Vector3(4.5, 1, -4.5), Vector3(-4.5, 1, 4.5), Vector3(4.5, 1, 4.5)]:
 		_add_box(root, "Pillar", Vector3(1.2, 2, 1.2), pos, pillar_color)
 
 	var player_scene: PackedScene = load("res://game/scenes/player.tscn")
@@ -288,14 +333,8 @@ func _make_main_scene() -> void:
 
 	var hud := CanvasLayer.new()
 	hud.name = "HUD"
+	hud.set_script(load("res://game/scripts/ui/hud.gd"))
 	_add(root, hud, root)
-	var label := Label.new()
-	label.name = "Info"
-	label.position = Vector2(16, 12)
-	label.add_theme_color_override("font_color", Color("f2ecff"))
-	label.add_theme_color_override("font_outline_color", Color("1a1526"))
-	label.add_theme_constant_override("outline_size", 6)
-	_add(hud, label, root)
 
 	_pack(root, "res://game/scenes/main.tscn")
 

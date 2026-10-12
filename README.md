@@ -9,9 +9,17 @@ Feito em **Godot 4.7.2 (Standard, GDScript)**.
 1. Abra o Godot e clique em **Importar** (Import).
 2. Escolha o arquivo `project.godot` desta pasta.
 3. Clique em **Importar e Editar**. Na primeira vez o Godot leva alguns segundos preparando os arquivos.
-4. Aperte **F5** (ou o botão ▶ no canto superior direito) para jogar a cena de teste.
+4. Aperte **F5** (ou o botão ▶ no canto superior direito) para jogar a arena de teste.
 
-Controles da cena de teste: **WASD/setas** andam · **L** sorteia o loot de um esqueleto · **C** tenta forjar uma espada · **G** salva.
+Controles da arena (fase 2 — protótipo de combate):
+
+| ação | PC | celular / mouse |
+| --- | --- | --- |
+| andar | WASD ou setas | arrastar na metade esquerda da tela (joystick) |
+| atacar (mira sozinho) | segurar Espaço ou J | segurar o botão ATACAR |
+| trocar herói | 1 Guardião · 2 Batedora · 3 Arcanista | — |
+| recomeçar | R | botão Recomeçar |
+| forjar espada / salvar | C / G | — |
 
 ## Estrutura
 
@@ -21,7 +29,7 @@ game/
   data/          dados do jogo — itens, heróis, drops, receitas, profissões, buffs (.tres)
   scripts/       moldes de dados, regras (inventário, drop, crafting, save) e jogabilidade
   scenes/        cenas
-tests/           testes automáticos das regras
+tests/           testes automáticos das regras e simulação de combate
 tools/           script que gerou os dados de exemplo
 replica/         documentos do método: recon, matriz de features, arquitetura
 .claude/ .kiro/  skills do replica-skill
@@ -33,6 +41,8 @@ Para criar um item novo: no painel **FileSystem** do Godot, abra `game/data/item
 
 ```bash
 godot --headless --path . --script res://tests/run_tests.gd
+# robô jogando a arena (pega erros e dá noção de balanceamento):
+godot --headless --fixed-fps 60 --path . --script res://tests/sim_combat.gd -- hero=guardiao
 ```
 
 ## Ordem do método

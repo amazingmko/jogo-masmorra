@@ -22,6 +22,8 @@ func _process(_delta: float) -> bool:
 	_test_crafting(catalog)
 	_test_professions(catalog)
 	_test_save_file()
+	_test_health()
+	_test_damage(catalog)
 
 	print("\n%d verificações passaram, %d falharam." % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
@@ -151,3 +153,52 @@ func _test_save_file() -> void:
 	for p in [path, path + ".bak", path + ".tmp"]:
 		if FileAccess.file_exists(p):
 			DirAccess.remove_absolute(p)
+
+
+func _test_health() -> void:
+	var h := Health.new()
+	h.max_health = 5
+	h.max_armor = 2
+	h.armor_regen_delay = 4.0
+	h.armor_regen_interval = 1.0
+	h.reset()
+	h.take_damage(3)
+	check(h.armor == 0 and h.health == 4, "armadura absorve antes da vida")
+	h.tick(3.9)
+	check(h.armor == 0, "armadura não volta antes do tempo")
+	h.tick(1.2)
+	check(h.armor == 1, "armadura volta 1 ponto depois de 4s + 1s")
+	var died := [false]
+	h.died.connect(func() -> void: died[0] = true)
+	h.take_damage(10)
+	check(h.is_dead and h.health == 0 and died[0], "morre e avisa")
+	check(h.take_damage(1) == 0, "morto não toma mais dano")
+
+	var inv := Health.new()
+	inv.max_health = 5
+	inv.invulnerability_time = 0.6
+	inv.reset()
+	inv.take_damage(1)
+	check(inv.take_damage(1) == 0, "invencível logo depois de apanhar")
+	inv.tick(0.7)
+	check(inv.take_damage(1) == 1, "volta a tomar dano depois da invencibilidade")
+	h.free()
+	inv.free()
+
+
+func _test_damage(catalog: ItemCatalog) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1
+	var E := GameEnums.Element
+	var normal := Damage.roll(10, E.NEUTRAL, E.NEUTRAL, 0.0, rng)
+	check(normal.amount == 10 and not normal.crit, "dano base sem crítico")
+	var elemental := Damage.roll(10, E.FIRE, E.NATURE, 0.0, rng)
+	check(elemental.amount == 13, "fogo contra natureza dá +30%")
+	var crit := Damage.roll(10, E.NEUTRAL, E.NEUTRAL, 1.0, rng)
+	check(crit.crit and crit.amount == 20, "crítico dobra o dano")
+
+	var sword := WeaponStats.from_item(catalog.get_item(&"espada_ferro"))
+	var bow := WeaponStats.from_item(catalog.get_item(&"arco_simples"))
+	check(not sword.is_ranged() and bow.is_ranged(), "espada é corpo a corpo, arco dispara")
+	check(is_equal_approx(sword.cooldown(), 0.5), "espada ataca 2x por segundo")
+	check(catalog.enemies.size() >= 3, "inimigos carregados")

@@ -1,0 +1,26 @@
+class_name EnemyData
+extends Resource
+## Molde de um inimigo. Cada arquivo em game/data/enemies/ é um EnemyData.
+
+@export var id: StringName
+@export var display_name: String = ""
+@export var element: GameEnums.Element = GameEnums.Element.NEUTRAL
+@export var color: Color = Color("c95b5b")
+## Tamanho do corpo (1 = tamanho do herói).
+@export_range(0.4, 3.0) var body_scale: float = 1.0
+
+@export_group("Atributos")
+@export var max_health: int = 20
+@export var damage: int = 1
+@export var move_speed: float = 2.8
+
+@export_group("Ataque")
+## Distância em que o inimigo para e prepara o golpe.
+@export var attack_range: float = 1.4
+## Tempo de "aviso" antes do golpe. É a janela para o jogador desviar.
+@export var windup_time: float = 0.6
+## Pausa depois de golpear.
+@export var recover_time: float = 0.8
+
+@export_group("Recompensa")
+@export var drop_table_id: StringName

@@ -1,74 +1,126 @@
 extends Node3D
-## Cena de teste da fundação.
-## Mostra que o 3D, a câmera, os dados, o inventário, o crafting e o save funcionam juntos.
-##   WASD ou setas: andar
-##   L: matar um esqueleto de mentira e sortear o loot
-##   C: tentar forjar uma espada de ferro
-##   G: gravar (salvar) agora
+## Arena de teste do combate (fase 2).
+## Ondas de inimigos numa sala; o loot vai para o inventário na hora, então mesmo morrendo
+## o jogador fica com o que juntou ("toda run rende algum avanço").
+##
+## PC: WASD anda · Espaço ataca · 1/2/3 troca herói · R recomeça · C forja espada · G salva
+## Celular: joystick à esquerda, botão ATACAR à direita
 
-@onready var _info: Label = $HUD/Info
+## Cada onda é uma lista de ids de inimigos (game/data/enemies/).
+const WAVES := [
+	[&"esqueleto", &"esqueleto"],
+	[&"rato_gigante", &"rato_gigante", &"rato_gigante", &"esqueleto"],
+	[&"esqueleto", &"esqueleto", &"esqueleto", &"rato_gigante", &"rato_gigante"],
+	[&"esqueleto_bruto", &"rato_gigante", &"rato_gigante"],
+]
+const SPAWN_POINTS := [
+	Vector3(-8, 0.1, -8), Vector3(0, 0.1, -9), Vector3(8, 0.1, -8),
+	Vector3(-9, 0.1, 0), Vector3(9, 0.1, 0),
+	Vector3(-8, 0.1, 8), Vector3(0, 0.1, 9), Vector3(8, 0.1, 8),
+]
+const PLAYER_START := Vector3(0, 0.1, 0)
+const HERO_KEYS := {KEY_1: &"guardiao", KEY_2: &"batedora", KEY_3: &"arcanista"}
 
+var _wave_index := -1
+var _alive := 0
+var _run_over := false
+var _run_id := 0  # muda a cada recomeço, para timers antigos não dispararem ondas novas
 var _rng := RandomNumberGenerator.new()
-var _last_message := "Aperte L para sortear loot de um esqueleto."
+
+@onready var _player: Player = $Player
+@onready var _hud: Hud = $HUD
 
 
 func _ready() -> void:
 	_rng.randomize()
-	GameState.inventory.changed.connect(_refresh)
-	_refresh()
+	_hud.bind_player(_player)
+	_hud.restart_requested.connect(_restart)
+	_player.died.connect(_on_player_died)
+	_next_wave()
+
+
+func _process(_delta: float) -> void:
+	# Repassa os controles de toque para o herói.
+	_player.touch_move = _hud.move_vector()
+	_player.touch_attack = _hud.attack_held()
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return
+	if HERO_KEYS.has(event.keycode):
+		_player.set_hero(ItemDB.get_hero(HERO_KEYS[event.keycode]))
+		_hud.show_toast("Herói: " + _player.hero.display_name)
+		return
 	match event.keycode:
-		KEY_L:
-			_simulate_kill(&"esqueleto")
+		KEY_R:
+			_restart()
 		KEY_C:
-			_try_craft(&"forjar_espada_ferro")
+			var recipe := ItemDB.get_recipe(&"forjar_espada_ferro")
+			var result := Crafting.craft(recipe, GameState.inventory, GameState.professions, ItemDB.catalog)
+			_hud.show_toast("Forjou: Espada de Ferro!" if result.ok else "Não deu: " + result.reason)
 		KEY_G:
-			_last_message = "Jogo salvo." if GameState.save() else "Falha ao salvar."
-			_refresh()
+			_hud.show_toast("Jogo salvo." if GameState.save() else "Falha ao salvar.")
 
 
-func _simulate_kill(table_id: StringName) -> void:
-	var table := ItemDB.get_drop_table(table_id)
-	var loot := table.roll(_rng)
-	if loot.is_empty():
-		_last_message = "O esqueleto não deixou nada."
-	else:
-		var parts := PackedStringArray()
-		for drop in loot:
-			var item := ItemDB.get_item(drop.item_id)
-			GameState.inventory.add(item, drop.qty)
-			parts.append("%d× %s" % [drop.qty, item.display_name])
-		_last_message = "Loot: " + ", ".join(parts)
-	_refresh()
+# ---------- ondas ----------
+
+func _next_wave() -> void:
+	_wave_index += 1
+	if _wave_index >= WAVES.size():
+		_on_room_cleared()
+		return
+	_hud.set_wave("Onda %d/%d" % [_wave_index + 1, WAVES.size()])
+	var points := SPAWN_POINTS.duplicate()
+	points.shuffle()
+	var wave: Array = WAVES[_wave_index]
+	_alive = wave.size()
+	for i in wave.size():
+		_spawn_enemy(wave[i], points[i % points.size()])
 
 
-func _try_craft(recipe_id: StringName) -> void:
-	var recipe := ItemDB.get_recipe(recipe_id)
-	var result := Crafting.craft(recipe, GameState.inventory, GameState.professions, ItemDB.catalog)
-	if result.ok:
-		_last_message = "Forjou: %s! (Ferreiro nível %d)" % [
-			recipe.display_name, GameState.professions.level_of(recipe.profession_id)]
-	else:
-		_last_message = "Não deu para forjar: " + result.reason
-	_refresh()
+func _spawn_enemy(enemy_id: StringName, at: Vector3) -> void:
+	var data := ItemDB.get_enemy(enemy_id)
+	if data == null:
+		push_error("Inimigo inexistente: %s" % enemy_id)
+		_alive -= 1
+		return
+	var enemy := Enemy.create(data)
+	add_child(enemy)
+	enemy.global_position = at
+	enemy.died.connect(_on_enemy_died)
 
 
-func _refresh() -> void:
-	var lines := PackedStringArray()
-	lines.append("FUNDAÇÃO — WASD/setas: andar · L: loot · C: forjar espada · G: salvar")
-	lines.append(_last_message)
-	lines.append("")
-	lines.append("Inventário:")
-	if GameState.inventory.stacks.is_empty() and GameState.inventory.equipment.is_empty():
-		lines.append("  (vazio)")
-	for item_id in GameState.inventory.stacks:
-		var item := ItemDB.get_item(StringName(item_id))
-		lines.append("  %d× %s" % [GameState.inventory.stacks[item_id], item.display_name if item else item_id])
-	for eq in GameState.inventory.equipment:
-		var item := ItemDB.get_item(StringName(eq.item_id))
-		lines.append("  [equip.] %s" % (item.display_name if item else eq.item_id))
-	_info.text = "\n".join(lines)
+func _on_enemy_died(_enemy: Enemy) -> void:
+	_alive -= 1
+	if _alive <= 0 and not _run_over:
+		var run := _run_id
+		get_tree().create_timer(1.2).timeout.connect(func() -> void:
+			if not _run_over and run == _run_id:
+				_next_wave())
+
+
+func _on_room_cleared() -> void:
+	_run_over = true
+	_hud.set_wave("Sala limpa!")
+	GameState.save()
+	_hud.show_panel("Sala limpa!", "Todas as ondas derrotadas. O loot já está no inventário e o jogo foi salvo.")
+
+
+func _on_player_died() -> void:
+	_run_over = true
+	GameState.save()
+	_hud.show_panel("Você caiu", "Chegou à onda %d. O que você recolheu ficou guardado." % (_wave_index + 1))
+
+
+func _restart() -> void:
+	for node in get_tree().get_nodes_in_group("enemies"):
+		node.queue_free()
+	for node in get_tree().get_nodes_in_group("pickups"):
+		node.queue_free()
+	_hud.hide_panel()
+	_player.revive(PLAYER_START)
+	_run_over = false
+	_run_id += 1
+	_wave_index = -1
+	_next_wave()

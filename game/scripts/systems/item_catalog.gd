@@ -11,6 +11,7 @@ var drop_tables: Dictionary = {}    # id -> DropTable
 var recipes: Dictionary = {}        # id -> RecipeData
 var professions: Dictionary = {}    # id -> ProfessionData
 var buffs: Dictionary = {}          # id -> BuffData
+var enemies: Dictionary = {}        # id -> EnemyData
 
 
 func load_all(root: String = DATA_ROOT) -> void:
@@ -20,6 +21,7 @@ func load_all(root: String = DATA_ROOT) -> void:
 	_load_folder(root + "/recipes", recipes)
 	_load_folder(root + "/professions", professions)
 	_load_folder(root + "/buffs", buffs)
+	_load_folder(root + "/enemies", enemies)
 
 
 func get_item(id: StringName) -> ItemData:
@@ -42,6 +44,10 @@ func get_hero(id: StringName) -> HeroData:
 	return heroes.get(id)
 
 
+func get_enemy(id: StringName) -> EnemyData:
+	return enemies.get(id)
+
+
 ## Confere se todo id citado em drops e receitas existe. Devolve a lista de problemas.
 func validate() -> PackedStringArray:
 	var problems := PackedStringArray()
@@ -60,6 +66,9 @@ func validate() -> PackedStringArray:
 	for hero: HeroData in heroes.values():
 		if hero.starting_weapon_id != &"" and not items.has(hero.starting_weapon_id):
 			problems.append("Herói '%s' começa com item inexistente '%s'" % [hero.id, hero.starting_weapon_id])
+	for enemy: EnemyData in enemies.values():
+		if enemy.drop_table_id != &"" and not drop_tables.has(enemy.drop_table_id):
+			problems.append("Inimigo '%s' usa tabela de drop inexistente '%s'" % [enemy.id, enemy.drop_table_id])
 	return problems
 
 
