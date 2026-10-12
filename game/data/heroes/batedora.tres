@@ -6,10 +6,12 @@
 script = ExtResource("1_c5rvn")
 id = &"batedora"
 display_name = "Batedora"
-description = "Rápida, ataca de longe."
+description = "Rápida, ataca de longe. Agilidade, couro."
 hero_class = 1
 element = 3
-max_health = 5
+primary_stat = 1
+weapon_type = &"arco"
+max_health = 90
 max_energy = 180
 move_speed = 5.5
 starting_weapon_id = &"arco_simples"

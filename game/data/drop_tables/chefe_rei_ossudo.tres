@@ -19,14 +19,11 @@ max_qty = 4
 
 [sub_resource type="Resource" id="Resource_0qmaq"]
 script = ExtResource("1_p3vo2")
-item_id = &"armadura_couro"
-
-[sub_resource type="Resource" id="Resource_goyc5"]
-script = ExtResource("1_p3vo2")
-item_id = &"espada_ferro"
+table_id = &"equipamento"
+weight = 50
 
 [resource]
 script = ExtResource("2_3h33a")
 id = &"chefe_rei_ossudo"
-rolls = 3
-entries = Array[ExtResource("1_p3vo2")]([SubResource("Resource_p3vo2"), SubResource("Resource_3h33a"), SubResource("Resource_0qmaq"), SubResource("Resource_goyc5")])
+rolls = 4
+entries = Array[ExtResource("1_p3vo2")]([SubResource("Resource_p3vo2"), SubResource("Resource_3h33a"), SubResource("Resource_0qmaq")])

@@ -16,9 +16,10 @@ const CLASS_COLORS := {
 @export var turn_speed: float = 14.0
 
 var hero: HeroData
-var weapon: ItemData
+## Atributos finais (nível + equipamento + bênçãos). Ver HeroStats.
+var stats := HeroStats.new()
 var weapon_stats := WeaponStats.new()
-## Buffs escolhidos nesta run (somem ao começar outra).
+## Bênçãos escolhidas nesta run (somem ao começar outra).
 var buffs: Array[BuffData] = []
 var move_speed := 5.0
 var crit_chance := 0.05
@@ -26,6 +27,8 @@ var crit_chance := 0.05
 var touch_move := Vector2.ZERO
 var touch_attack := false
 var controls_enabled := true
+## No hub o herói só anda (sem atacar).
+var combat_enabled := true
 
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 var _attack_cooldown := 0.0
@@ -50,8 +53,10 @@ func _ready() -> void:
 	_mesh.material_override = _material
 	health.damaged.connect(_on_damaged)
 	health.died.connect(_on_died)
+	health.armor_regen_amount = 10
 	_marker = _make_target_marker()
-	set_hero(ItemDB.get_hero(hero_id))
+	GameState.hero_progress_changed.connect(_on_progress_changed)
+	set_hero(ItemDB.get_hero(GameState.selected_hero))
 
 
 func set_hero(new_hero: HeroData) -> void:
@@ -59,54 +64,44 @@ func set_hero(new_hero: HeroData) -> void:
 		return
 	hero = new_hero
 	hero_id = new_hero.id
-	weapon = ItemDB.get_item(new_hero.starting_weapon_id)
-	health.max_health = new_hero.max_health
-	health.max_armor = new_hero.max_armor
-	health.reset()
-	_recompute_stats()
+	refresh_stats(true)
 	_base_color = CLASS_COLORS.get(new_hero.hero_class, Color.WHITE)
 	_material.albedo_color = _base_color
 	hero_changed.emit(new_hero)
 
 
-# ---------- buffs ----------
+# ---------- atributos e bênçãos ----------
 
 func apply_buff(buff: BuffData) -> void:
 	buffs.append(buff)
-	_recompute_stats()
+	refresh_stats()
 
 
 func clear_buffs() -> void:
 	buffs.clear()
-	_recompute_stats()
+	refresh_stats()
 
 
-## Valor de um atributo depois dos buffs: primeiro soma, depois multiplica.
-func stat_value(stat: StringName, base: float) -> float:
-	var add := 0.0
-	var mult := 1.0
-	for b in buffs:
-		if b.stat != stat:
-			continue
-		if b.mode == BuffData.Mode.ADD:
-			add += b.amount
-		else:
-			mult *= b.amount
-	return (base + add) * mult
-
-
-func _recompute_stats() -> void:
+## Recalcula tudo a partir do nível, equipamento e bênçãos. full_heal: começa com vida cheia.
+func refresh_stats(full_heal: bool = false) -> void:
 	if hero == null:
 		return
-	var w := WeaponStats.from_item(weapon)
-	w.damage = maxi(int(round(stat_value(&"damage", w.damage))), 1)
-	w.attack_speed = stat_value(&"attack_speed", w.attack_speed)
-	w.attack_range = stat_value(&"attack_range", w.attack_range)
-	weapon_stats = w
-	move_speed = stat_value(&"move_speed", hero.move_speed)
-	crit_chance = clampf(stat_value(&"crit_chance", hero.crit_chance), 0.0, 1.0)
-	health.set_maximums(int(round(stat_value(&"max_health", hero.max_health))),
-		int(round(stat_value(&"max_armor", hero.max_armor))))
+	stats = GameState.stats_for(hero_id, buffs)
+	weapon_stats = stats.weapon
+	move_speed = stats.move_speed
+	crit_chance = stats.crit_chance
+	health.damage_reduction = stats.damage_reduction
+	if full_heal:
+		health.max_health = stats.max_health
+		health.max_armor = stats.max_shield
+		health.reset()
+	else:
+		health.set_maximums(stats.max_health, stats.max_shield)
+
+
+func _on_progress_changed(changed_hero: StringName) -> void:
+	if changed_hero == hero_id:
+		refresh_stats()
 
 
 func revive(at: Vector3) -> void:
@@ -130,11 +125,11 @@ func _physics_process(delta: float) -> void:
 	if direction.length() > 0.1:
 		_facing = direction.normalized()
 
-	_target = _find_target() if controls_enabled else null
+	_target = _find_target() if controls_enabled and combat_enabled else null
 	_update_marker()
 
 	_attack_cooldown -= delta
-	var attacking := controls_enabled and (touch_attack or Input.is_action_pressed("attack"))
+	var attacking := controls_enabled and combat_enabled and (touch_attack or Input.is_action_pressed("attack"))
 	if attacking:
 		if _target:
 			var to_target := _target.global_position - global_position

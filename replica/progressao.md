@@ -4,7 +4,7 @@ Decisões da autora (12/10/2026) e números iniciais. Os números serão calibra
 
 **Decidido:** energia de recompensa (opção B, seção 7) · regras de falha no crafting (seção 6) · Druida e Vampiro em couro/agilidade · pet de energia (seção 8).
 
-**Construção:** fase 4a = seções 2–5 e 9 (atributos, armaduras, raridades, itens, nível, hub) · fase 4b = seções 1, 6 e 7 (dificuldades, crafting, energia).
+**Construção:** fase 4a = seções 2–5 e 9 (atributos, armaduras, raridades, itens, nível, hub) — **feita** · fase 4b = seções 1, 6 e 7 (dificuldades, crafting, energia).
 
 ## 1. Níveis de dificuldade
 

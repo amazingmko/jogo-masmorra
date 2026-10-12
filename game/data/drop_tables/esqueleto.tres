@@ -17,8 +17,8 @@ max_qty = 2
 
 [sub_resource type="Resource" id="Resource_heye7"]
 script = ExtResource("1_f61bs")
-item_id = &"espada_ferro"
-weight = 2
+table_id = &"equipamento"
+weight = 6
 
 [resource]
 script = ExtResource("2_8h712")

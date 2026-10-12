@@ -55,6 +55,10 @@ func bind_player(player: Player) -> void:
 		_on_hero_changed(player.hero)
 
 
+func refresh_hero(hero: HeroData) -> void:
+	_on_hero_changed(hero)
+
+
 func set_wave(text: String) -> void:
 	_wave_label.text = text
 
@@ -97,7 +101,7 @@ func show_buff_choice(options: Array[BuffData], title: String) -> void:
 		card.add_theme_font_size_override("font_size", 20)
 		var style := StyleBoxFlat.new()
 		style.bg_color = Color(0.17, 0.13, 0.25, 0.95)
-		style.border_color = LootPickup.RARITY_COLORS.get(buff.rarity, Color.WHITE)
+		style.border_color = GameEnums.rarity_color(buff.rarity)
 		style.set_border_width_all(3)
 		style.set_corner_radius_all(14)
 		style.set_content_margin_all(14)
@@ -134,8 +138,13 @@ func hide_panel() -> void:
 
 
 ## Chamado pelos itens do chão (grupo "loot_listeners").
-func on_loot_collected(item: ItemData, qty: int) -> void:
-	show_toast("+%d %s" % [qty, item.display_name], LootPickup.RARITY_COLORS.get(item.rarity, Color.WHITE))
+func on_loot_collected(item: ItemData, qty: int, instance: Dictionary = {}) -> void:
+	if instance.is_empty():
+		show_toast("+%d %s" % [qty, item.display_name], GameEnums.rarity_color(item.rarity))
+	else:
+		var r := int(instance.rarity)
+		show_toast("+ %s %s" % [ItemFactory.display_name(instance, ItemDB.catalog), GameEnums.rarity_name(r)],
+			GameEnums.rarity_color(r))
 
 
 # ---------- atualização ----------
@@ -145,7 +154,7 @@ func _on_health_changed(health: int, max_health: int, armor: int, max_armor: int
 	_health_bar.value = health
 	_armor_bar.max_value = maxi(max_armor, 1)
 	_armor_bar.value = armor
-	_health_label.text = "Vida %d/%d   Armadura %d/%d" % [health, max_health, armor, max_armor]
+	_health_label.text = "Vida %d/%d   Escudo %d/%d" % [health, max_health, armor, max_armor]
 
 
 func _on_hero_changed(hero: HeroData) -> void:
@@ -154,7 +163,8 @@ func _on_hero_changed(hero: HeroData) -> void:
 		GameEnums.HeroClass.RANGER: "Ranger",
 		GameEnums.HeroClass.MAGE: "Mago",
 	}
-	_hero_label.text = "%s (%s)" % [hero.display_name, class_names.get(hero.hero_class, "?")]
+	_hero_label.text = "%s (%s) · nv %d" % [hero.display_name, class_names.get(hero.hero_class, "?"),
+		GameState.level_of(hero.id)]
 
 
 # ---------- montagem ----------
@@ -182,7 +192,7 @@ func _build_status() -> void:
 	add_child(_wave_label)
 
 	_help_label = _make_label(14)
-	_help_label.text = "PC: WASD anda · Espaço ataca\n1/2/3 troca herói · R nova run\nC forja espada · G salva"
+	_help_label.text = "PC: WASD anda · Espaço ataca\nR nova run · G salva"
 	_help_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_help_label.modulate.a = 0.7
 	_help_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)

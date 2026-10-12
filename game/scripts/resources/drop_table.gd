@@ -12,6 +12,7 @@ extends Resource
 
 ## Sorteia o loot. Recebe o gerador da run, para a mesma semente dar o mesmo resultado.
 ## Devolve uma lista de {"item_id": StringName, "qty": int}, juntando itens repetidos.
+## Entradas que apontam para outra tabela voltam como item_id "@nome_da_tabela" (o LootRoller resolve).
 func roll(rng: RandomNumberGenerator) -> Array[Dictionary]:
 	var totals := {}
 	var total_weight := nothing_weight
@@ -29,7 +30,8 @@ func roll(rng: RandomNumberGenerator) -> Array[Dictionary]:
 			acc += entry.weight
 			if pick <= acc:
 				var qty := rng.randi_range(entry.min_qty, maxi(entry.min_qty, entry.max_qty))
-				totals[entry.item_id] = totals.get(entry.item_id, 0) + qty
+				var key: StringName = entry.item_id if entry.table_id == &"" else StringName("@" + String(entry.table_id))
+				totals[key] = totals.get(key, 0) + qty
 				break
 
 	var result: Array[Dictionary] = []

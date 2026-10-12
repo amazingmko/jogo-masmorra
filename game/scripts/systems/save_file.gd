@@ -8,7 +8,7 @@ extends RefCounted
 ## 3. só então troca o temporário pelo principal.
 ## Se o principal estiver corrompido ao carregar, usa o backup.
 
-const CURRENT_VERSION := 1
+const CURRENT_VERSION := 2
 
 
 static func write(path: String, data: Dictionary) -> Error:
@@ -52,10 +52,12 @@ static func migrate(data: Dictionary) -> Dictionary:
 	if data.is_empty():
 		return data
 	var version := int(data.get("save_version", 1))
-	# Exemplo para o futuro:
-	# if version < 2:
-	#     data["novo_campo"] = valor_padrao
-	#     version = 2
+	if version < 2:
+		# v2: heróis com nível/XP/equipamento; peças com raridade, nível e atributos.
+		# Inventory e GameState completam os campos que faltam ao carregar.
+		if not data.has("heroes"):
+			data["heroes"] = {}
+		version = 2
 	data["save_version"] = version
 	return data
 

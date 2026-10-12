@@ -1,7 +1,8 @@
 class_name Health
 extends Node
-## Vida e armadura de qualquer personagem (herói ou inimigo).
-## A armadura absorve o dano primeiro e se regenera depois de um tempo sem apanhar.
+## Vida e escudo de qualquer personagem (herói ou inimigo).
+## O escudo (variáveis "armor", por compatibilidade) absorve o dano primeiro e se regenera
+## depois de um tempo sem apanhar. A redução de dano vem da Armadura do equipamento.
 
 signal changed(health: int, max_health: int, armor: int, max_armor: int)
 signal damaged(amount: int)
@@ -11,8 +12,12 @@ signal died
 @export var max_armor: int = 0
 ## Segundos sem apanhar até a armadura começar a voltar.
 @export var armor_regen_delay: float = 4.0
-## Segundos para recuperar cada ponto de armadura.
+## Segundos para recuperar cada parcela de escudo.
 @export var armor_regen_interval: float = 1.0
+## Quanto de escudo volta a cada parcela.
+@export var armor_regen_amount: int = 1
+## Fração do dano bloqueada pela Armadura (0 a 0.75).
+var damage_reduction: float = 0.0
 ## Segundos de invencibilidade depois de apanhar (para o herói não morrer de uma vez).
 @export var invulnerability_time: float = 0.0
 
@@ -42,6 +47,7 @@ func reset() -> void:
 func take_damage(amount: int) -> int:
 	if is_dead or amount <= 0 or _invulnerable > 0.0:
 		return 0
+	amount = maxi(int(round(amount * (1.0 - damage_reduction))), 1)
 	var absorbed := mini(armor, amount)
 	armor -= absorbed
 	health -= amount - absorbed
@@ -100,7 +106,7 @@ func tick(delta: float) -> void:
 		_regen_timer += delta
 		while _regen_timer >= armor_regen_interval and armor < max_armor:
 			_regen_timer -= armor_regen_interval
-			armor += 1
+			armor = mini(armor + armor_regen_amount, max_armor)
 			_emit_changed()
 
 

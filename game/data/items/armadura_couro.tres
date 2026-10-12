@@ -5,11 +5,9 @@
 [resource]
 script = ExtResource("1_vdnoo")
 id = &"armadura_couro"
-display_name = "Armadura de Couro"
-description = "Proteção leve."
+display_name = "Gibão de Couro"
+description = "Peça de armadura. Raridade, nível e atributos são sorteados quando cai."
 kind = 2
-rarity = 1
 max_stack = 1
-stats = {
-"armor": 2
-}
+slot = 2
+armor_type = 1

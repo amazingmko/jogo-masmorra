@@ -2,13 +2,13 @@ class_name Inventory
 extends RefCounted
 ## Inventário do jogador.
 ## Materiais e consumíveis empilham: {id: quantidade}.
-## Equipamentos são únicos: cada um tem um "uid", porque no futuro duas espadas
-## iguais poderão ter atributos diferentes.
+## Equipamentos são peças únicas, cada uma com "uid", raridade, nível de item e atributos
+## (ver ItemFactory). Peças salvas sem atributos são completadas pelo GameState ao carregar.
 
 signal changed
 
 var stacks: Dictionary = {}            # String id -> int quantidade
-var equipment: Array[Dictionary] = []  # [{"uid", "item_id", "level"}]
+var equipment: Array[Dictionary] = []  # [{"uid", "item_id", "ilvl", "rarity", "stats"}]
 var _next_uid: int = 1
 
 
@@ -17,12 +17,38 @@ func add(item: ItemData, qty: int = 1) -> void:
 		return
 	if item.is_equipment():
 		for i in qty:
-			equipment.append({"uid": "eq%d" % _next_uid, "item_id": String(item.id), "level": 1})
-			_next_uid += 1
+			add_equipment({"item_id": String(item.id), "ilvl": 1, "rarity": 0, "stats": {}}, false)
 	else:
 		var key := String(item.id)
 		stacks[key] = stacks.get(key, 0) + qty
 	changed.emit()
+
+
+## Guarda uma peça gerada pelo ItemFactory e devolve o uid dela.
+func add_equipment(instance: Dictionary, notify: bool = true) -> String:
+	var piece := instance.duplicate(true)
+	piece["uid"] = "eq%d" % _next_uid
+	_next_uid += 1
+	equipment.append(piece)
+	if notify:
+		changed.emit()
+	return piece.uid
+
+
+func get_equipment(uid: String) -> Dictionary:
+	for eq in equipment:
+		if eq.uid == uid:
+			return eq
+	return {}
+
+
+func remove_equipment(uid: String) -> bool:
+	for i in equipment.size():
+		if equipment[i].uid == uid:
+			equipment.remove_at(i)
+			changed.emit()
+			return true
+	return false
 
 
 func count(item_id: StringName) -> int:
@@ -76,10 +102,16 @@ func from_dict(data: Dictionary) -> void:
 	for key in saved_stacks:
 		stacks[String(key)] = int(saved_stacks[key])
 	for eq in data.get("equipment", []):
+		var stats := {}
+		var saved_eq_stats: Dictionary = eq.get("stats", {})
+		for k in saved_eq_stats:
+			stats[String(k)] = int(saved_eq_stats[k])
 		equipment.append({
 			"uid": String(eq.get("uid", "")),
 			"item_id": String(eq.get("item_id", "")),
-			"level": int(eq.get("level", 1)),
+			"ilvl": int(eq.get("ilvl", eq.get("level", 1))),
+			"rarity": int(eq.get("rarity", 0)),
+			"stats": stats,
 		})
 	_next_uid = int(data.get("next_uid", equipment.size() + 1))
 	changed.emit()

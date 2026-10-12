@@ -101,8 +101,9 @@ func _steer(player: Node3D) -> Vector2:
 	var pos: Vector3 = player.global_position
 	var target := _choose_target(player)
 
-	# Destravar: se não sai do lugar, vai um tempo em direção ao centro da sala.
-	if pos.distance_to(_last_pos) < 0.02 and target != Vector3.INF:
+	# Destravar: se quer andar mas não sai do lugar, vai um tempo em direção ao centro da sala.
+	var wants_to_move := target != Vector3.INF and Vector2(target.x - pos.x, target.z - pos.z).length() > 0.3
+	if wants_to_move and _detour == 0 and pos.distance_to(_last_pos) < 0.02:
 		_stuck_frames += 1
 	else:
 		_stuck_frames = 0

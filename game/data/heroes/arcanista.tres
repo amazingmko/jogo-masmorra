@@ -6,10 +6,12 @@
 script = ExtResource("1_m60a1")
 id = &"arcanista"
 display_name = "Arcanista"
-description = "Frágil, mas com magia poderosa."
+description = "Frágil, mas com magia poderosa. Inteligência, tecido."
 hero_class = 2
 element = 1
-max_health = 4
-max_armor = 2
+primary_stat = 2
+weapon_type = &"cajado"
+max_health = 80
+max_shield = 20
 max_energy = 220
 starting_weapon_id = &"cajado_aprendiz"

@@ -6,9 +6,10 @@
 script = ExtResource("1_jx2t3")
 id = &"guardiao"
 display_name = "Guardião"
-description = "Aguenta pancada e protege o grupo."
-max_health = 8
-max_armor = 5
+description = "Aguenta pancada e protege o grupo. Força, placa."
+weapon_type = &"espada"
+max_health = 120
+max_shield = 50
 max_energy = 120
 move_speed = 4.5
 starting_weapon_id = &"espada_ferro"

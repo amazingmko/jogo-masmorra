@@ -25,6 +25,8 @@ func _process(_delta: float) -> bool:
 	_test_health()
 	_test_damage(catalog)
 	_test_dungeon_layout()
+	_test_items_and_stats(catalog)
+	_test_progression()
 
 	print("\n%d verificações passaram, %d falharam." % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
@@ -253,3 +255,80 @@ func _test_dungeon_layout() -> void:
 		if a.rooms[i].cell != b.rooms[i].cell or a.rooms[i].type != b.rooms[i].type:
 			same = false
 	check(same, "mesma semente gera a mesma planta")
+
+
+func _test_items_and_stats(catalog: ItemCatalog) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	var R := GameEnums.Rarity
+	var helm := catalog.get_item(&"elmo_placa")
+	var robe := catalog.get_item(&"tunica_tecido")
+	var common := ItemFactory.roll(helm, 5, R.COMMON, rng)
+	var epic := ItemFactory.roll(helm, 5, R.EPIC, rng)
+	check(common.stats.has("strength") and not common.stats.has("intellect"), "placa dá força")
+	check(ItemFactory.roll(robe, 5, R.COMMON, rng).stats.has("intellect"), "tecido dá inteligência")
+	check(int(epic.stats.strength) > int(common.stats.strength) and int(epic.stats.armor) > int(common.stats.armor),
+		"épico é mais forte que comum no mesmo nível")
+	var secondaries := 0
+	for k in ["crit", "haste", "luck"]:
+		if epic.stats.has(k):
+			secondaries += 1
+	check(secondaries == 2 and not common.stats.has("crit") and not common.stats.has("haste"), "épico tem 2 secundários, comum nenhum")
+	var high := ItemFactory.roll(helm, 10, R.COMMON, rng)
+	check(int(high.stats.strength) > int(common.stats.strength), "nível de item maior dá mais atributo")
+
+	var legendary_drop := false
+	for i in 3000:
+		if ItemFactory.roll_rarity("boss", rng) == R.LEGENDARY or ItemFactory.roll_rarity("normal", rng) == R.LEGENDARY:
+			legendary_drop = true
+	check(not legendary_drop, "lendário nunca cai de inimigo (só crafting)")
+
+	var guardian := catalog.get_hero(&"guardiao")
+	check(ItemFactory.can_use(guardian, helm) and not ItemFactory.can_use(guardian, robe), "guardião veste placa e não tecido")
+	check(ItemFactory.can_use(guardian, catalog.get_item(&"espada_ferro")) and not ItemFactory.can_use(guardian, catalog.get_item(&"arco_simples")),
+		"guardião usa espada e não arco")
+
+	# Drop de equipamento: tabela "equipamento" vira peça única com atributos.
+	var got_piece := false
+	var own_type := 0
+	var total := 0
+	for i in 300:
+		for d in LootRoller.roll(catalog.get_drop_table(&"chefe_rei_ossudo"), catalog, rng, {"ilvl": 8, "profile": "boss", "hero": guardian}):
+			if not d.instance.is_empty():
+				got_piece = true
+				total += 1
+				if ItemFactory.can_use(guardian, d.item):
+					own_type += 1
+				if int(d.instance.ilvl) != 8 or int(d.instance.rarity) < R.RARE:
+					got_piece = false
+	check(got_piece and total > 0, "chefe deixa peças de nível 8, raras ou épicas")
+	check(float(own_type) / total > 0.5, "mais da metade das peças serve no herói atual (%d/%d)" % [own_type, total])
+
+	# Atributos do herói: nível e equipamento somam.
+	var base := HeroStats.compute(guardian, 1, {}, catalog)
+	var leveled := HeroStats.compute(guardian, 5, {}, catalog)
+	var chest := ItemFactory.roll(catalog.get_item(&"peitoral_placa"), 5, R.RARE, rng)
+	var geared := HeroStats.compute(guardian, 5, {GameEnums.Slot.CHEST: chest}, catalog)
+	check(base.primary == 10 and leveled.primary == 18 and leveled.max_health > base.max_health, "nível dá força e vida")
+	check(geared.primary == leveled.primary + int(chest.stats.strength) and geared.armor == int(chest.stats.armor),
+		"equipamento soma força e armadura")
+	check(geared.damage_reduction > 0.0 and geared.weapon.damage > leveled.weapon.damage - 1, "armadura reduz dano; força aumenta o dano")
+	var fury: BuffData = catalog.buffs.get(&"furia")
+	var buffed := HeroStats.compute(guardian, 5, {}, catalog, [fury])
+	check(buffed.weapon.damage > leveled.weapon.damage, "bênção Fúria aumenta o dano")
+
+	var inv := Inventory.new()
+	var uid := inv.add_equipment(chest)
+	var back := Inventory.new()
+	back.from_dict(JSON.parse_string(JSON.stringify(inv.to_dict())))
+	var loaded := back.get_equipment(uid)
+	check(int(loaded.rarity) == R.RARE and int(loaded.stats.strength) == int(chest.stats.strength), "peça mantém raridade e atributos no save")
+
+
+func _test_progression() -> void:
+	check(Progression.xp_to_next(1) == 200 and Progression.xp_to_next(2) == 224, "curva de XP cresce 12% por nível")
+	var p := {"level": 1, "xp": 0}
+	var gained := Progression.add_xp(p, 450)
+	check(gained == 2 and p.level == 3 and p.xp == 26, "XP sobe vários níveis e guarda a sobra")
+	var capped := {"level": Progression.MAX_LEVEL, "xp": 0}
+	check(Progression.add_xp(capped, 99999) == 0 and capped.level == Progression.MAX_LEVEL, "não passa do nível máximo")

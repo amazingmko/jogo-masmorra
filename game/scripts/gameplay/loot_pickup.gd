@@ -1,20 +1,14 @@
 class_name LootPickup
 extends Area3D
 ## Item caído no chão. É puxado para o herói quando ele chega perto e entra no inventário.
-## Avisa quem estiver no grupo "loot_listeners" (a HUD) com on_loot_collected(item, qty).
-
-const RARITY_COLORS := {
-	GameEnums.Rarity.COMMON: Color("d9d4e6"),
-	GameEnums.Rarity.UNCOMMON: Color("6fdc7b"),
-	GameEnums.Rarity.RARE: Color("4da3ff"),
-	GameEnums.Rarity.EPIC: Color("c06bff"),
-	GameEnums.Rarity.LEGENDARY: Color("ffa53d"),
-}
+## Avisa quem estiver no grupo "loot_listeners" com on_loot_collected(item, qty, instance).
+## Equipamentos carregam a peça já gerada (instance); materiais vêm só com quantidade.
 const MAGNET_RADIUS := 2.5
 const MAGNET_SPEED := 9.0
 
 var item: ItemData
 var qty := 1
+var instance: Dictionary = {}
 
 var _player: Node3D
 var _visual: MeshInstance3D
@@ -22,11 +16,16 @@ var _age := 0.0
 var _collected := false
 
 
-static func create(item_data: ItemData, amount: int) -> LootPickup:
+static func create(item_data: ItemData, amount: int, piece: Dictionary = {}) -> LootPickup:
 	var p := LootPickup.new()
 	p.item = item_data
 	p.qty = amount
+	p.instance = piece
 	return p
+
+
+func rarity() -> int:
+	return int(instance.get("rarity", item.rarity)) if not instance.is_empty() else int(item.rarity)
 
 
 func _ready() -> void:
@@ -45,7 +44,7 @@ func _ready() -> void:
 	box.size = Vector3.ONE * size
 	_visual.mesh = box
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = RARITY_COLORS.get(item.rarity, Color.WHITE)
+	mat.albedo_color = GameEnums.rarity_color(rarity())
 	mat.emission_enabled = true
 	mat.emission = mat.albedo_color
 	mat.emission_energy_multiplier = 0.6
@@ -78,6 +77,9 @@ func _on_body_entered(body: Node3D) -> void:
 	if _collected or _age < 0.35 or not body.is_in_group("player"):
 		return
 	_collected = true
-	GameState.inventory.add(item, qty)
-	get_tree().call_group("loot_listeners", "on_loot_collected", item, qty)
+	if instance.is_empty():
+		GameState.inventory.add(item, qty)
+	else:
+		GameState.inventory.add_equipment(instance)
+	get_tree().call_group("loot_listeners", "on_loot_collected", item, qty, instance)
 	queue_free()

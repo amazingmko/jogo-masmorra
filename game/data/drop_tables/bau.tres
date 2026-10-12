@@ -36,26 +36,11 @@ item_id = &"pocao_vida"
 
 [sub_resource type="Resource" id="Resource_bygfc"]
 script = ExtResource("1_hlpk6")
-item_id = &"armadura_couro"
-weight = 6
-
-[sub_resource type="Resource" id="Resource_gvxg1"]
-script = ExtResource("1_hlpk6")
-item_id = &"espada_ferro"
-weight = 4
-
-[sub_resource type="Resource" id="Resource_45u0t"]
-script = ExtResource("1_hlpk6")
-item_id = &"arco_simples"
-weight = 4
-
-[sub_resource type="Resource" id="Resource_3u4cb"]
-script = ExtResource("1_hlpk6")
-item_id = &"cajado_aprendiz"
-weight = 4
+table_id = &"equipamento"
+weight = 30
 
 [resource]
 script = ExtResource("2_56rfa")
 id = &"bau"
 rolls = 3
-entries = Array[ExtResource("1_hlpk6")]([SubResource("Resource_hlpk6"), SubResource("Resource_56rfa"), SubResource("Resource_nhi7f"), SubResource("Resource_3onyb"), SubResource("Resource_6a66u"), SubResource("Resource_bygfc"), SubResource("Resource_gvxg1"), SubResource("Resource_45u0t"), SubResource("Resource_3u4cb")])
+entries = Array[ExtResource("1_hlpk6")]([SubResource("Resource_hlpk6"), SubResource("Resource_56rfa"), SubResource("Resource_nhi7f"), SubResource("Resource_3onyb"), SubResource("Resource_6a66u"), SubResource("Resource_bygfc")])

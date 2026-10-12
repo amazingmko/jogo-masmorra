@@ -12,5 +12,6 @@ max_stack = 1
 stats = {
 "attack_range": 1.9,
 "attack_speed": 2.0,
-"damage": 8
+"damage": 80
 }
+weapon_type = &"espada"

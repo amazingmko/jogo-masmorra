@@ -16,6 +16,8 @@ var type: DungeonLayout.RoomType = DungeonLayout.RoomType.COMBAT
 var cell := Vector2i.ZERO
 var cleared := false
 var visited := false
+## Inimigos vivos que nasceram nesta sala.
+var alive := 0
 var pillars: Array[Vector3] = []
 
 var _door_dirs: Array[Vector2i] = []
@@ -51,6 +53,12 @@ func _ready() -> void:
 
 func center() -> Vector3:
 	return global_position
+
+
+## True se o ponto está dentro da área interna da sala (não no corredor).
+func contains(point: Vector3) -> bool:
+	var half := SIZE * 0.5
+	return absf(point.x - global_position.x) <= half and absf(point.z - global_position.z) <= half
 
 
 func close_doors() -> void:

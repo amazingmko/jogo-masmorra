@@ -53,7 +53,10 @@ func validate() -> PackedStringArray:
 	var problems := PackedStringArray()
 	for table: DropTable in drop_tables.values():
 		for entry in table.entries:
-			if not items.has(entry.item_id):
+			if entry.table_id != &"":
+				if not drop_tables.has(entry.table_id):
+					problems.append("Drop '%s' cita tabela inexistente '%s'" % [table.id, entry.table_id])
+			elif not items.has(entry.item_id):
 				problems.append("Drop '%s' cita item inexistente '%s'" % [table.id, entry.item_id])
 	for recipe: RecipeData in recipes.values():
 		if not items.has(recipe.result_item_id):

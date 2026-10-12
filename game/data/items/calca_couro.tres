@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/item_data.gd" id="1_atvma"]
+
+[resource]
+script = ExtResource("1_atvma")
+id = &"calca_couro"
+display_name = "Calça de Couro"
+description = "Peça de armadura. Raridade, nível e atributos são sorteados quando cai."
+kind = 2
+max_stack = 1
+slot = 4
+armor_type = 1

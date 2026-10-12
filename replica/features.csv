@@ -12,15 +12,15 @@ Sala só libera a saída após derrotar todos os inimigos,masmorra,must,yes,yes,
 Escolha de 1 entre 3 buffs entre fases,run,must,yes,yes,SK
 Baús com armas e itens,itens,must,yes,yes,SK e GoG
 Ouro dentro da run para comprar em lojas,economia,must,yes,no,SK
-Resumo da run convertendo ganhos em moeda permanente,economia,must,yes,partial,SK
-Hub entre runs,meta,must,yes,no,SK
-Seleção de herói antes da run,meta,must,yes,no,SK
+Resumo da run convertendo ganhos em moeda permanente,economia,must,yes,yes,SK
+Hub entre runs,meta,must,yes,yes,SK
+Seleção de herói antes da run,meta,must,yes,yes,SK
 Heróis com classe e atributos base diferentes,heróis,must,yes,yes,SK e GoG
-Evoluir herói com moeda permanente,meta,must,yes,no,SK e GoG
+Evoluir herói com moeda permanente,meta,must,yes,partial,SK e GoG - feito via XP e níveis (sem moeda); talentos depois
 Habilidade passiva por herói,heróis,should,yes,no,GoG
 Elementos com vantagem de dano (+30%),combate,should,yes,yes,GoG
-Raridade de itens e heróis (comum a lendário),itens,should,yes,no,GoG
-Slots de equipamento por herói (arma e armadura),itens,should,yes,no,GoG - essencial na visão da autora
+Raridade de itens e heróis (comum a lendário),itens,should,yes,yes,GoG
+Slots de equipamento por herói (arma e armadura),itens,should,yes,yes,GoG - essencial na visão da autora
 Inimigos com padrões de ataque para desviar,combate,should,yes,partial,SK
 Minimapa da fase,interface,should,yes,yes,SK
 Lojas e mercadores dentro da run,run,should,yes,no,SK
@@ -32,7 +32,7 @@ Backup de progresso na nuvem,meta,should,yes,no,SK - citado como falho em review
 Esquadrão com troca entre heróis em combate,heróis,could,yes,no,GoG versão ARPG - confiança média
 Crafting com recursos da masmorra,itens,should,yes,partial,GoG - essencial na visão da autora; entra logo após o primeiro jogo enxuto
 Inimigos e chefes deixam cair itens e recursos (tabela de drop),itens,should,yes,yes,SK e GoG - visão da autora
-Progressão lenta sem bloqueio: toda run rende algum avanço,meta,should,no,partial,visão da autora - resposta a energia e grind dos originais
+Progressão lenta sem bloqueio: toda run rende algum avanço,meta,should,no,yes,visão da autora - resposta a energia e grind dos originais
 Profissões de crafting com nível próprio,itens,could,no,partial,visão da autora - fase posterior
 Pets que dão bônus,meta,could,yes,no,SK e GoG
 Skins de heróis,meta,could,yes,no,SK e GoG

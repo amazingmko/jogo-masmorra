@@ -12,7 +12,7 @@ config_version=5
 
 config/name="Jogo de Masmorra"
 config/description="Jogo mobile 3D low-poly de exploração de masmorras (nome provisório)."
-run/main_scene="res://game/scenes/main.tscn"
+run/main_scene="res://game/scenes/hub.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
 config/icon="res://icon.svg"
 

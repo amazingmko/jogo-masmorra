@@ -11,17 +11,25 @@ Feito em **Godot 4.7.2 (Standard, GDScript)**.
 3. Clique em **Importar e Editar**. Na primeira vez o Godot leva alguns segundos preparando os arquivos.
 4. Aperte **F5** (ou o botão ▶ no canto superior direito) para jogar.
 
-### Como é uma run (fase 3)
+### Base (hub) — fase 4a
 
-5 andares gerados aleatoriamente. Em cada andar: entre nas salas; nas de combate as portas fecham até o último inimigo cair. Baús (amarelo no minimapa) dão loot, a fonte (verde) cura, e o portal azul leva ao próximo andar depois de escolher 1 entre 3 bênçãos (buffs). No 5º andar o Rei Ossudo espera na sala mais distante (vermelho). Todo loot vai para o inventário na hora, então até uma derrota rende progresso.
+O jogo abre na base. Ande até um ponto e toque no botão azul (PC: **E**):
+
+- **Portal da Masmorra** — começa a run (por enquanto só Normal)
+- **Baú e Equipamento** — vestir e tirar peças, ver atributos e materiais
+- **Quadro de Heróis** — trocar de herói (Guardião: força/placa · Batedora: agilidade/couro · Arcanista: inteligência/tecido)
+- **Artesão** — crafting chega na fase 4b
+
+### A run
+
+5 andares gerados aleatoriamente. Nas salas de combate as portas fecham até o último inimigo cair. Baús (amarelo no minimapa) dão loot, a fonte (verde) cura, o portal azul leva ao próximo andar depois de escolher 1 entre 3 bênçãos. No 5º andar, o Rei Ossudo. Inimigos e baús deixam cair **equipamento com raridade (Comum, Raro, Épico), nível de item e atributos**; metade das peças vem no tipo de armadura do herói atual. Todo loot e XP ficam com o herói, mesmo perdendo.
 
 | ação | PC | celular / mouse |
 | --- | --- | --- |
 | andar | WASD ou setas | arrastar na metade esquerda da tela (joystick) |
 | atacar (mira sozinho) | segurar Espaço ou J | segurar o botão ATACAR |
-| trocar herói | 1 Guardião · 2 Batedora · 3 Arcanista | — |
-| nova run | R | botão Nova run |
-| forjar espada / salvar | C / G | — |
+| interagir na base | E | botão azul |
+| nova run / salvar | R / G | — |
 
 ## Estrutura
 
@@ -29,12 +37,13 @@ Feito em **Godot 4.7.2 (Standard, GDScript)**.
 game/
   autoload/      sistemas globais: ItemDB (catálogo), GameState (progresso), SaveSystem
   data/          dados do jogo — itens, heróis, drops, receitas, profissões, buffs (.tres)
-  scripts/       moldes de dados, regras (inventário, drop, crafting, save), combate,
-                 masmorra (planta, salas, baús/fonte/portal), jogabilidade e interface
+  scripts/       moldes de dados, regras (inventário, itens, atributos, XP, drop, crafting, save),
+                 combate, masmorra (planta, salas, baús/fonte/portal), hub, jogabilidade e interface
   scenes/        cenas
 tests/           testes automáticos das regras e simulação de combate
 tools/           script que gerou os dados de exemplo
-replica/         documentos do método: recon, matriz de features, arquitetura
+replica/         documentos do método e de design: recon, matriz de features, arquitetura,
+                 direção de arte e progressão
 .claude/ .kiro/  skills do replica-skill
 ```
 
@@ -44,6 +53,8 @@ Para criar um item novo: no painel **FileSystem** do Godot, abra `game/data/item
 
 ```bash
 godot --headless --path . --script res://tests/run_tests.gd
+# fluxo base -> masmorra -> base:
+godot --headless --path . --script res://tests/flow_hub.gd
 # robô jogando uma run inteira (pega erros e dá noção de dificuldade):
 godot --headless --fixed-fps 60 --path . --script res://tests/sim_run.gd -- hero=guardiao seed=123
 ```

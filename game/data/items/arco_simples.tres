@@ -12,6 +12,8 @@ max_stack = 1
 stats = {
 "attack_range": 11.0,
 "attack_speed": 3.0,
-"damage": 5,
+"damage": 50,
 "projectile_speed": 20.0
 }
+weapon_type = &"arco"
+primary_stat = 1

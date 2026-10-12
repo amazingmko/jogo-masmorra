@@ -3,9 +3,10 @@ extends Node3D
 ## Uma run = 5 andares gerados aleatoriamente. Em cada andar: entrar nas salas, limpar as de combate
 ## (as portas fecham até o último inimigo cair), abrir baús, usar a fonte e achar o portal de saída.
 ## No portal, escolhe 1 entre 3 buffs e desce. No 5º andar, o chefe está na sala mais distante.
-## Todo loot vai para o inventário na hora: mesmo perdendo, a run rende avanço.
+## Todo loot e XP vão para o herói na hora: mesmo perdendo, a run rende avanço.
+## O herói e o equipamento vêm do hub (GameState.selected_hero).
 ##
-## PC: WASD anda · Espaço ataca · 1/2/3 troca herói · R nova run · C forja espada · G salva
+## PC: WASD anda · Espaço ataca · R nova run · G salva
 
 const FLOORS := 5
 const ROOMS_PER_FLOOR := [6, 7, 8, 8, 8]
@@ -16,7 +17,10 @@ const ENEMY_POOL := [
 	{"id": &"rato_gigante", "from_floor": 1, "weight": 4},
 	{"id": &"esqueleto_bruto", "from_floor": 3, "weight": 1},
 ]
-const HERO_KEYS := {KEY_1: &"guardiao", KEY_2: &"batedora", KEY_3: &"arcanista"}
+const HUB_SCENE := "res://game/scenes/hub.tscn"
+## XP extra por sala limpa e por vencer o chefe.
+const XP_ROOM_CLEAR := 4
+const XP_RUN_VICTORY := 50
 
 var run_seed := 0
 var floor_number := 0
@@ -39,7 +43,8 @@ var _stats := {}
 func _ready() -> void:
 	add_to_group("loot_listeners")
 	_hud.bind_player(_player)
-	_hud.restart_requested.connect(func() -> void: new_run())
+	_hud.restart_requested.connect(_back_to_hub)
+	GameState.leveled_up.connect(_on_leveled_up)
 	_hud.buff_chosen.connect(_on_buff_chosen)
 	_player.died.connect(_on_player_died)
 	new_run()
@@ -53,17 +58,9 @@ func _process(_delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return
-	if HERO_KEYS.has(event.keycode):
-		_player.set_hero(ItemDB.get_hero(HERO_KEYS[event.keycode]))
-		_hud.show_toast("Herói: " + _player.hero.display_name)
-		return
 	match event.keycode:
 		KEY_R:
 			new_run()
-		KEY_C:
-			var recipe := ItemDB.get_recipe(&"forjar_espada_ferro")
-			var result := Crafting.craft(recipe, GameState.inventory, GameState.professions, ItemDB.catalog)
-			_hud.show_toast("Forjou: Espada de Ferro!" if result.ok else "Não deu: " + result.reason)
 		KEY_G:
 			_hud.show_toast("Jogo salvo." if GameState.save() else "Falha ao salvar.")
 
@@ -77,7 +74,8 @@ func new_run(seed: int = 0) -> void:
 	_run_over = false
 	_rng.seed = seed if seed > 0 else randi()
 	run_seed = _rng.seed
-	_stats = {"kills": 0, "loot": {}, "started": Time.get_ticks_msec(), "buffs": []}
+	_stats = {"kills": 0, "loot": {}, "started": Time.get_ticks_msec(), "buffs": [], "xp": 0,
+		"level_start": GameState.level_of(_player.hero_id), "best": {}}
 	_hud.hide_panel()
 	_player.clear_buffs()
 	_player.revive(Vector3(0, 0.1, 0))
@@ -123,6 +121,10 @@ func _clear_floor() -> void:
 func _on_room_entered(room: DungeonRoom) -> void:
 	if _run_over or builder == null or not builder.rooms.has(room):
 		return
+	# O sensor pode disparar por engano no quadro em que o herói troca de andar:
+	# só vale se o herói estiver mesmo dentro da sala.
+	if not room.contains(_player.global_position):
+		return
 	_current_room = room
 	room.visited = true
 	_hud.minimap.set_current(room.index)
@@ -163,6 +165,9 @@ func _spawn(enemy_id: StringName, room: DungeonRoom, hp_mult: float) -> void:
 		return
 	var enemy := Enemy.create(data, hp_mult)
 	enemy.is_boss = enemy_id == BOSS_ID
+	enemy.loot_context = _loot_context("boss" if enemy.is_boss else "normal")
+	enemy.home_room = room
+	room.alive += 1
 	add_child(enemy)
 	enemy.global_position = room.random_point(_rng, _player.global_position, 5.0)
 	enemy.died.connect(_on_enemy_died)
@@ -171,12 +176,18 @@ func _spawn(enemy_id: StringName, room: DungeonRoom, hp_mult: float) -> void:
 
 func _on_enemy_died(enemy: Enemy) -> void:
 	_stats.kills += 1
+	_give_xp(enemy.data.xp_reward)
 	_alive -= 1
-	if _alive > 0 or _current_room == null or _current_room.cleared:
+	var room: DungeonRoom = enemy.home_room
+	if room == null or not is_instance_valid(room):
 		return
-	_current_room.cleared = true
-	_current_room.open_doors()
-	if _current_room.type == DungeonLayout.RoomType.BOSS:
+	room.alive -= 1
+	if room.alive > 0 or room.cleared:
+		return
+	room.cleared = true
+	room.open_doors()
+	_give_xp(XP_ROOM_CLEAR)
+	if room.type == DungeonLayout.RoomType.BOSS:
 		var run := _run_id
 		get_tree().create_timer(2.0).timeout.connect(func() -> void:
 			if run == _run_id and not _run_over:
@@ -190,8 +201,8 @@ func _on_prop_activated(prop: RoomProp) -> void:
 	match prop.kind:
 		RoomProp.Kind.CHEST:
 			var table := ItemDB.get_drop_table(&"bau")
-			for drop in table.roll(_rng):
-				var pickup := LootPickup.create(ItemDB.get_item(drop.item_id), drop.qty)
+			for drop in LootRoller.roll(table, ItemDB.catalog, _rng, _loot_context("chest")):
+				var pickup := LootPickup.create(drop.item, drop.qty, drop.instance)
 				add_child(pickup)
 				pickup.global_position = prop.global_position + Vector3(_rng.randf_range(-1.5, 1.5), 0.4, _rng.randf_range(1.0, 2.0))
 			_hud.show_toast("Baú aberto!", Color("e8c26a"))
@@ -232,8 +243,41 @@ func _on_buff_chosen(buff: BuffData) -> void:
 
 # ---------- fim da run ----------
 
-func on_loot_collected(item: ItemData, qty: int) -> void:
-	_stats.loot[item.display_name] = _stats.loot.get(item.display_name, 0) + qty
+func on_loot_collected(item: ItemData, qty: int, instance: Dictionary = {}) -> void:
+	if instance.is_empty():
+		_stats.loot[item.display_name] = _stats.loot.get(item.display_name, 0) + qty
+		return
+	# Equipamento: conta por raridade e guarda a melhor peça para o resumo.
+	var r := int(instance.rarity)
+	var key := "peça %s" % GameEnums.rarity_name(r)
+	_stats.loot[key] = _stats.loot.get(key, 0) + 1
+	if _stats.best.is_empty() or r > int(_stats.best.rarity):
+		_stats.best = instance
+
+
+## Contexto de loot: nível de item cresce com o andar (Normal: 1 a 10).
+func _loot_context(profile: String) -> Dictionary:
+	var ilvl := clampi(floor_number * 2 - _rng.randi_range(0, 1), 1, 10)
+	return {"ilvl": ilvl, "profile": profile, "hero": _player.hero}
+
+
+func _give_xp(amount: int) -> void:
+	if amount <= 0:
+		return
+	_stats.xp += amount
+	GameState.add_xp(_player.hero_id, amount)
+
+
+func _on_leveled_up(hero_id: StringName, new_level: int) -> void:
+	if hero_id == _player.hero_id:
+		_hud.show_toast("Subiu para o nível %d!" % new_level, Color("ffd34d"))
+		_hud.refresh_hero(_player.hero)
+
+
+func _back_to_hub() -> void:
+	get_tree().paused = false
+	GameState.save()
+	get_tree().change_scene_to_file(HUB_SCENE)
 
 
 func _on_player_died() -> void:
@@ -244,6 +288,8 @@ func _finish(victory: bool) -> void:
 	if _run_over:
 		return
 	_run_over = true
+	if victory:
+		_give_xp(XP_RUN_VICTORY)
 	GameState.save()
 	var seconds: int = (Time.get_ticks_msec() - int(_stats.started)) / 1000
 	var lines := PackedStringArray()
@@ -255,5 +301,12 @@ func _finish(victory: bool) -> void:
 	for name in _stats.loot:
 		loot_parts.append("%d× %s" % [_stats.loot[name], name])
 	lines.append("Loot: " + (", ".join(loot_parts) if not loot_parts.is_empty() else "nada desta vez"))
-	lines.append("Tudo já está no inventário.   (semente %d)" % run_seed)
-	_hud.show_panel("Vitória!" if victory else "Você caiu", "\n".join(lines), "Nova run")
+	if not _stats.best.is_empty():
+		lines.append("Melhor peça: %s (%s)" % [ItemFactory.display_name(_stats.best, ItemDB.catalog),
+			GameEnums.rarity_name(int(_stats.best.rarity))])
+	var level_now := GameState.level_of(_player.hero_id)
+	var level_text := "nível %d" % level_now
+	if level_now > int(_stats.level_start):
+		level_text = "subiu do nível %d para o %d!" % [_stats.level_start, level_now]
+	lines.append("+%d XP · %s · tudo já está no inventário   (semente %d)" % [_stats.xp, level_text, run_seed])
+	_hud.show_panel("Vitória!" if victory else "Você caiu", "\n".join(lines), "Voltar à base")

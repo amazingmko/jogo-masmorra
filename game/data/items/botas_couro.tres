@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/item_data.gd" id="1_iom1p"]
+
+[resource]
+script = ExtResource("1_iom1p")
+id = &"botas_couro"
+display_name = "Botas de Couro"
+description = "Peça de armadura. Raridade, nível e atributos são sorteados quando cai."
+kind = 2
+max_stack = 1
+slot = 5
+armor_type = 1

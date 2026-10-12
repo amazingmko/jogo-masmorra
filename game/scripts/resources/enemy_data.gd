@@ -24,3 +24,4 @@ extends Resource
 
 @export_group("Recompensa")
 @export var drop_table_id: StringName
+@export var xp_reward: int = 3

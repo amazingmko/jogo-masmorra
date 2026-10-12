@@ -11,6 +11,10 @@ var data: EnemyData
 ## Multiplicador de vida (andares mais fundos têm inimigos mais resistentes).
 var health_multiplier := 1.0
 var is_boss := false
+## Contexto do loot (nível de item, perfil de raridade, herói). Preenchido pela run.
+var loot_context: Dictionary = {}
+## Sala onde nasceu (a sala só reabre quando todos os dela morrem).
+var home_room: Node3D
 var health: Health
 var state: State = State.CHASE
 
@@ -138,8 +142,8 @@ func _drop_loot() -> void:
 	var table := ItemDB.get_drop_table(data.drop_table_id)
 	if table == null:
 		return
-	for drop in table.roll(_rng):
-		var pickup := LootPickup.create(ItemDB.get_item(drop.item_id), drop.qty)
+	for drop in LootRoller.roll(table, ItemDB.catalog, _rng, loot_context):
+		var pickup := LootPickup.create(drop.item, drop.qty, drop.instance)
 		get_parent().add_child(pickup)
 		var offset := Vector3(_rng.randf_range(-0.8, 0.8), 0.0, _rng.randf_range(-0.8, 0.8))
 		pickup.global_position = global_position + offset + Vector3(0, 0.4, 0)

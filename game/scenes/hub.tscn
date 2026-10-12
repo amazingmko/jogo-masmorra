@@ -1,0 +1,39 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://game/scripts/hub/hub.gd" id="1_vud3b"]
+[ext_resource type="PackedScene" path="res://game/scenes/player.tscn" id="2_14ryh"]
+[ext_resource type="Script" path="res://game/scripts/gameplay/player.gd" id="3_iy7ya"]
+[ext_resource type="Script" path="res://game/scripts/gameplay/camera_follow.gd" id="4_8xrig"]
+[ext_resource type="Script" path="res://game/scripts/hub/hub_ui.gd" id="5_mggc8"]
+
+[sub_resource type="Environment" id="Environment_t2klo"]
+background_mode = 1
+background_color = Color(0.101960786, 0.08235294, 0.14901961, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.47843137, 0.43529412, 0.6039216, 1)
+ambient_light_energy = 0.7
+
+[node name="Hub" type="Node3D" unique_id=497984658]
+script = ExtResource("1_vud3b")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=513365049]
+environment = SubResource("Environment_t2klo")
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=2090543277]
+transform = Transform3D(0.81915206, -0.46984634, 0.32898995, 0, 0.57357645, 0.81915206, -0.57357645, -0.6710101, 0.46984634, 0, 0, 0)
+shadow_enabled = true
+directional_shadow_max_distance = 40.0
+
+[node name="Town" type="Node3D" parent="." unique_id=690991531]
+
+[node name="Player" type="CharacterBody3D" parent="." unique_id=1331334693 instance=ExtResource("2_14ryh")]
+script = ExtResource("3_iy7ya")
+
+[node name="Camera" type="Camera3D" parent="." unique_id=621352398]
+transform = Transform3D(1, 0, 0, 0, 0.57357645, 0.81915206, 0, -0.81915206, 0.57357645, 0, 11, 7.5)
+fov = 50.0
+script = ExtResource("4_8xrig")
+target_path = NodePath("../Player")
+
+[node name="HubUI" type="CanvasLayer" parent="." unique_id=1971508223]
+script = ExtResource("5_mggc8")
