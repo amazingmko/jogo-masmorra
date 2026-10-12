@@ -1,6 +1,10 @@
-# Progressão, equipamento e crafting (proposta para revisão)
+# Progressão, equipamento e crafting
 
-Este documento reúne as decisões da autora (12/10/2026) e propõe os números. Nada aqui está programado ainda: depois da revisão, vira a fase 4. Os pontos marcados com **DECIDIR** precisam de resposta.
+Decisões da autora (12/10/2026) e números iniciais. Os números serão calibrados com a planilha de economia e com testes jogando.
+
+**Decidido:** energia de recompensa (opção B, seção 7) · regras de falha no crafting (seção 6) · Druida e Vampiro em couro/agilidade · pet de energia (seção 8).
+
+**Construção:** fase 4a = seções 2–5 e 9 (atributos, armaduras, raridades, itens, nível, hub) · fase 4b = seções 1, 6 e 7 (dificuldades, crafting, energia).
 
 ## 1. Níveis de dificuldade
 
@@ -40,7 +44,7 @@ Hoje os números são pequenos (vida 8, dano 6). Para os itens terem espaço par
 
 **Secundários** (aparecem a partir do Raro): **Crítico** (chance de dano dobrado), **Aceleração** (ataques e recargas mais rápidos), **Sorte** (mais recursos no fim da masmorra).
 
-\* **DECIDIR:** Druida e Vampiro como agilidade (couro) é a proposta; dá para trocar.
+\* Druida e Vampiro: agilidade e couro (decidido).
 
 ## 4. Tipos de armadura e slots
 
@@ -84,12 +88,12 @@ Um herói só veste o próprio tipo de armadura. Armas também são por classe (
 
 Somam-se os bônus de pets e de poções do Alquimista (limite de 95%).
 
-**DECIDIR — o que acontece na falha.** Minha recomendação, para ser difícil sem frustrar a ponto de desistir:
+**Regras da falha (decidido):**
 - a falha consome **metade** dos materiais (a outra metade volta);
 - cada falha seguida na mesma receita dá **+10%** na próxima tentativa (zera ao acertar);
 - a falha ainda dá **um pouco de XP** de profissão.
 
-## 7. Energia — **DECIDIR**
+## 7. Energia — decidido: opção B (energia de recompensa)
 
 A autora propôs energia que recarrega a cada hora, para limitar quantas vezes se entra nas masmorras. Um alerta honesto: na pesquisa (`fixes-preliminar.md`), **limite de energia foi uma das reclamações mais citadas** no Guild of Guardians, e o recon tinha marcado energia como algo a não ter. O ritmo lento é um bom objetivo; a questão é **o que** limitar.
 
@@ -117,6 +121,7 @@ Os pets acompanham na masmorra, têm raridade e sobem de nível com o uso. Cada 
 | Fada da Fonte | cura um pouco ao limpar uma sala | runs longas |
 | Morcego | pequeno roubo de vida | combate agressivo |
 | Besouro Minerador | chance de minério extra por inimigo | ferreiros |
+| Vaga-lume Incansável | energia recarrega mais rápido, ou +2 de energia máxima por dia (ideia da autora) | quem joga muitas runs |
 
 A escolha do pet vira uma decisão de estratégia: ir atrás de recursos ou de chance de crafting.
 
@@ -144,9 +149,9 @@ Uma vila ou acampamento em 3D, por onde o herói anda:
 7. Energia (conforme a decisão da seção 7)
 8. Planilha de economia para calibrar tudo; depois, pets
 
-## Pendências para a autora
+## Pendências
 
-- [ ] Seção 3: Druida e Vampiro em couro/agilidade?
-- [ ] Seção 6: regras de falha no crafting
-- [ ] Seção 7: energia — opção A, B ou C?
-- [ ] Os números de dificuldade, raridade e chance de crafting parecem bons como ponto de partida?
+- [x] Druida e Vampiro em couro/agilidade
+- [x] Regras de falha no crafting
+- [x] Energia: opção B
+- [ ] Calibrar números com a planilha de economia (depois da fase 4b)
