@@ -1,0 +1,39 @@
+{
+  "_about": "Temas para reviews de jogos mobile de masmorra (inglês e português). Use com: python3 .claude/skills/replica-entrepreneur/reviews.py replica/reviews.csv --themes replica/themes-jogos.json --out replica/feedback.md",
+  "request_patterns": [
+    "\\bi wish\\b", "\\bplease add\\b", "\\bwould be (nice|great|cool|awesome)\\b", "\\bwould love\\b",
+    "\\bneeds? (a|an|the|to|more)\\b", "\\bmissing\\b", "\\bif only\\b", "\\bwhy (can'?t|isn'?t|doesn'?t)\\b",
+    "\\bqueria\\b", "\\bpoderia(m)? (ter|adicionar|colocar)\\b", "\\bcoloquem\\b", "\\badicionem\\b",
+    "\\bseria (bom|legal|ótimo|otimo)\\b", "\\bfalta\\b", "\\bdeveria ter\\b"
+  ],
+  "themes": [
+    {"id": "p2w", "label": "Pay-to-win e paywall", "kind": "complaint",
+     "patterns": ["\\bp2w\\b", "\\bpay ?to ?win\\b", "\\bpaywall", "\\bexpensive\\b", "\\boverpriced\\b", "\\bgreedy\\b", "\\bcash ?grab\\b", "\\bpague pra ganhar\\b", "\\bcaro\\b", "\\bganancios", "\\btudo pago\\b"]},
+    {"id": "gacha", "label": "Gacha e sorte", "kind": "complaint",
+     "patterns": ["\\bgacha\\b", "\\bsummon", "\\bpull rates?\\b", "\\bdrop rates?\\b", "\\bloot ?box", "\\bluck\\b", "\\binvoca", "\\bsorte\\b", "\\btaxa de drop\\b"]},
+    {"id": "energy", "label": "Energia ou limite de tempo de jogo", "kind": "complaint",
+     "patterns": ["\\benergy\\b", "\\bstamina\\b", "\\bcan'?t play more\\b", "\\bwait (hours|for)\\b", "\\benergia\\b", "\\besperar\\b"]},
+    {"id": "grind", "label": "Grind e progressão lenta", "kind": "complaint",
+     "patterns": ["\\bgrind", "\\bslow progress", "\\btakes forever\\b", "\\bprogress(ion)? (is )?slow\\b", "\\bfarm(ing)?\\b", "\\bdemora\\b", "\\bprogresso lento\\b"]},
+    {"id": "repetitive", "label": "Repetitivo", "kind": "complaint",
+     "patterns": ["\\brepetitive\\b", "\\bboring\\b", "\\bsame thing\\b", "\\bmonoton", "\\brepetitivo\\b", "\\bchato\\b", "\\bentediante\\b"]},
+    {"id": "difficulty", "label": "Dificuldade injusta", "kind": "complaint",
+     "patterns": ["\\btoo hard\\b", "\\bunfair\\b", "\\bimpossible\\b", "\\bcheap (boss|death)", "\\bdifícil demais\\b", "\\bdificil demais\\b", "\\binjusto\\b", "\\bimpossível\\b"]},
+    {"id": "controls", "label": "Controles e mira", "kind": "complaint",
+     "patterns": ["\\bcontrols?\\b", "\\bjoystick\\b", "\\baim(ing)?\\b", "\\bauto.?aim\\b", "\\btwin.?stick\\b", "\\bcontroles?\\b", "\\bmira\\b"]},
+    {"id": "bugs", "label": "Bugs e travamentos", "kind": "complaint",
+     "patterns": ["\\bcrash(es|ed|ing)?\\b", "\\bbugs?\\b", "\\bbuggy\\b", "\\bglitch", "\\bfreez", "\\bblack screen\\b", "\\btrava", "\\bfecha sozinho\\b", "\\btela preta\\b"]},
+    {"id": "progress_loss", "label": "Perda de progresso e saves", "kind": "complaint",
+     "patterns": ["\\blost (my|all)\\b", "\\bprogress (is )?gone\\b", "\\bsave (data|file)\\b", "\\bcloud save\\b", "\\bwiped\\b", "\\bperdi\\b", "\\bprogresso\\b", "\\bsalvamento\\b"]},
+    {"id": "bans", "label": "Banimentos e conta", "kind": "complaint",
+     "patterns": ["\\bban(ned)?\\b", "\\bsuspend", "\\bflagged\\b", "\\baccount\\b", "\\bbanid", "\\bconta\\b"]},
+    {"id": "ads", "label": "Anúncios", "kind": "complaint",
+     "patterns": ["\\bads\\b", "\\badvert", "\\banúncio", "\\banuncio", "\\bpropaganda"]},
+    {"id": "multiplayer", "label": "Multiplayer e co-op", "kind": "request",
+     "patterns": ["\\bmultiplayer\\b", "\\bco.?op\\b", "\\bonline\\b", "\\bfriends?\\b", "\\blan\\b", "\\bwifi\\b", "\\bamigos?\\b", "\\bcooperativo\\b"]},
+    {"id": "content", "label": "Mais conteúdo e modos", "kind": "request",
+     "patterns": ["\\bmore (levels|content|modes|bosses|characters|weapons)\\b", "\\bstory mode\\b", "\\bendless\\b", "\\bboss rush\\b", "\\bmais (fases|conteúdo|modos|chefes|personagens|armas)\\b", "\\bmodo história\\b"]},
+    {"id": "synergy", "label": "Builds e sinergias pouco claras", "kind": "complaint",
+     "patterns": ["\\bsynerg", "\\bunclear\\b", "\\bdon'?t understand\\b", "\\bno explanation\\b", "\\bsinergia", "\\bnão entendi\\b", "\\bconfus"]}
+  ]
+}

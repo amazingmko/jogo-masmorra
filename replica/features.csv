@@ -1,0 +1,48 @@
+feature,area,priority,original,clone,notes
+Joystick virtual para mover o herói,controles,must,yes,no,SK
+Ataque com auto-mira no inimigo mais próximo,combate,must,yes,no,SK - alvo marcado no inimigo
+Botão de ação contextual (atacar ou interagir),controles,must,yes,no,SK
+Habilidade ativa por herói com recarga,combate,must,yes,no,SK e GoG
+Vida + armadura que regenera fora de combate,combate,must,yes,no,SK - armadura volta após alguns segundos sem dano
+Energia como munição das armas,combate,must,yes,no,SK
+Dois slots de arma com troca rápida,itens,must,yes,no,SK
+Masmorra gerada aleatoriamente sala por sala,masmorra,must,yes,no,SK
+Sala só libera a saída após derrotar todos os inimigos,masmorra,must,yes,no,SK
+Área com 5 fases e chefe na última,masmorra,must,yes,no,SK
+Escolha de 1 entre 3 buffs entre fases,run,must,yes,no,SK
+Baús com armas e itens,itens,must,yes,no,SK e GoG
+Ouro dentro da run para comprar em lojas,economia,must,yes,no,SK
+Resumo da run convertendo ganhos em moeda permanente,economia,must,yes,no,SK
+Hub entre runs,meta,must,yes,no,SK
+Seleção de herói antes da run,meta,must,yes,no,SK
+Heróis com classe e atributos base diferentes,heróis,must,yes,no,SK e GoG
+Evoluir herói com moeda permanente,meta,must,yes,no,SK e GoG
+Habilidade passiva por herói,heróis,should,yes,no,GoG
+Elementos com vantagem de dano (+30%),combate,should,yes,no,GoG
+Raridade de itens e heróis (comum a lendário),itens,should,yes,no,GoG
+Slots de equipamento por herói (arma e armadura),itens,should,yes,no,GoG - essencial na visão da autora
+Inimigos com padrões de ataque para desviar,combate,should,yes,no,SK
+Minimapa da fase,interface,should,yes,no,SK
+Lojas e mercadores dentro da run,run,should,yes,no,SK
+Reviver uma vez por run,run,should,yes,no,SK
+Modo offline,meta,should,yes,no,SK
+Suporte a controle físico,controles,should,yes,no,SK
+Salvar o estado da run ao sair do app,meta,should,no,no,reclamações de perda de progresso nos dois jogos
+Backup de progresso na nuvem,meta,should,yes,no,SK - citado como falho em reviews
+Esquadrão com troca entre heróis em combate,heróis,could,yes,no,GoG versão ARPG - confiança média
+Crafting com recursos da masmorra,itens,should,yes,no,GoG - essencial na visão da autora; entra logo após o primeiro jogo enxuto
+Inimigos e chefes deixam cair itens e recursos (tabela de drop),itens,should,yes,no,SK e GoG - visão da autora
+Progressão lenta sem bloqueio: toda run rende algum avanço,meta,should,no,no,visão da autora - resposta a energia e grind dos originais
+Profissões de crafting com nível próprio,itens,could,no,no,visão da autora - fase posterior
+Pets que dão bônus,meta,could,yes,no,SK e GoG
+Skins de heróis,meta,could,yes,no,SK e GoG
+Invocação de heróis (gacha),meta,could,yes,no,GoG e SK - decisão de monetização sua; loot boxes têm restrição legal em vários países
+Guilda com contribuição e raide,social,could,yes,no,GoG
+Co-op online,multiplayer,could,yes,no,SK - parte mais cara do projeto
+Co-op local (mesma rede),multiplayer,could,yes,no,SK
+Modo chefões em sequência (boss rush),modos,could,yes,no,SK e GoG
+Modo infinito,modos,could,yes,no,GoG
+NFTs de heróis e itens,economia,could,yes,skip,economia blockchain do GoG - fora da mecânica do jogo e com risco regulatório
+Token GOG e marketplace,economia,could,yes,skip,não é mecânica de jogo
+Energia que limita quantas runs por dia,economia,could,yes,skip,GoG - uma das reclamações mais citadas dos jogadores
+Personagens arte música e nomes dos originais,conteúdo,could,yes,skip,pertencem aos estúdios - tudo será criado do zero
