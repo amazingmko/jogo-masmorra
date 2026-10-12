@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/item_data.gd" id="1_vdnoo"]
+
+[resource]
+script = ExtResource("1_vdnoo")
+id = &"armadura_couro"
+display_name = "Armadura de Couro"
+description = "Proteção leve."
+kind = 2
+rarity = 1
+max_stack = 1
+stats = {
+"armor": 2
+}

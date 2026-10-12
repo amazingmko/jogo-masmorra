@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/item_data.gd" id="1_lvgv3"]
+
+[resource]
+script = ExtResource("1_lvgv3")
+id = &"pocao_vida"
+display_name = "Poção de Vida"
+description = "Recupera 2 de vida."
+kind = 4
+max_stack = 20
+stats = {
+"heal": 2
+}

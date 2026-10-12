@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/item_data.gd" id="1_flx8n"]
+
+[resource]
+script = ExtResource("1_flx8n")
+id = &"cajado_aprendiz"
+display_name = "Cajado de Aprendiz"
+description = "Canaliza magia básica."
+kind = 1
+max_stack = 1
+stats = {
+"attack_speed": 0.9,
+"damage": 5
+}

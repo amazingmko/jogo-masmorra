@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="ProfessionData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/profession_data.gd" id="1_njlcf"]
+
+[resource]
+script = ExtResource("1_njlcf")
+id = &"ferreiro"
+display_name = "Ferreiro"
+description = "Forja armas e armaduras de metal."

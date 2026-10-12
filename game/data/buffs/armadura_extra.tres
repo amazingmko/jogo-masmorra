@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="BuffData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/buff_data.gd" id="1_kofsy"]
+
+[resource]
+script = ExtResource("1_kofsy")
+id = &"armadura_extra"
+display_name = "Pele de Pedra"
+description = "+1 de armadura máxima."
+stat = &"max_armor"
+amount = 1.0

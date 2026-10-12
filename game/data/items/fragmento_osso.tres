@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/item_data.gd" id="1_l8ubo"]
+
+[resource]
+script = ExtResource("1_l8ubo")
+id = &"fragmento_osso"
+display_name = "Fragmento de Osso"
+description = "Restos de mortos-vivos. Base de muitas receitas."

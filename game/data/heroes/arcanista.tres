@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="HeroData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/hero_data.gd" id="1_m60a1"]
+
+[resource]
+script = ExtResource("1_m60a1")
+id = &"arcanista"
+display_name = "Arcanista"
+description = "Frágil, mas com magia poderosa."
+hero_class = 2
+element = 1
+max_health = 4
+max_armor = 2
+max_energy = 220
+starting_weapon_id = &"cajado_aprendiz"

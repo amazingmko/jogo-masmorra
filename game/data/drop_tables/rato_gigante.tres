@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="DropTable" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/drop_entry.gd" id="1_jbdf6"]
+[ext_resource type="Script" path="res://game/scripts/resources/drop_table.gd" id="2_bgjcn"]
+
+[sub_resource type="Resource" id="Resource_jbdf6"]
+script = ExtResource("1_jbdf6")
+item_id = &"couro_rasgado"
+weight = 50
+max_qty = 2
+
+[sub_resource type="Resource" id="Resource_bgjcn"]
+script = ExtResource("1_jbdf6")
+item_id = &"erva_vermelha"
+weight = 30
+
+[resource]
+script = ExtResource("2_bgjcn")
+id = &"rato_gigante"
+nothing_weight = 40
+entries = Array[ExtResource("1_jbdf6")]([SubResource("Resource_jbdf6"), SubResource("Resource_bgjcn")])

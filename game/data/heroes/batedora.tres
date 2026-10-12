@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="HeroData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/hero_data.gd" id="1_c5rvn"]
+
+[resource]
+script = ExtResource("1_c5rvn")
+id = &"batedora"
+display_name = "Batedora"
+description = "Rápida, ataca de longe."
+hero_class = 1
+element = 3
+max_health = 5
+max_energy = 180
+move_speed = 5.5
+starting_weapon_id = &"arco_simples"

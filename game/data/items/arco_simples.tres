@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/item_data.gd" id="1_u8u0k"]
+
+[resource]
+script = ExtResource("1_u8u0k")
+id = &"arco_simples"
+display_name = "Arco Simples"
+description = "Leve, para ataques à distância."
+kind = 1
+max_stack = 1
+stats = {
+"attack_speed": 1.4,
+"damage": 4
+}
