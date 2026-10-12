@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="BuffData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/buff_data.gd" id="1_e4edw"]
+
+[resource]
+script = ExtResource("1_e4edw")
+id = &"coracao_forte"
+display_name = "Coração Forte"
+description = "+2 de vida máxima."
+stat = &"max_health"
+amount = 2.0

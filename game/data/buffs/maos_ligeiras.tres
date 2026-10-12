@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="BuffData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/buff_data.gd" id="1_6sxa0"]
+
+[resource]
+script = ExtResource("1_6sxa0")
+id = &"maos_ligeiras"
+display_name = "Mãos Ligeiras"
+description = "Ataques 20% mais rápidos."
+stat = &"attack_speed"
+amount = 1.2
+mode = 1

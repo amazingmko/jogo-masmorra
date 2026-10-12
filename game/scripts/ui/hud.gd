@@ -1,12 +1,15 @@
 class_name Hud
 extends CanvasLayer
-## Interface da partida: vida e armadura, onda atual, avisos de loot, controles de toque
-## e a tela de derrota/vitória. Montada por código para ficar fácil de ajustar nesta fase.
+## Interface da partida: vida e armadura, andar atual, minimapa, avisos de loot, controles de toque,
+## escolha de buff e resumo da run. Montada por código para ficar fácil de ajustar nesta fase.
+## Roda mesmo com o jogo pausado (para a escolha de buff funcionar).
 
 signal restart_requested
+signal buff_chosen(buff: BuffData)
 
 var joystick: TouchJoystick
 var attack_button: TouchButton
+var minimap: Minimap
 
 var _health_bar: ProgressBar
 var _armor_bar: ProgressBar
@@ -18,14 +21,20 @@ var _toasts: VBoxContainer
 var _panel: PanelContainer
 var _panel_title: Label
 var _panel_text: Label
+var _panel_button: Button
+var _buff_panel: PanelContainer
+var _buff_cards: HBoxContainer
 
 
 func _ready() -> void:
 	add_to_group("loot_listeners")
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_status()
+	_build_minimap()
 	_build_controls()
 	_build_toasts()
 	_build_panel()
+	_build_buff_panel()
 
 
 # ---------- API usada pela arena ----------
@@ -67,17 +76,59 @@ func show_toast(text: String, color: Color = Color.WHITE) -> void:
 	tween.tween_callback(label.queue_free)
 
 
-func show_panel(title: String, text: String) -> void:
+func show_panel(title: String, text: String, button_text: String = "Recomeçar") -> void:
 	_panel_title.text = title
 	_panel_text.text = text
+	_panel_button.text = button_text
 	_panel.visible = true
+	_hide_controls()
+
+
+## Mostra até 3 buffs para escolher. A run fica pausada até a escolha.
+func show_buff_choice(options: Array[BuffData], title: String) -> void:
+	for c in _buff_cards.get_children():
+		c.queue_free()
+	(_buff_panel.get_child(0).get_child(0) as Label).text = title
+	for buff in options:
+		var card := Button.new()
+		card.custom_minimum_size = Vector2(220, 170)
+		card.text = "%s\n\n%s" % [buff.display_name, buff.description]
+		card.autowrap_mode = TextServer.AUTOWRAP_WORD
+		card.add_theme_font_size_override("font_size", 20)
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(0.17, 0.13, 0.25, 0.95)
+		style.border_color = LootPickup.RARITY_COLORS.get(buff.rarity, Color.WHITE)
+		style.set_border_width_all(3)
+		style.set_corner_radius_all(14)
+		style.set_content_margin_all(14)
+		card.add_theme_stylebox_override("normal", style)
+		var hover := style.duplicate()
+		hover.bg_color = Color(0.25, 0.2, 0.36, 0.98)
+		card.add_theme_stylebox_override("hover", hover)
+		card.add_theme_stylebox_override("pressed", hover)
+		card.pressed.connect(func() -> void:
+			_buff_panel.visible = false
+			_show_controls()
+			buff_chosen.emit(buff))
+		_buff_cards.add_child(card)
+	_buff_panel.visible = true
+	_hide_controls()
+
+
+func _hide_controls() -> void:
 	joystick.release()
 	joystick.visible = false
 	attack_button.visible = false
 
 
+func _show_controls() -> void:
+	joystick.visible = true
+	attack_button.visible = true
+
+
 func hide_panel() -> void:
 	_panel.visible = false
+	_buff_panel.visible = false
 	joystick.visible = true
 	attack_button.visible = true
 
@@ -131,7 +182,7 @@ func _build_status() -> void:
 	add_child(_wave_label)
 
 	_help_label = _make_label(14)
-	_help_label.text = "PC: WASD anda · Espaço ataca\n1/2/3 troca herói · R recomeça\nC forja espada · G salva"
+	_help_label.text = "PC: WASD anda · Espaço ataca\n1/2/3 troca herói · R nova run\nC forja espada · G salva"
 	_help_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_help_label.modulate.a = 0.7
 	_help_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
@@ -178,7 +229,7 @@ func _build_panel() -> void:
 	_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	_panel.custom_minimum_size = Vector2(420, 220)
+	_panel.custom_minimum_size = Vector2(640, 220)
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.1, 0.08, 0.15, 0.92)
 	style.set_corner_radius_all(16)
@@ -197,14 +248,49 @@ func _build_panel() -> void:
 	_panel_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_panel_text.autowrap_mode = TextServer.AUTOWRAP_WORD
 	box.add_child(_panel_text)
-	var button := Button.new()
-	button.text = "Recomeçar"
-	button.custom_minimum_size = Vector2(200, 56)
-	button.add_theme_font_size_override("font_size", 22)
-	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	button.pressed.connect(func() -> void: restart_requested.emit())
-	box.add_child(button)
+	_panel_button = Button.new()
+	_panel_button.text = "Recomeçar"
+	_panel_button.custom_minimum_size = Vector2(200, 56)
+	_panel_button.add_theme_font_size_override("font_size", 22)
+	_panel_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_panel_button.pressed.connect(func() -> void: restart_requested.emit())
+	box.add_child(_panel_button)
 	_panel.visible = false
+
+
+func _build_minimap() -> void:
+	minimap = Minimap.new()
+	minimap.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	minimap.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	minimap.offset_left = -200
+	minimap.offset_right = -20
+	minimap.offset_top = 90
+	minimap.offset_bottom = 220
+	add_child(minimap)
+
+
+func _build_buff_panel() -> void:
+	_buff_panel = PanelContainer.new()
+	_buff_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	_buff_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_buff_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.08, 0.15, 0.9)
+	style.set_corner_radius_all(16)
+	style.set_content_margin_all(24)
+	_buff_panel.add_theme_stylebox_override("panel", style)
+	add_child(_buff_panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 16)
+	_buff_panel.add_child(box)
+	var title := _make_label(28)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(title)
+	_buff_cards = HBoxContainer.new()
+	_buff_cards.add_theme_constant_override("separation", 16)
+	_buff_cards.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_child(_buff_cards)
+	_buff_panel.visible = false
 
 
 func _make_label(font_size: int) -> Label:

@@ -1,0 +1,61 @@
+[gd_resource type="Resource" script_class="DropTable" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/drop_entry.gd" id="1_hlpk6"]
+[ext_resource type="Script" path="res://game/scripts/resources/drop_table.gd" id="2_56rfa"]
+
+[sub_resource type="Resource" id="Resource_hlpk6"]
+script = ExtResource("1_hlpk6")
+item_id = &"minerio_ferro"
+weight = 30
+min_qty = 2
+max_qty = 4
+
+[sub_resource type="Resource" id="Resource_56rfa"]
+script = ExtResource("1_hlpk6")
+item_id = &"fragmento_osso"
+weight = 25
+min_qty = 2
+max_qty = 3
+
+[sub_resource type="Resource" id="Resource_nhi7f"]
+script = ExtResource("1_hlpk6")
+item_id = &"couro_rasgado"
+weight = 20
+min_qty = 2
+max_qty = 3
+
+[sub_resource type="Resource" id="Resource_3onyb"]
+script = ExtResource("1_hlpk6")
+item_id = &"erva_vermelha"
+weight = 15
+max_qty = 2
+
+[sub_resource type="Resource" id="Resource_6a66u"]
+script = ExtResource("1_hlpk6")
+item_id = &"pocao_vida"
+
+[sub_resource type="Resource" id="Resource_bygfc"]
+script = ExtResource("1_hlpk6")
+item_id = &"armadura_couro"
+weight = 6
+
+[sub_resource type="Resource" id="Resource_gvxg1"]
+script = ExtResource("1_hlpk6")
+item_id = &"espada_ferro"
+weight = 4
+
+[sub_resource type="Resource" id="Resource_45u0t"]
+script = ExtResource("1_hlpk6")
+item_id = &"arco_simples"
+weight = 4
+
+[sub_resource type="Resource" id="Resource_3u4cb"]
+script = ExtResource("1_hlpk6")
+item_id = &"cajado_aprendiz"
+weight = 4
+
+[resource]
+script = ExtResource("2_56rfa")
+id = &"bau"
+rolls = 3
+entries = Array[ExtResource("1_hlpk6")]([SubResource("Resource_hlpk6"), SubResource("Resource_56rfa"), SubResource("Resource_nhi7f"), SubResource("Resource_3onyb"), SubResource("Resource_6a66u"), SubResource("Resource_bygfc"), SubResource("Resource_gvxg1"), SubResource("Resource_45u0t"), SubResource("Resource_3u4cb")])

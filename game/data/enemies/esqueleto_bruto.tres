@@ -14,4 +14,4 @@ move_speed = 2.0
 attack_range = 1.8
 windup_time = 0.9
 recover_time = 1.2
-drop_table_id = &"chefe_rei_ossudo"
+drop_table_id = &"esqueleto"

@@ -176,6 +176,17 @@ func _make_drop_tables() -> void:
 		_entry("couro_rasgado", 50, 1, 2),
 		_entry("erva_vermelha", 30, 1, 1),
 	])
+	_table("bau", 3, 0, [
+		_entry("minerio_ferro", 30, 2, 4),
+		_entry("fragmento_osso", 25, 2, 3),
+		_entry("couro_rasgado", 20, 2, 3),
+		_entry("erva_vermelha", 15, 1, 2),
+		_entry("pocao_vida", 10, 1, 1),
+		_entry("armadura_couro", 6, 1, 1),
+		_entry("espada_ferro", 4, 1, 1),
+		_entry("arco_simples", 4, 1, 1),
+		_entry("cajado_aprendiz", 4, 1, 1),
+	])
 	_table("chefe_rei_ossudo", 3, 0, [
 		_entry("minerio_ferro", 40, 2, 4),
 		_entry("fragmento_osso", 40, 2, 4),
@@ -197,9 +208,13 @@ func _buff(id: String, name: String, desc: String, stat: String, amount: float, 
 
 func _make_buffs() -> void:
 	var M := BuffData.Mode
-	_buff("armadura_extra", "Pele de Pedra", "+1 de armadura máxima.", "max_armor", 1.0, M.ADD)
-	_buff("cadencia", "Mãos Ligeiras", "Ataques 10% mais rápidos.", "attack_speed", 1.10, M.MULTIPLY)
-	_buff("recarga_rapida", "Mente Afiada", "Habilidade recarrega 25% mais rápido.", "skill_cooldown", 0.75, M.MULTIPLY)
+	_buff("pele_de_pedra", "Pele de Pedra", "+1 de armadura máxima.", "max_armor", 1.0, M.ADD)
+	_buff("coracao_forte", "Coração Forte", "+2 de vida máxima.", "max_health", 2.0, M.ADD)
+	_buff("furia", "Fúria", "+20% de dano.", "damage", 1.2, M.MULTIPLY)
+	_buff("maos_ligeiras", "Mãos Ligeiras", "Ataques 20% mais rápidos.", "attack_speed", 1.2, M.MULTIPLY)
+	_buff("passos_leves", "Passos Leves", "Anda 12% mais rápido.", "move_speed", 1.12, M.MULTIPLY)
+	_buff("olho_afiado", "Olho Afiado", "+10% de chance de crítico.", "crit_chance", 0.10, M.ADD)
+	_buff("longo_alcance", "Longo Alcance", "+20% de alcance da arma.", "attack_range", 1.2, M.MULTIPLY)
 
 
 func _enemy(id: String, name: String, element: int, color: Color, body_scale: float,
@@ -225,7 +240,8 @@ func _make_enemies() -> void:
 	var E := GameEnums.Element
 	_enemy("esqueleto", "Esqueleto", E.NEUTRAL, Color("cfc8b8"), 1.0, 24, 1, 2.6, 1.3, 0.6, 0.8, "esqueleto")
 	_enemy("rato_gigante", "Rato Gigante", E.NATURE, Color("8a6a4f"), 0.7, 12, 1, 4.2, 1.0, 0.45, 0.7, "rato_gigante")
-	_enemy("esqueleto_bruto", "Esqueleto Bruto", E.NEUTRAL, Color("9e8f7a"), 1.5, 70, 2, 2.0, 1.8, 0.9, 1.2, "chefe_rei_ossudo")
+	_enemy("esqueleto_bruto", "Esqueleto Bruto", E.NEUTRAL, Color("9e8f7a"), 1.5, 70, 2, 2.0, 1.8, 0.9, 1.2, "esqueleto")
+	_enemy("rei_ossudo", "Rei Ossudo", E.NEUTRAL, Color("d6b25e"), 2.1, 320, 2, 2.3, 2.6, 1.0, 1.0, "chefe_rei_ossudo")
 
 
 # ---------- cenas ----------
@@ -303,19 +319,13 @@ func _make_main_scene() -> void:
 	sun.name = "Sun"
 	sun.rotation_degrees = Vector3(-55, 35, 0)
 	sun.shadow_enabled = true
+	sun.directional_shadow_max_distance = 40.0
 	_add(root, sun, root)
 
-	_add_box(root, "Floor", Vector3(22, 0.5, 22), Vector3(0, -0.25, 0), Color("4a4458"))
-	# Paredes da sala, para inimigos e disparos não saírem da arena.
-	var wall_color := Color("5c5470")
-	_add_box(root, "Wall", Vector3(22, 1.5, 0.6), Vector3(0, 0.75, -11), wall_color)
-	_add_box(root, "Wall", Vector3(22, 1.5, 0.6), Vector3(0, 0.75, 11), wall_color)
-	_add_box(root, "Wall", Vector3(0.6, 1.5, 22), Vector3(-11, 0.75, 0), wall_color)
-	_add_box(root, "Wall", Vector3(0.6, 1.5, 22), Vector3(11, 0.75, 0), wall_color)
-	# Pilares: obstáculos para usar como cobertura.
-	var pillar_color := Color("7a6f94")
-	for pos in [Vector3(-4.5, 1, -4.5), Vector3(4.5, 1, -4.5), Vector3(-4.5, 1, 4.5), Vector3(4.5, 1, 4.5)]:
-		_add_box(root, "Pillar", Vector3(1.2, 2, 1.2), pos, pillar_color)
+	# A masmorra é gerada a cada andar dentro deste nó (ver main.gd e game/scripts/dungeon/).
+	var dungeon := Node3D.new()
+	dungeon.name = "Dungeon"
+	_add(root, dungeon, root)
 
 	var player_scene: PackedScene = load("res://game/scenes/player.tscn")
 	var player := player_scene.instantiate()

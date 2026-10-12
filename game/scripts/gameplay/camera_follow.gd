@@ -17,6 +17,12 @@ func _ready() -> void:
 		look_at(_target.global_position, Vector3.UP)
 
 
+## Pula direto para o alvo (ao trocar de andar), sem deslizar pela masmorra.
+func snap() -> void:
+	if _target:
+		global_position = _target.global_position + offset
+
+
 func _process(delta: float) -> void:
 	if _target == null:
 		return

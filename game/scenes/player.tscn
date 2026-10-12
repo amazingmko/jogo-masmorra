@@ -22,25 +22,25 @@ roughness = 0.9
 [sub_resource type="BoxMesh" id="BoxMesh_o5wgc"]
 size = Vector3(0.25, 0.25, 0.4)
 
-[node name="Player" type="CharacterBody3D" unique_id=843613246]
+[node name="Player" type="CharacterBody3D" unique_id=350506695]
 script = ExtResource("1_fkr20")
 
-[node name="Collision" type="CollisionShape3D" parent="." unique_id=550889990]
+[node name="Collision" type="CollisionShape3D" parent="." unique_id=1244227337]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
 shape = SubResource("CapsuleShape3D_uy5fi")
 
-[node name="Body" type="Node3D" parent="." unique_id=1207941704]
+[node name="Body" type="Node3D" parent="." unique_id=1715910094]
 
-[node name="Mesh" type="MeshInstance3D" parent="Body" unique_id=274075480]
+[node name="Mesh" type="MeshInstance3D" parent="Body" unique_id=1931523157]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
 material_override = SubResource("StandardMaterial3D_lvpx6")
 mesh = SubResource("CapsuleMesh_nggnu")
 
-[node name="Facing" type="MeshInstance3D" parent="Body" unique_id=592292802]
+[node name="Facing" type="MeshInstance3D" parent="Body" unique_id=188772267]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, 0.45)
 material_override = SubResource("StandardMaterial3D_b6cxe")
 mesh = SubResource("BoxMesh_o5wgc")
 
-[node name="Health" type="Node" parent="." unique_id=1021633905]
+[node name="Health" type="Node" parent="." unique_id=967873831]
 script = ExtResource("2_u5gyh")
 invulnerability_time = 0.6

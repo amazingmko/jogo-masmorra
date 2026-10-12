@@ -59,6 +59,22 @@ func take_damage(amount: int) -> int:
 	return amount
 
 
+## Muda os máximos (ex.: um buff de +2 de vida). Se o máximo aumenta, o atual sobe junto.
+func set_maximums(new_max_health: int, new_max_armor: int) -> void:
+	var gained_health := new_max_health - max_health
+	var gained_armor := new_max_armor - max_armor
+	max_health = new_max_health
+	max_armor = new_max_armor
+	if not is_dead:
+		if gained_health > 0:
+			health += gained_health
+		if gained_armor > 0:
+			armor += gained_armor
+	health = mini(health, max_health)
+	armor = mini(armor, max_armor)
+	_emit_changed()
+
+
 func heal(amount: int) -> void:
 	if is_dead or amount <= 0:
 		return

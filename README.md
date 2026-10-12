@@ -9,16 +9,18 @@ Feito em **Godot 4.7.2 (Standard, GDScript)**.
 1. Abra o Godot e clique em **Importar** (Import).
 2. Escolha o arquivo `project.godot` desta pasta.
 3. Clique em **Importar e Editar**. Na primeira vez o Godot leva alguns segundos preparando os arquivos.
-4. Aperte **F5** (ou o botão ▶ no canto superior direito) para jogar a arena de teste.
+4. Aperte **F5** (ou o botão ▶ no canto superior direito) para jogar.
 
-Controles da arena (fase 2 — protótipo de combate):
+### Como é uma run (fase 3)
+
+5 andares gerados aleatoriamente. Em cada andar: entre nas salas; nas de combate as portas fecham até o último inimigo cair. Baús (amarelo no minimapa) dão loot, a fonte (verde) cura, e o portal azul leva ao próximo andar depois de escolher 1 entre 3 bênçãos (buffs). No 5º andar o Rei Ossudo espera na sala mais distante (vermelho). Todo loot vai para o inventário na hora, então até uma derrota rende progresso.
 
 | ação | PC | celular / mouse |
 | --- | --- | --- |
 | andar | WASD ou setas | arrastar na metade esquerda da tela (joystick) |
 | atacar (mira sozinho) | segurar Espaço ou J | segurar o botão ATACAR |
 | trocar herói | 1 Guardião · 2 Batedora · 3 Arcanista | — |
-| recomeçar | R | botão Recomeçar |
+| nova run | R | botão Nova run |
 | forjar espada / salvar | C / G | — |
 
 ## Estrutura
@@ -27,7 +29,8 @@ Controles da arena (fase 2 — protótipo de combate):
 game/
   autoload/      sistemas globais: ItemDB (catálogo), GameState (progresso), SaveSystem
   data/          dados do jogo — itens, heróis, drops, receitas, profissões, buffs (.tres)
-  scripts/       moldes de dados, regras (inventário, drop, crafting, save) e jogabilidade
+  scripts/       moldes de dados, regras (inventário, drop, crafting, save), combate,
+                 masmorra (planta, salas, baús/fonte/portal), jogabilidade e interface
   scenes/        cenas
 tests/           testes automáticos das regras e simulação de combate
 tools/           script que gerou os dados de exemplo
@@ -41,8 +44,8 @@ Para criar um item novo: no painel **FileSystem** do Godot, abra `game/data/item
 
 ```bash
 godot --headless --path . --script res://tests/run_tests.gd
-# robô jogando a arena (pega erros e dá noção de balanceamento):
-godot --headless --fixed-fps 60 --path . --script res://tests/sim_combat.gd -- hero=guardiao
+# robô jogando uma run inteira (pega erros e dá noção de dificuldade):
+godot --headless --fixed-fps 60 --path . --script res://tests/sim_run.gd -- hero=guardiao seed=123
 ```
 
 ## Ordem do método

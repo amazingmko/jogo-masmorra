@@ -91,9 +91,9 @@ Equipamento é guardado como "instância" (cada espada tem um `uid` próprio), p
 
 ## Ordem de construção
 
-1. **Fundação (este passo):** projeto Godot, moldes de dados, inventário, drops, crafting, save seguro, testes automáticos e uma cena 3D de teste (andar com o teclado, sortear loot, craftar).
-2. **Protótipo de combate:** joystick de toque, ataque com auto-mira, um inimigo, dano e morte. Telas: S05. Só avança quando estiver gostoso.
-3. **Primeira run:** geração de salas, 5 fases, chefe, buffs, baús, resumo. Telas: S05, S06, S07, S09, S11, S12, S20.
+1. **Fundação (feito):** projeto Godot, moldes de dados, inventário, drops, crafting, save seguro, testes automáticos e uma cena 3D de teste (andar com o teclado, sortear loot, craftar).
+2. **Protótipo de combate (feito):** joystick de toque, ataque com auto-mira, um inimigo, dano e morte. Telas: S05. Só avança quando estiver gostoso.
+3. **Primeira run (feito):** geração de salas, 5 fases, chefe, buffs, baús, resumo. Telas: S05, S06, S07, S09, S11, S12, S20.
 4. **Progressão (must da matriz):** hub, seleção de herói, 3 classes, evolução com moeda. Telas: S02, S03, S13.
 5. **Itens e crafting (should):** equipamento, raridade, elementos, forja. Telas: S14, S15.
 6. **Profissões e o restante dos should/could.**

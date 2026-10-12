@@ -24,6 +24,7 @@ func _process(_delta: float) -> bool:
 	_test_save_file()
 	_test_health()
 	_test_damage(catalog)
+	_test_dungeon_layout()
 
 	print("\n%d verificações passaram, %d falharam." % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
@@ -202,3 +203,53 @@ func _test_damage(catalog: ItemCatalog) -> void:
 	check(not sword.is_ranged() and bow.is_ranged(), "espada é corpo a corpo, arco dispara")
 	check(is_equal_approx(sword.cooldown(), 0.5), "espada ataca 2x por segundo")
 	check(catalog.enemies.size() >= 3, "inimigos carregados")
+
+
+func _test_dungeon_layout() -> void:
+	var T := DungeonLayout.RoomType
+	var all_ok := true
+	for seed in range(1, 201):
+		var rng := RandomNumberGenerator.new()
+		rng.seed = seed
+		var boss := seed % 5 == 0
+		var size := 6 + seed % 3
+		var layout := DungeonLayout.new()
+		layout.generate(rng, size, boss)
+		var cells := {}
+		var counts := {}
+		for r in layout.rooms:
+			cells[r.cell] = true
+			counts[r.type] = counts.get(r.type, 0) + 1
+			for n in r.links:
+				var d: Vector2i = layout.rooms[n].cell - r.cell
+				if absi(d.x) + absi(d.y) != 1:
+					all_ok = false  # ligação entre salas não vizinhas
+		var reach_all := true
+		for i in layout.room_count():
+			if layout.path(layout.start_index, i).is_empty():
+				reach_all = false
+		var goal_type := T.BOSS if boss else T.EXIT
+		var deepest := true
+		for r in layout.rooms:
+			if r.depth > layout.rooms[layout.goal_index].depth:
+				deepest = false
+		if layout.room_count() != size or cells.size() != size or not reach_all \
+				or counts.get(T.START, 0) != 1 or counts.get(goal_type, 0) != 1 \
+				or counts.get(T.TREASURE, 0) < 1 or not deepest:
+			all_ok = false
+			print("  planta inválida com semente %d" % seed)
+	check(all_ok, "200 plantas: todas conectadas, sem salas repetidas, 1 início, 1 objetivo no ponto mais fundo, baú presente")
+
+	var a := DungeonLayout.new()
+	var b := DungeonLayout.new()
+	var ra := RandomNumberGenerator.new()
+	var rb := RandomNumberGenerator.new()
+	ra.seed = 99
+	rb.seed = 99
+	a.generate(ra, 8, true)
+	b.generate(rb, 8, true)
+	var same := a.room_count() == b.room_count()
+	for i in a.room_count():
+		if a.rooms[i].cell != b.rooms[i].cell or a.rooms[i].type != b.rooms[i].type:
+			same = false
+	check(same, "mesma semente gera a mesma planta")

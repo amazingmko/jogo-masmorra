@@ -8,6 +8,9 @@ signal died(enemy: Enemy)
 enum State { CHASE, WINDUP, RECOVER, DEAD }
 
 var data: EnemyData
+## Multiplicador de vida (andares mais fundos têm inimigos mais resistentes).
+var health_multiplier := 1.0
+var is_boss := false
 var health: Health
 var state: State = State.CHASE
 
@@ -22,9 +25,10 @@ var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 
 var _rng := RandomNumberGenerator.new()
 
 
-static func create(enemy_data: EnemyData) -> Enemy:
+static func create(enemy_data: EnemyData, hp_multiplier: float = 1.0) -> Enemy:
 	var e := Enemy.new()
 	e.data = enemy_data
+	e.health_multiplier = hp_multiplier
 	e.name = String(enemy_data.id).capitalize()
 	return e
 
@@ -36,7 +40,7 @@ func _ready() -> void:
 	_rng.randomize()
 	_build_visuals()
 	health = Health.new()
-	health.max_health = data.max_health
+	health.max_health = maxi(int(round(data.max_health * health_multiplier)), 1)
 	add_child(health)
 	health.died.connect(_on_died)
 	_player = get_tree().get_first_node_in_group("player")

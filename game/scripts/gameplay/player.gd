@@ -18,6 +18,10 @@ const CLASS_COLORS := {
 var hero: HeroData
 var weapon: ItemData
 var weapon_stats := WeaponStats.new()
+## Buffs escolhidos nesta run (somem ao começar outra).
+var buffs: Array[BuffData] = []
+var move_speed := 5.0
+var crit_chance := 0.05
 ## Preenchidos pela HUD a cada quadro (joystick e botão de toque).
 var touch_move := Vector2.ZERO
 var touch_attack := false
@@ -56,13 +60,53 @@ func set_hero(new_hero: HeroData) -> void:
 	hero = new_hero
 	hero_id = new_hero.id
 	weapon = ItemDB.get_item(new_hero.starting_weapon_id)
-	weapon_stats = WeaponStats.from_item(weapon)
 	health.max_health = new_hero.max_health
 	health.max_armor = new_hero.max_armor
 	health.reset()
+	_recompute_stats()
 	_base_color = CLASS_COLORS.get(new_hero.hero_class, Color.WHITE)
 	_material.albedo_color = _base_color
 	hero_changed.emit(new_hero)
+
+
+# ---------- buffs ----------
+
+func apply_buff(buff: BuffData) -> void:
+	buffs.append(buff)
+	_recompute_stats()
+
+
+func clear_buffs() -> void:
+	buffs.clear()
+	_recompute_stats()
+
+
+## Valor de um atributo depois dos buffs: primeiro soma, depois multiplica.
+func stat_value(stat: StringName, base: float) -> float:
+	var add := 0.0
+	var mult := 1.0
+	for b in buffs:
+		if b.stat != stat:
+			continue
+		if b.mode == BuffData.Mode.ADD:
+			add += b.amount
+		else:
+			mult *= b.amount
+	return (base + add) * mult
+
+
+func _recompute_stats() -> void:
+	if hero == null:
+		return
+	var w := WeaponStats.from_item(weapon)
+	w.damage = maxi(int(round(stat_value(&"damage", w.damage))), 1)
+	w.attack_speed = stat_value(&"attack_speed", w.attack_speed)
+	w.attack_range = stat_value(&"attack_range", w.attack_range)
+	weapon_stats = w
+	move_speed = stat_value(&"move_speed", hero.move_speed)
+	crit_chance = clampf(stat_value(&"crit_chance", hero.crit_chance), 0.0, 1.0)
+	health.set_maximums(int(round(stat_value(&"max_health", hero.max_health))),
+		int(round(stat_value(&"max_armor", hero.max_armor))))
 
 
 func revive(at: Vector3) -> void:
@@ -78,7 +122,7 @@ func _physics_process(delta: float) -> void:
 	if controls_enabled:
 		input = touch_move if touch_move.length() > 0.05 else Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var direction := Vector3(input.x, 0.0, input.y)
-	var speed := hero.move_speed if hero else 5.0
+	var speed := move_speed
 	velocity.x = direction.x * speed
 	velocity.z = direction.z * speed
 	velocity.y = 0.0 if is_on_floor() else velocity.y - _gravity * delta
@@ -122,7 +166,7 @@ func _find_target() -> Node3D:
 
 func _attack() -> void:
 	if weapon_stats.is_ranged():
-		var projectile := Projectile.create(_facing, weapon_stats, hero.element, hero.crit_chance, _rng)
+		var projectile := Projectile.create(_facing, weapon_stats, hero.element, crit_chance, _rng)
 		get_parent().add_child(projectile)
 		projectile.global_position = global_position + Vector3(0, 0.9, 0) + _facing * 0.6
 	else:
@@ -138,7 +182,7 @@ func _melee_swing() -> void:
 		var dist := to_enemy.length()
 		# Acerta quem está no alcance e num cone de ~140° à frente (ou colado no herói).
 		if dist <= reach + 0.4 and (dist < 0.6 or _facing.angle_to(to_enemy) <= deg_to_rad(70)):
-			var hit := Damage.roll(weapon_stats.damage, hero.element, enemy.data.element, hero.crit_chance, _rng)
+			var hit := Damage.roll(weapon_stats.damage, hero.element, enemy.data.element, crit_chance, _rng)
 			enemy.take_hit(hit.amount, hit.crit, to_enemy)
 
 

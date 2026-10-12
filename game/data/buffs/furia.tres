@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="BuffData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/buff_data.gd" id="1_7748g"]
+
+[resource]
+script = ExtResource("1_7748g")
+id = &"furia"
+display_name = "Fúria"
+description = "+20% de dano."
+stat = &"damage"
+amount = 1.2
+mode = 1
