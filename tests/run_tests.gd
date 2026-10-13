@@ -289,21 +289,33 @@ func _test_items_and_stats(catalog: ItemCatalog) -> void:
 	check(ItemFactory.can_use(guardian, catalog.get_item(&"espada_ferro")) and not ItemFactory.can_use(guardian, catalog.get_item(&"arco_simples")),
 		"guardião usa espada e não arco")
 
-	# Drop de equipamento: tabela "equipamento" vira peça única com atributos.
+	# Tabela "equipamento" (guardada para recompensas futuras) vira peça única com atributos.
 	var got_piece := false
-	var own_type := 0
 	var total := 0
 	for i in 300:
-		for d in LootRoller.roll(catalog.get_drop_table(&"chefe_rei_ossudo"), catalog, rng, {"ilvl": 8, "profile": "boss", "hero": guardian}):
+		for d in LootRoller.roll(catalog.get_drop_table(&"equipamento"), catalog, rng, {"ilvl": 8, "profile": "boss", "hero": guardian}):
 			if not d.instance.is_empty():
 				got_piece = true
 				total += 1
-				if ItemFactory.can_use(guardian, d.item):
-					own_type += 1
 				if int(d.instance.ilvl) != 8 or int(d.instance.rarity) < R.RARE:
 					got_piece = false
-	check(got_piece and total > 0, "chefe deixa peças de nível 8, raras ou épicas")
-	check(float(own_type) / total > 0.5, "mais da metade das peças serve no herói atual (%d/%d)" % [own_type, total])
+	check(got_piece and total > 0, "peça sorteada sai no nível 8, rara ou épica")
+
+	# Masmorra só dá reagentes: nenhum inimigo, baú ou chefe deixa equipamento.
+	var only_reagents := true
+	var boss_qty := 0
+	var mob_qty := 0
+	for table_id in [&"esqueleto", &"rato_gigante", &"bau", &"chefe_rei_ossudo"]:
+		for i in 200:
+			for d in LootRoller.roll(catalog.get_drop_table(table_id), catalog, rng, {"ilvl": 8, "profile": "boss", "hero": guardian}):
+				if not d.instance.is_empty() or d.item.is_equipment():
+					only_reagents = false
+				if table_id == &"chefe_rei_ossudo":
+					boss_qty += int(d.qty)
+				elif table_id == &"esqueleto":
+					mob_qty += int(d.qty)
+	check(only_reagents, "masmorra só deixa reagentes (equipamento só por crafting)")
+	check(boss_qty > mob_qty * 8, "chefe deixa muito mais reagentes que um inimigo (%d vs %d)" % [boss_qty, mob_qty])
 
 	# Atributos do herói: nível e equipamento somam.
 	var base := HeroStats.compute(guardian, 1, {}, catalog)

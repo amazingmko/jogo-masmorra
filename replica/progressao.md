@@ -93,6 +93,13 @@ Somam-se os bônus de pets e de poções do Alquimista (limite de 95%).
 - cada falha seguida na mesma receita dá **+10%** na próxima tentativa (zera ao acertar);
 - a falha ainda dá **um pouco de XP** de profissão.
 
+### Origem dos itens e cadeia de raridade (decidido)
+
+- **Nada de equipamento cai nas masmorras.** Inimigos, baús e chefes deixam só **reagentes**; o chefe deixa bem mais (e, no futuro, reagentes exclusivos dele). *(já no jogo)*
+- **Todo equipamento é fabricado.** Fabricar uma peça Comum já é lento.
+- **Cada raridade pede a anterior:** Raro = a peça Comum + reagentes; Épico = a peça Rara + reagentes; Lendário = a peça Épica + reagentes raros de chefe. *(entra na fase 4b)*
+- A decidir: na falha, a peça-base é perdida ou volta? Recomendação: **volta** (só os reagentes sofrem a regra da metade), senão uma falha num Épico apaga semanas de jogo.
+
 ## 7. Energia — decidido: opção B (energia de recompensa)
 
 A autora propôs energia que recarrega a cada hora, para limitar quantas vezes se entra nas masmorras. Um alerta honesto: na pesquisa (`fixes-preliminar.md`), **limite de energia foi uma das reclamações mais citadas** no Guild of Guardians, e o recon tinha marcado energia como algo a não ter. O ritmo lento é um bom objetivo; a questão é **o que** limitar.
@@ -154,4 +161,6 @@ Uma vila ou acampamento em 3D, por onde o herói anda:
 - [x] Druida e Vampiro em couro/agilidade
 - [x] Regras de falha no crafting
 - [x] Energia: opção B
+- [x] Masmorras só dão reagentes; equipamento só por crafting, em cadeia de raridade
+- [ ] Peça-base na falha do crafting: perde ou volta?
 - [ ] Calibrar números com a planilha de economia (depois da fase 4b)

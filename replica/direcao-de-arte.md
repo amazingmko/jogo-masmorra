@@ -1,5 +1,7 @@
 # Direção de arte e identidade do jogo (rascunho para a autora revisar)
 
+> **Atualização:** a temática passou a ser a Amazônia das lendas. Classes, elementos, áreas e reagentes propostos estão em `tematica-amazonica.md`, que substitui o elenco de classes e os elementos abaixo.
+
 ## A ideia em uma frase
 
 Um ARPG de masmorras para celular com **alma de MMORPG de fantasia épica**: muitas classes com papéis claros, progressão longa (níveis, talentos, equipamento, profissões) e masmorras cada vez mais difíceis, jogado em runs curtas.

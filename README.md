@@ -22,7 +22,7 @@ O jogo abre na base. Ande até um ponto e toque no botão azul (PC: **E**):
 
 ### A run
 
-5 andares gerados aleatoriamente. Nas salas de combate as portas fecham até o último inimigo cair. Baús (amarelo no minimapa) dão loot, a fonte (verde) cura, o portal azul leva ao próximo andar depois de escolher 1 entre 3 bênçãos. No 5º andar, o Rei Ossudo. Inimigos e baús deixam cair **equipamento com raridade (Comum, Raro, Épico), nível de item e atributos**; metade das peças vem no tipo de armadura do herói atual. Todo loot e XP ficam com o herói, mesmo perdendo.
+5 andares gerados aleatoriamente. Nas salas de combate as portas fecham até o último inimigo cair. Baús (amarelo no minimapa) dão loot, a fonte (verde) cura, o portal azul leva ao próximo andar depois de escolher 1 entre 3 bênçãos. No 5º andar, o Rei Ossudo. Inimigos, baús e chefe deixam cair **só reagentes** (o chefe, bem mais): todo equipamento é fabricado no Artesão (fase 4b). Todo loot e XP ficam com o herói, mesmo perdendo.
 
 ### Inimigos
 

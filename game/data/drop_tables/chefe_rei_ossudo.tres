@@ -6,24 +6,33 @@
 [sub_resource type="Resource" id="Resource_p3vo2"]
 script = ExtResource("1_p3vo2")
 item_id = &"minerio_ferro"
-weight = 40
-min_qty = 2
-max_qty = 4
+weight = 30
+min_qty = 3
+max_qty = 6
 
 [sub_resource type="Resource" id="Resource_3h33a"]
 script = ExtResource("1_p3vo2")
 item_id = &"fragmento_osso"
-weight = 40
-min_qty = 2
-max_qty = 4
+weight = 30
+min_qty = 3
+max_qty = 6
 
 [sub_resource type="Resource" id="Resource_0qmaq"]
 script = ExtResource("1_p3vo2")
-table_id = &"equipamento"
-weight = 50
+item_id = &"couro_rasgado"
+weight = 25
+min_qty = 3
+max_qty = 5
+
+[sub_resource type="Resource" id="Resource_goyc5"]
+script = ExtResource("1_p3vo2")
+item_id = &"erva_vermelha"
+weight = 15
+min_qty = 2
+max_qty = 4
 
 [resource]
 script = ExtResource("2_3h33a")
 id = &"chefe_rei_ossudo"
-rolls = 4
-entries = Array[ExtResource("1_p3vo2")]([SubResource("Resource_p3vo2"), SubResource("Resource_3h33a"), SubResource("Resource_0qmaq")])
+rolls = 6
+entries = Array[ExtResource("1_p3vo2")]([SubResource("Resource_p3vo2"), SubResource("Resource_3h33a"), SubResource("Resource_0qmaq"), SubResource("Resource_goyc5")])

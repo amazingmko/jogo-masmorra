@@ -6,22 +6,17 @@
 [sub_resource type="Resource" id="Resource_f61bs"]
 script = ExtResource("1_f61bs")
 item_id = &"fragmento_osso"
-weight = 50
+weight = 55
 max_qty = 2
 
 [sub_resource type="Resource" id="Resource_8h712"]
 script = ExtResource("1_f61bs")
 item_id = &"minerio_ferro"
-weight = 30
+weight = 35
 max_qty = 2
-
-[sub_resource type="Resource" id="Resource_heye7"]
-script = ExtResource("1_f61bs")
-table_id = &"equipamento"
-weight = 6
 
 [resource]
 script = ExtResource("2_8h712")
 id = &"esqueleto"
 nothing_weight = 30
-entries = Array[ExtResource("1_f61bs")]([SubResource("Resource_f61bs"), SubResource("Resource_8h712"), SubResource("Resource_heye7")])
+entries = Array[ExtResource("1_f61bs")]([SubResource("Resource_f61bs"), SubResource("Resource_8h712")])

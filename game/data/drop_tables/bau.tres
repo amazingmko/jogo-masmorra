@@ -20,7 +20,7 @@ max_qty = 3
 [sub_resource type="Resource" id="Resource_nhi7f"]
 script = ExtResource("1_hlpk6")
 item_id = &"couro_rasgado"
-weight = 20
+weight = 25
 min_qty = 2
 max_qty = 3
 
@@ -33,14 +33,10 @@ max_qty = 2
 [sub_resource type="Resource" id="Resource_6a66u"]
 script = ExtResource("1_hlpk6")
 item_id = &"pocao_vida"
-
-[sub_resource type="Resource" id="Resource_bygfc"]
-script = ExtResource("1_hlpk6")
-table_id = &"equipamento"
-weight = 30
+weight = 5
 
 [resource]
 script = ExtResource("2_56rfa")
 id = &"bau"
 rolls = 3
-entries = Array[ExtResource("1_hlpk6")]([SubResource("Resource_hlpk6"), SubResource("Resource_56rfa"), SubResource("Resource_nhi7f"), SubResource("Resource_3onyb"), SubResource("Resource_6a66u"), SubResource("Resource_bygfc")])
+entries = Array[ExtResource("1_hlpk6")]([SubResource("Resource_hlpk6"), SubResource("Resource_56rfa"), SubResource("Resource_nhi7f"), SubResource("Resource_3onyb"), SubResource("Resource_6a66u")])

@@ -230,34 +230,34 @@ func _sub(table_id: String, weight: int, min_qty: int = 1, max_qty: int = 1) -> 
 
 
 func _make_drop_tables() -> void:
-	# Tabela-mãe de equipamentos: qualquer peça, com a mesma chance.
+	# Tabela-mãe de equipamentos: não cai mais nas masmorras (todo equipamento é fabricado).
+	# Fica guardada para recompensas futuras e para os testes do sorteio de peças.
 	var equip: Array[DropEntry] = []
 	for id in _equipment_ids:
 		equip.append(_entry(id, 10, 1, 1))
 	_table("equipamento", 1, 0, equip)
 
+	# Inimigos, baús e chefe deixam só reagentes. O chefe deixa bem mais.
 	_table("esqueleto", 1, 30, [
-		_entry("fragmento_osso", 50, 1, 2),
-		_entry("minerio_ferro", 30, 1, 2),
-		_sub("equipamento", 6),
+		_entry("fragmento_osso", 55, 1, 2),
+		_entry("minerio_ferro", 35, 1, 2),
 	])
 	_table("rato_gigante", 1, 40, [
-		_entry("couro_rasgado", 50, 1, 2),
-		_entry("erva_vermelha", 30, 1, 1),
-		_sub("equipamento", 4),
+		_entry("couro_rasgado", 55, 1, 2),
+		_entry("erva_vermelha", 35, 1, 1),
 	])
 	_table("bau", 3, 0, [
 		_entry("minerio_ferro", 30, 2, 4),
 		_entry("fragmento_osso", 25, 2, 3),
-		_entry("couro_rasgado", 20, 2, 3),
+		_entry("couro_rasgado", 25, 2, 3),
 		_entry("erva_vermelha", 15, 1, 2),
-		_entry("pocao_vida", 10, 1, 1),
-		_sub("equipamento", 30),
+		_entry("pocao_vida", 5, 1, 1),
 	])
-	_table("chefe_rei_ossudo", 4, 0, [
-		_entry("minerio_ferro", 40, 2, 4),
-		_entry("fragmento_osso", 40, 2, 4),
-		_sub("equipamento", 50),
+	_table("chefe_rei_ossudo", 6, 0, [
+		_entry("minerio_ferro", 30, 3, 6),
+		_entry("fragmento_osso", 30, 3, 6),
+		_entry("couro_rasgado", 25, 3, 5),
+		_entry("erva_vermelha", 15, 2, 4),
 	])
 
 
