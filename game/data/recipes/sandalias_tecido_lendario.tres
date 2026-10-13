@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_adwns"]
+
+[resource]
+script = ExtResource("1_adwns")
+id = &"sandalias_tecido_lendario"
+display_name = "Sandálias de Tecido (Lendário)"
+result_item_id = &"sandalias_tecido"
+result_rarity = 3
+requires_base = true
+ingredients = {
+"fibra_tucum": 80,
+"latex_seringueira": 50,
+"muiraquita": 1,
+"pelo_mapinguari": 4,
+"pena_arara": 4
+}
+profession_id = &"tecela"
+required_level = 40
+xp_reward = 300

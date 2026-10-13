@@ -4,16 +4,16 @@ extends SceneTree
 ## execução e ter uma noção grosseira de dificuldade. O robô nunca desvia de propósito.
 ##
 ## Rodar:
-##   godot --headless --fixed-fps 60 --path . --script res://tests/sim_run.gd -- hero=guardiao seed=123
+##   godot --headless --fixed-fps 60 --path . --script res://tests/sim_run.gd -- hero=icamiaba seed=123
 ## Com captura de tela (precisa de tela/xvfb, sem --headless):
-##   ... -- hero=arcanista shot=/caminho/foto.png shot_at=20
+##   ... -- hero=encantado shot=/caminho/foto.png shot_at=20
 ## (Autoloads e classes que dependem deles ficam sem tipo aqui: este script compila antes deles existirem.)
 
 const MAX_SECONDS := 900
 
 var _main: Node
 var _frames := 0
-var _hero := &"guardiao"
+var _hero := &"icamiaba"
 var _seed := 0
 var _start_floor := 1
 var _dodges := 0
@@ -127,6 +127,7 @@ func _process(_delta: float) -> bool:
 			result = "CAIU no andar %d" % _main.floor_number if player.health.is_dead else "VENCEU a run"
 		print("RESULTADO [%s, semente %d]: %s em %ds; abates %d; desvios %d; mega magias %d; buffs %s" % [
 			_hero, _main.run_seed, result, _frames / 60, _main._stats.kills, _dodges, _mega_seen, _main._stats.buffs])
+		print("  reagentes: ", _main._stats.loot)
 		Input.action_release("attack")
 		quit(0 if _main._run_over else 1)
 	return false

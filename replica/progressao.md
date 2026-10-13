@@ -4,16 +4,18 @@ Decisões da autora (12/10/2026) e números iniciais. Os números serão calibra
 
 **Decidido:** energia de recompensa (opção B, seção 7) · regras de falha no crafting (seção 6) · Druida e Vampiro em couro/agilidade · pet de energia (seção 8).
 
-**Construção:** fase 4a = seções 2–5 e 9 (atributos, armaduras, raridades, itens, nível, hub) — **feita** · fase 4b = seções 1, 6 e 7 (dificuldades, crafting, energia).
+**Construção:** fase 4a = seções 2–5 e 9 (atributos, armaduras, raridades, itens, nível, hub) — **feita** · fase 4b = seções 1, 6 e 7 (dificuldades, crafting, energia) — **feita** (13/10/2026).
 
 ## 1. Níveis de dificuldade
 
-| dificuldade | vida dos inimigos | dano dos inimigos | nível de item que cai | para liberar |
+| dificuldade | vida dos inimigos | dano dos inimigos | reagentes | para liberar |
 | --- | --- | --- | --- | --- |
-| **Normal** | 100% | 100% | 1–10 | — |
-| **Difícil** | 180% | 150% | 11–20 | vencer o Normal + nível de item médio 8 |
-| **Heroico** | 320% | 220% | 21–30 | vencer o Difícil + nível de item médio 18 |
-| **Mítico** | 560% | 320% | 31–40 | vencer o Heroico + nível de item médio 28 |
+| **Normal** | 100% | 100% | ×1 | — |
+| **Difícil** | 180% | 150% | ×1,5 | vencer o Normal + nível de item médio 8 |
+| **Heroico** | 320% | 220% | ×2 | vencer o Difícil + nível de item médio 12 |
+| **Mítico** | 560% | 320% | ×3 + Muiraquitã | vencer o Heroico + nível de item médio 16 |
+
+Como nada de equipamento cai, a dificuldade aumenta a quantidade de reagentes. O nível de item vem da raridade fabricada (Comum 5, Raro 10, Épico 16, Lendário 24): média 8 ≈ maioria Rara, 12 ≈ metade Épica, 16 = tudo Épico. Os requisitos foram reduzidos (eram 8/18/28) para casar com esses níveis.
 
 O "nível de item médio" é a média do equipamento vestido. Como os melhores itens vêm do crafting (seção 6), **o crafting é a chave para subir de dificuldade**, como a autora pediu.
 
@@ -71,10 +73,10 @@ Um herói só veste o próprio tipo de armadura. Armas também são por classe (
 
 | profissão | faz |
 | --- | --- |
-| Ferreiro | armadura de placa e armas de metal |
-| Coureiro | armadura de couro, arcos |
-| Alfaiate | armadura de tecido |
-| Alquimista | poções e frascos (bônus para uma run) |
+| Ferreiro | armadura de placa e espadas |
+| Curtidor | armadura de couro e arcos |
+| Tecelã | armadura de tecido e cajados |
+| Erveira | garrafadas (bônus para uma run) |
 | Joalheiro (depois) | anéis e amuletos |
 
 **Chance de sucesso:**
@@ -86,7 +88,7 @@ Um herói só veste o próprio tipo de armadura. Armas também são por classe (
 | Épico | 40% | +0,5% |
 | Lendário | 15% | +0,5% |
 
-Somam-se os bônus de pets e de poções do Alquimista (limite de 95%).
+Somam-se os bônus de pets e de garrafadas da Erveira (limite de 95%) — ainda não implementados.
 
 **Regras da falha (decidido):**
 - a falha consome **metade** dos materiais (a outra metade volta);
@@ -98,7 +100,10 @@ Somam-se os bônus de pets e de poções do Alquimista (limite de 95%).
 - **Nada de equipamento cai nas masmorras.** Inimigos, baús e chefes deixam só **reagentes**; o chefe deixa bem mais (e, no futuro, reagentes exclusivos dele). *(já no jogo)*
 - **Todo equipamento é fabricado.** Fabricar uma peça Comum já é lento.
 - **Cada raridade pede a anterior:** Raro = a peça Comum + reagentes; Épico = a peça Rara + reagentes; Lendário = a peça Épica + reagentes raros de chefe. *(entra na fase 4b)*
-- A decidir: na falha, a peça-base é perdida ou volta? Recomendação: **volta** (só os reagentes sofrem a regra da metade), senão uma falha num Épico apaga semanas de jogo.
+- **Na falha, a peça-base volta** (decidido): só os reagentes sofrem a regra da metade.
+- Custos (multiplicados pelo peso do slot: arma 1,2 · peito 1,0 · pernas 0,9 · cabeça 0,8 · mãos e pés 0,6): Comum 14 do reagente principal + 8 do secundário; Raro 3× + Pena de Arara; Épico 6× + Pena + Pelo de Mapinguari; Lendário 10× + Pena + Pelo + 1 Muiraquitã.
+- Nível de profissão exigido: Comum 1, Raro 5, Épico 20, Lendário 40 (de 1 a 100). XP por peça: 30/80/200/500 × peso do slot.
+- Medido com o robô no Normal com energia: uma run vencida rende ~20–45 de cada reagente comum, ~6 Penas e 2–4 Pelos. Uma peça Comum por run, por profissão, mais ou menos.
 
 ## 7. Energia — decidido: opção B (energia de recompensa)
 
@@ -162,5 +167,5 @@ Uma vila ou acampamento em 3D, por onde o herói anda:
 - [x] Regras de falha no crafting
 - [x] Energia: opção B
 - [x] Masmorras só dão reagentes; equipamento só por crafting, em cadeia de raridade
-- [ ] Peça-base na falha do crafting: perde ou volta?
+- [x] Peça-base na falha do crafting: volta
 - [ ] Calibrar números com a planilha de economia (depois da fase 4b)

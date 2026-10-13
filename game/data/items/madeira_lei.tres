@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/item_data.gd" id="1_w0juc"]
+
+[resource]
+script = ExtResource("1_w0juc")
+id = &"madeira_lei"
+display_name = "Madeira de Lei"
+description = "Ipê e maçaranduba, duras como pedra. Ferreiro, Curtidor e Tecelã."
+max_stack = 999

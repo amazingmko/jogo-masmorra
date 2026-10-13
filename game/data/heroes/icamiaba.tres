@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="HeroData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/hero_data.gd" id="1_vfdhe"]
+
+[resource]
+script = ExtResource("1_vfdhe")
+id = &"icamiaba"
+display_name = "Icamiaba"
+description = "Guerreira da lenda das Icamiabas. Aguenta pancada e protege. Força, placa."
+weapon_type = &"espada"
+max_health = 120
+max_shield = 50
+max_energy = 120
+move_speed = 4.5
+starting_weapon_id = &"espada_ferro"

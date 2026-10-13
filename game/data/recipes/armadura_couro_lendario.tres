@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_lh3hh"]
+
+[resource]
+script = ExtResource("1_lh3hh")
+id = &"armadura_couro_lendario"
+display_name = "Gibão de Couro (Lendário)"
+result_item_id = &"armadura_couro"
+result_rarity = 3
+requires_base = true
+ingredients = {
+"couro_jacare": 140,
+"latex_seringueira": 80,
+"muiraquita": 1,
+"pelo_mapinguari": 6,
+"pena_arara": 6
+}
+profession_id = &"curtidor"
+required_level = 40
+xp_reward = 500

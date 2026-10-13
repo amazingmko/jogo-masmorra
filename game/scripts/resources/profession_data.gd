@@ -1,7 +1,6 @@
 class_name ProfessionData
 extends Resource
-## Profissão de crafting (ferreiro, alquimista...). Fase posterior do jogo,
-## mas o molde já existe para as receitas poderem exigir nível.
+## Profissão de crafting (Ferreiro, Curtidor, Tecelã, Erveira). Sobe de nível fabricando.
 
 @export var id: StringName
 @export var display_name: String = ""

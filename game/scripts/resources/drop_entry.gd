@@ -9,3 +9,5 @@ extends Resource
 @export_range(1, 10000) var weight: int = 10
 @export_range(1, 999) var min_qty: int = 1
 @export_range(1, 999) var max_qty: int = 1
+## Só cai a partir desta dificuldade (0 Normal, 1 Difícil, 2 Heroico, 3 Mítico).
+@export_range(0, 3) var min_difficulty: int = 0

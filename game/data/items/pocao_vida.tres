@@ -5,8 +5,8 @@
 [resource]
 script = ExtResource("1_lvgv3")
 id = &"pocao_vida"
-display_name = "Poção de Vida"
-description = "Recupera 20 de vida."
+display_name = "Garrafada de Cura"
+description = "Garrafada de andiroba. Recupera vida."
 kind = 4
 max_stack = 20
 stats = {

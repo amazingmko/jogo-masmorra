@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/item_data.gd" id="1_vfaoi"]
+
+[resource]
+script = ExtResource("1_vfaoi")
+id = &"pelo_mapinguari"
+display_name = "Pelo de Mapinguari"
+description = "Só o chefe deixa. Pedido nas peças Épicas e Lendárias."
+rarity = 2
+tier = 2
+max_stack = 999

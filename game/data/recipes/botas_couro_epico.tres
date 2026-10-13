@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_ytpv7"]
+
+[resource]
+script = ExtResource("1_ytpv7")
+id = &"botas_couro_epico"
+display_name = "Botas de Couro (Épico)"
+result_item_id = &"botas_couro"
+result_rarity = 2
+requires_base = true
+ingredients = {
+"couro_jacare": 48,
+"latex_seringueira": 30,
+"pelo_mapinguari": 2,
+"pena_arara": 2
+}
+profession_id = &"curtidor"
+required_level = 20
+xp_reward = 120

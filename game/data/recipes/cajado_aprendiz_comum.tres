@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_nfp0q"]
+
+[resource]
+script = ExtResource("1_nfp0q")
+id = &"cajado_aprendiz_comum"
+display_name = "Cajado de Aprendiz (Comum)"
+result_item_id = &"cajado_aprendiz"
+ingredients = {
+"fibra_tucum": 10,
+"madeira_lei": 17
+}
+profession_id = &"tecela"
+required_level = 1
+xp_reward = 36

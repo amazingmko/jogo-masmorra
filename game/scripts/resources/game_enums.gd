@@ -14,6 +14,10 @@ enum ArmorType { CLOTH, LEATHER, PLATE }
 
 enum Slot { WEAPON, HEAD, CHEST, HANDS, LEGS, FEET }
 
+enum Difficulty { NORMAL, HARD, HEROIC, MYTHIC }
+
+const DIFFICULTY_NAMES := ["Normal", "Difícil", "Heroico", "Mítico"]
+const DIFFICULTY_COLORS := [Color("d9d4e6"), Color("6fdc7b"), Color("4da3ff"), Color("ff6b6b")]
 const RARITY_NAMES := ["Comum", "Raro", "Épico", "Lendário"]
 const RARITY_COLORS := [Color("d9d4e6"), Color("4da3ff"), Color("c06bff"), Color("ffa53d")]
 ## Quanto mais forte é um item de cada raridade (Comum = 100%).

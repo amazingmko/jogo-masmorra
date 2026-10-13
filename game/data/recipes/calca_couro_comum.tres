@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_q475b"]
+
+[resource]
+script = ExtResource("1_q475b")
+id = &"calca_couro_comum"
+display_name = "Calça de Couro (Comum)"
+result_item_id = &"calca_couro"
+ingredients = {
+"couro_jacare": 13,
+"latex_seringueira": 7
+}
+profession_id = &"curtidor"
+required_level = 1
+xp_reward = 27

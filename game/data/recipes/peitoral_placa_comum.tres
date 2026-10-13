@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_fw1ul"]
+
+[resource]
+script = ExtResource("1_fw1ul")
+id = &"peitoral_placa_comum"
+display_name = "Peitoral de Placa (Comum)"
+result_item_id = &"peitoral_placa"
+ingredients = {
+"madeira_lei": 8,
+"minerio_ferro": 14
+}
+profession_id = &"ferreiro"
+required_level = 1
+xp_reward = 30

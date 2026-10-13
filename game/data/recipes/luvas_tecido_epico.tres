@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_42sbh"]
+
+[resource]
+script = ExtResource("1_42sbh")
+id = &"luvas_tecido_epico"
+display_name = "Luvas de Tecido (Épico)"
+result_item_id = &"luvas_tecido"
+result_rarity = 2
+requires_base = true
+ingredients = {
+"fibra_tucum": 48,
+"latex_seringueira": 30,
+"pelo_mapinguari": 2,
+"pena_arara": 2
+}
+profession_id = &"tecela"
+required_level = 20
+xp_reward = 120

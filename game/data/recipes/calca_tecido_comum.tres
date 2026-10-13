@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_gy30h"]
+
+[resource]
+script = ExtResource("1_gy30h")
+id = &"calca_tecido_comum"
+display_name = "Calça de Tecido (Comum)"
+result_item_id = &"calca_tecido"
+ingredients = {
+"fibra_tucum": 13,
+"latex_seringueira": 7
+}
+profession_id = &"tecela"
+required_level = 1
+xp_reward = 27

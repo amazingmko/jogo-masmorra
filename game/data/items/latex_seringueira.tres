@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/item_data.gd" id="1_ivwvh"]
+
+[resource]
+script = ExtResource("1_ivwvh")
+id = &"latex_seringueira"
+display_name = "Látex de Seringueira"
+description = "Borracha que impermeabiliza couro e tecido. Curtidor e Tecelã."
+max_stack = 999

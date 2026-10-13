@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_ujtlf"]
+
+[resource]
+script = ExtResource("1_ujtlf")
+id = &"espada_ferro_comum"
+display_name = "Espada de Ferro (Comum)"
+result_item_id = &"espada_ferro"
+ingredients = {
+"madeira_lei": 10,
+"minerio_ferro": 17
+}
+profession_id = &"ferreiro"
+required_level = 1
+xp_reward = 36

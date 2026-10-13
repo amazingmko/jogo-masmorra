@@ -6,7 +6,7 @@
 script = ExtResource("1_wumqw")
 id = &"calca_tecido"
 display_name = "Calça de Tecido"
-description = "Peça de armadura. Raridade, nível e atributos são sorteados quando cai."
+description = "Peça de armadura, fabricada pelos artesãos."
 kind = 2
 max_stack = 1
 slot = 4

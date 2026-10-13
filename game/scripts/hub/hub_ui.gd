@@ -1,7 +1,8 @@
 class_name HubUI
 extends CanvasLayer
 ## Interface do hub: barra do herói (nível, XP, atributos), joystick, botão de ação perto das
-## estações e as janelas: portal, baú/equipamento, quadro de heróis e artesão.
+## estações e as janelas: portal (dificuldade e energia), baú/equipamento, quadro de heróis e
+## oficina dos artesãos (crafting em cadeia de raridade).
 
 signal enter_dungeon_requested
 
@@ -9,6 +10,11 @@ const PANEL_BG := Color(0.1, 0.08, 0.15, 0.95)
 const TEXT := Color("f2ecff")
 const MUTED := Color("a9a2bf")
 const GOLD := Color("e8c26a")
+const OK_COLOR := Color("6fdc7b")
+const BAD_COLOR := Color("ff6b6b")
+const PROFESSIONS := [&"ferreiro", &"curtidor", &"tecela", &"erveira"]
+## Profissão que faz a armadura de cada tipo (tecido, couro, placa).
+const PROFESSION_FOR_ARMOR := [&"tecela", &"curtidor", &"ferreiro"]
 
 var joystick: TouchJoystick
 var action_button: TouchButton
@@ -23,6 +29,12 @@ var _modal_title: Label
 var _modal_body: VBoxContainer
 var _open_station: StringName = &""
 var _bag_tab := "equip"
+var _difficulty := -1
+var _use_energy := true
+var _craft_prof: StringName = &""
+var _craft_item: StringName = &""
+var _craft_msg := ""
+var _craft_msg_color := TEXT
 
 
 func _ready() -> void:
@@ -97,12 +109,72 @@ func _refresh_open_panel() -> void:
 func _fill_portal() -> void:
 	_modal_title.text = "Portal da Masmorra"
 	var hero := _player.hero
-	_modal_body.add_child(_label("Masmorra das Criptas — Normal", 24, GOLD))
-	_modal_body.add_child(_label("5 andares gerados aleatoriamente. No último, o Rei Ossudo.\nEquipamentos de nível 1 a 10. Todo loot e XP ficam com o herói, mesmo perdendo.", 18, TEXT, true))
-	_modal_body.add_child(_label("Herói: %s, nível %d" % [hero.display_name, GameState.level_of(hero.id)], 18, MUTED))
-	_modal_body.add_child(_label("Difícil, Heroico e Mítico chegam na próxima etapa (4b).", 16, MUTED))
-	var enter := _button("Entrar na masmorra", 22)
-	enter.pressed.connect(func() -> void: enter_dungeon_requested.emit())
+	if _difficulty < 0:
+		_difficulty = GameState.selected_difficulty
+	if GameState.difficulty_lock(_difficulty, hero.id) != "":
+		_difficulty = 0
+	var energy := GameState.energy_now()
+	if energy <= 0:
+		_use_energy = false
+
+	_modal_body.add_child(_label("Masmorra das Criptas", 24, GOLD))
+	_modal_body.add_child(_label("5 andares gerados aleatoriamente; no último, o chefe. A masmorra deixa só reagentes: todo equipamento é fabricado na oficina. XP e reagentes ficam com o herói, mesmo perdendo.", 17, TEXT, true))
+	_modal_body.add_child(_label("Herói: %s, nível %d · nível de item médio %s" % [hero.display_name,
+		GameState.level_of(hero.id), _num(GameState.average_ilvl(hero.id))], 17, MUTED))
+
+	_modal_body.add_child(_label("Dificuldade", 20, GOLD))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	_modal_body.add_child(row)
+	for d in 4:
+		var lock := GameState.difficulty_lock(d, hero.id)
+		var text := Difficulty.name_of(d) + ("" if lock == "" else "  (trancado)")
+		var b := _button(text, 18, Difficulty.color_of(d) if lock == "" else MUTED)
+		b.disabled = lock != ""
+		if d == _difficulty:
+			b.add_theme_stylebox_override("normal", _selected_style(Difficulty.color_of(d)))
+			b.add_theme_stylebox_override("hover", _selected_style(Difficulty.color_of(d)))
+		var dd := d
+		b.pressed.connect(func() -> void:
+			_difficulty = dd
+			_refresh_open_panel())
+		row.add_child(b)
+	var lines := PackedStringArray()
+	lines.append("Inimigos: vida ×%s · dano ×%s · mais agressivos" % [_num(Difficulty.HEALTH_MULT[_difficulty]),
+		_num(Difficulty.DAMAGE_MULT[_difficulty])])
+	lines.append("Recompensa: XP ×%s · reagentes ×%s%s" % [_num(Difficulty.XP_MULT[_difficulty]),
+		_num(Difficulty.REWARD_MULT[_difficulty]), " · chance de Muiraquitã no chefe" if _difficulty == 3 else ""])
+	_modal_body.add_child(_label("\n".join(lines), 17, TEXT, true))
+	for d in range(1, 4):
+		var lock := GameState.difficulty_lock(d, hero.id)
+		if lock != "":
+			_modal_body.add_child(_label("%s: %s." % [Difficulty.name_of(d), lock], 15, MUTED, true))
+			break
+
+	_modal_body.add_child(_label("Energia", 20, GOLD))
+	var wait := GameState.seconds_to_next_energy()
+	var energy_text := "%d/%d" % [energy, GameState.MAX_ENERGY]
+	energy_text += " · cheia" if wait == 0 else " · próxima em %d min" % ceili(wait / 60.0)
+	_modal_body.add_child(_label(energy_text, 17, TEXT))
+	var toggle := _button("", 17, OK_COLOR if _use_energy else MUTED, true)
+	if energy <= 0:
+		toggle.text = "Sem energia: a run rende só %d%% dos reagentes e nenhum troféu do chefe. Jogar continua liberado." % int(Difficulty.NO_ENERGY_REWARD * 100)
+		toggle.disabled = true
+	elif _use_energy:
+		toggle.text = "[x] Usar 1 energia: recompensa completa (toque para guardar a energia)"
+	else:
+		toggle.text = "[  ] Guardar a energia: a run rende só %d%% dos reagentes e nenhum troféu" % int(Difficulty.NO_ENERGY_REWARD * 100)
+	toggle.pressed.connect(func() -> void:
+		_use_energy = not _use_energy
+		_refresh_open_panel())
+	_modal_body.add_child(toggle)
+
+	var enter := _button("Entrar na masmorra (%s)" % Difficulty.name_of(_difficulty), 22, Difficulty.color_of(_difficulty))
+	enter.pressed.connect(func() -> void:
+		GameState.selected_difficulty = _difficulty
+		GameState.run_difficulty = _difficulty
+		GameState.run_full_rewards = _use_energy and GameState.spend_energy()
+		enter_dungeon_requested.emit())
 	_modal_body.add_child(enter)
 
 
@@ -141,17 +213,207 @@ func _fill_heroes() -> void:
 
 
 func _fill_artisan() -> void:
-	_modal_title.text = "Artesão"
-	_modal_body.add_child(_label("\"Traga materiais das masmorras e eu transformo em equipamento.\"", 18, TEXT, true))
-	_modal_body.add_child(_label("Profissões, receitas e a chance de falha chegam na próxima etapa (4b).", 16, MUTED))
-	_modal_body.add_child(_label("Seus materiais:", 20, GOLD))
-	var any := false
-	for item_id in GameState.inventory.stacks:
-		var item := ItemDB.get_item(StringName(item_id))
-		_modal_body.add_child(_label("  %d× %s" % [GameState.inventory.stacks[item_id], item.display_name if item else item_id], 17))
-		any = true
-	if not any:
-		_modal_body.add_child(_label("  nenhum ainda — explore a masmorra!", 17, MUTED))
+	_modal_title.text = "Oficina dos Artesãos"
+	var hero := _player.hero
+	if _craft_prof == &"":
+		_craft_prof = PROFESSION_FOR_ARMOR[hero.armor_type()]
+
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 8)
+	_modal_body.add_child(tabs)
+	for prof_id in PROFESSIONS:
+		var prof := ItemDB.catalog.get_profession(prof_id)
+		var t := _button("%s · nv %d" % [prof.display_name, GameState.professions.level_of(prof_id)], 17,
+			GOLD if prof_id == _craft_prof else TEXT)
+		var pid: StringName = prof_id
+		t.pressed.connect(func() -> void:
+			_craft_prof = pid
+			_craft_item = &""
+			_craft_msg = ""
+			_refresh_open_panel())
+		tabs.add_child(t)
+
+	var prof := ItemDB.catalog.get_profession(_craft_prof)
+	var lvl := GameState.professions.level_of(_craft_prof)
+	_modal_body.add_child(_label("%s — %s Nível %d · %d/%d XP" % [prof.display_name, prof.description, lvl,
+		GameState.professions.xp_of(_craft_prof), prof.xp_to_next(lvl)], 16, MUTED, true))
+	if _craft_msg != "":
+		_modal_body.add_child(_label(_craft_msg, 17, _craft_msg_color, true))
+
+	# Receitas da profissão, agrupadas pela peça.
+	var by_item := {}
+	for recipe: RecipeData in ItemDB.catalog.recipes.values():
+		if recipe.profession_id != _craft_prof:
+			continue
+		if not by_item.has(recipe.result_item_id):
+			by_item[recipe.result_item_id] = []
+		by_item[recipe.result_item_id].append(recipe)
+	var item_ids: Array = by_item.keys()
+	item_ids.sort_custom(func(a: StringName, b: StringName) -> bool:
+		var ia := ItemDB.get_item(a)
+		var ib := ItemDB.get_item(b)
+		var ua := ItemFactory.can_use(hero, ia)
+		var ub := ItemFactory.can_use(hero, ib)
+		if ua != ub:
+			return ua
+		return int(ia.slot) < int(ib.slot))
+	if _craft_item == &"" or not by_item.has(_craft_item):
+		_craft_item = item_ids[0] if not item_ids.is_empty() else &""
+
+	var columns := HBoxContainer.new()
+	columns.add_theme_constant_override("separation", 16)
+	columns.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_modal_body.add_child(columns)
+	var left_scroll := ScrollContainer.new()
+	left_scroll.custom_minimum_size = Vector2(320, 340)
+	left_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	columns.add_child(left_scroll)
+	var left := VBoxContainer.new()
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left.add_theme_constant_override("separation", 4)
+	left_scroll.add_child(left)
+	for item_id in item_ids:
+		var item := ItemDB.get_item(item_id)
+		var best := _best_rarity_owned(item_id)
+		var text := item.display_name
+		if item.is_equipment() and ItemFactory.can_use(hero, item):
+			text += "  · seu herói"
+		var color := GameEnums.rarity_color(best) if best >= 0 else (TEXT if item_id == _craft_item else MUTED)
+		var b := _button(text, 16, color)
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		if item_id == _craft_item:
+			b.add_theme_stylebox_override("normal", _selected_style(GOLD))
+		var iid: StringName = item_id
+		b.pressed.connect(func() -> void:
+			_craft_item = iid
+			_craft_msg = ""
+			_refresh_open_panel())
+		left.add_child(b)
+
+	var right_scroll := ScrollContainer.new()
+	right_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right_scroll.custom_minimum_size = Vector2(0, 340)
+	right_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	columns.add_child(right_scroll)
+	var right := VBoxContainer.new()
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.add_theme_constant_override("separation", 8)
+	right_scroll.add_child(right)
+	if _craft_item == &"":
+		right.add_child(_label("Nenhuma receita.", 16, MUTED))
+		return
+	var recipes: Array = by_item[_craft_item]
+	recipes.sort_custom(func(a: RecipeData, b: RecipeData) -> bool: return int(a.result_rarity) < int(b.result_rarity))
+	for recipe: RecipeData in recipes:
+		right.add_child(_recipe_card(recipe))
+
+
+## Cartão de uma receita: raridade, chance, requisitos (tem/precisa) e o botão de fabricar.
+func _recipe_card(recipe: RecipeData) -> Control:
+	var item := ItemDB.get_item(recipe.result_item_id)
+	var r := int(recipe.result_rarity)
+	var color := GameEnums.rarity_color(r) if item.is_equipment() else TEXT
+	var box := _card_panel(color.darkened(0.3))
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 3)
+	box.add_child(col)
+	var streak := GameState.craft_streak(recipe.id)
+	var chance := Crafting.success_chance(recipe, GameState.professions, streak)
+	var head := recipe.display_name
+	if item.is_equipment():
+		head = "[%s] %s · nível de item %d" % [GameEnums.rarity_name(r), item.display_name, Crafting.CRAFTED_ILVL[r]]
+	col.add_child(_label(head, 18, color, true))
+	var info := "Chance de sucesso %d%%" % int(round(chance * 100))
+	if streak > 0:
+		info += " (+%d%% por %d falha%s seguida%s)" % [streak * 10, streak, "s" if streak > 1 else "", "s" if streak > 1 else ""]
+	col.add_child(_label(info, 16, TEXT))
+
+	var lvl := GameState.professions.level_of(recipe.profession_id)
+	if lvl < recipe.required_level:
+		col.add_child(_label("Precisa de nível %d na profissão (o seu: %d)" % [recipe.required_level, lvl], 15, BAD_COLOR))
+	if recipe.requires_base:
+		var base := Crafting.find_base(recipe, GameState.inventory, GameState.worn_uids())
+		var base_text := "Peça-base: %s %s" % [item.display_name, GameEnums.rarity_name(r - 1)]
+		if base.is_empty():
+			col.add_child(_label(base_text + " — não tem", 15, BAD_COLOR, true))
+		else:
+			var wearer := GameState.wearer_of(base.uid)
+			var note := " — vestida por %s; a nova é vestida no lugar" % ItemDB.get_hero(wearer).display_name if wearer != &"" else " — tem"
+			col.add_child(_label(base_text + note, 15, OK_COLOR, true))
+	var parts := PackedStringArray()
+	for ing_id in recipe.ingredients:
+		var need := int(recipe.ingredients[ing_id])
+		var have := GameState.inventory.count(StringName(ing_id))
+		var ing := ItemDB.get_item(StringName(ing_id))
+		parts.append("%s %d/%d" % [ing.display_name if ing else String(ing_id), have, need])
+	var enough := GameState.inventory.has_all(recipe.ingredients)
+	col.add_child(_label("Reagentes: " + " · ".join(parts), 15, OK_COLOR if enough else MUTED, true))
+	col.add_child(_label("+%d XP · na falha: perde metade dos reagentes, a peça-base volta e ganha %d XP" % [
+		recipe.xp_reward, int(round(recipe.xp_reward * Crafting.FAIL_XP_FRACTION))], 14, MUTED, true))
+
+	var reason := Crafting.check(recipe, GameState.inventory, GameState.professions, GameState.worn_uids())
+	var make := _button("Fabricar" if reason == "" else reason, 18, color if reason == "" else MUTED)
+	make.disabled = reason != ""
+	var rid: StringName = recipe.id
+	make.pressed.connect(func() -> void: _do_craft(rid))
+	col.add_child(make)
+	return box
+
+
+func _do_craft(recipe_id: StringName) -> void:
+	var recipe := ItemDB.get_recipe(recipe_id)
+	var level_before := GameState.professions.level_of(recipe.profession_id)
+	var res := GameState.craft(recipe_id)
+	var item := ItemDB.get_item(recipe.result_item_id)
+	if not res.ok:
+		_craft_msg = res.reason
+		_craft_msg_color = BAD_COLOR
+	elif res.success:
+		var name := recipe.display_name
+		var worn := false
+		if item.is_equipment():
+			name = "%s %s (nível de item %d)" % [item.display_name, GameEnums.rarity_name(int(recipe.result_rarity)),
+				Crafting.CRAFTED_ILVL[int(recipe.result_rarity)]]
+			worn = GameState.wearer_of(res.uid) != &""
+		_craft_msg = "Sucesso! %s%s. +%d XP" % [name, " — já vestida" if worn else "", res.xp]
+		_craft_msg_color = GameEnums.rarity_color(int(recipe.result_rarity)) if item.is_equipment() else OK_COLOR
+	else:
+		var lost := PackedStringArray()
+		for ing_id in res.lost:
+			var ing := ItemDB.get_item(StringName(ing_id))
+			lost.append("%d× %s" % [res.lost[ing_id], ing.display_name if ing else String(ing_id)])
+		_craft_msg = "Falhou (chance era %d%%). Perdeu %s.%s Próxima tentativa: +10%%. +%d XP" % [
+			int(round(res.chance * 100)), ", ".join(lost), " A peça-base voltou." if recipe.requires_base else "", res.xp]
+		_craft_msg_color = BAD_COLOR
+	var level_after := GameState.professions.level_of(recipe.profession_id)
+	if level_after > level_before:
+		_craft_msg += "  ·  %s subiu para o nível %d!" % [ItemDB.catalog.get_profession(recipe.profession_id).display_name, level_after]
+	_player.refresh_stats()
+	_refresh_top_bar()
+	_refresh_open_panel()
+
+
+## Maior raridade que o jogador tem desta peça (-1 se nenhuma).
+func _best_rarity_owned(item_id: StringName) -> int:
+	var best := -1
+	for eq in GameState.inventory.equipment:
+		if eq.item_id == String(item_id):
+			best = maxi(best, int(eq.rarity))
+	return best
+
+
+func _num(v: float) -> String:
+	return ("%d" % int(v)) if is_equal_approx(v, round(v)) else ("%.1f" % v).replace(".", ",")
+
+
+func _selected_style(color: Color) -> StyleBoxFlat:
+	var st := StyleBoxFlat.new()
+	st.bg_color = Color(color, 0.18)
+	st.border_color = color
+	st.set_border_width_all(2)
+	st.set_corner_radius_all(10)
+	st.set_content_margin_all(10)
+	return st
 
 
 # ---------- baú e equipamento ----------
@@ -241,7 +503,7 @@ func _fill_materials(list: VBoxContainer) -> void:
 func _fill_equipment_list(list: VBoxContainer, hero: HeroData, equipped: Dictionary) -> void:
 	var pieces: Array = GameState.inventory.equipment.duplicate()
 	if pieces.is_empty():
-		list.add_child(_label("Nenhum equipamento ainda. Os inimigos e baús deixam cair peças.", 17, MUTED, true))
+		list.add_child(_label("Nenhum equipamento ainda. Traga reagentes da masmorra e fabrique na oficina.", 17, MUTED, true))
 		return
 	# Primeiro o que o herói pode usar; depois por raridade e nível.
 	pieces.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
@@ -316,7 +578,8 @@ func _refresh_top_bar() -> void:
 		GameEnums.PRIMARY_NAMES[hero.primary_stat], GameEnums.ARMOR_NAMES[hero.armor_type()]]
 	_xp_bar.max_value = Progression.xp_to_next(p.level)
 	_xp_bar.value = p.xp
-	_xp_label.text = "XP %d/%d" % [p.xp, Progression.xp_to_next(p.level)]
+	_xp_label.text = "XP %d/%d · Energia %d/%d" % [p.xp, Progression.xp_to_next(p.level),
+		GameState.energy_now(), GameState.MAX_ENERGY]
 
 
 func _build_top_bar() -> void:

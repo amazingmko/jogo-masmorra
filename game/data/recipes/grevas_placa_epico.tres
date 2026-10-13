@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_seop5"]
+
+[resource]
+script = ExtResource("1_seop5")
+id = &"grevas_placa_epico"
+display_name = "Grevas de Placa (Épico)"
+result_item_id = &"grevas_placa"
+result_rarity = 2
+requires_base = true
+ingredients = {
+"madeira_lei": 42,
+"minerio_ferro": 78,
+"pelo_mapinguari": 3,
+"pena_arara": 4
+}
+profession_id = &"ferreiro"
+required_level = 20
+xp_reward = 180

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_xiexv"]
+
+[resource]
+script = ExtResource("1_xiexv")
+id = &"sandalias_tecido_raro"
+display_name = "Sandálias de Tecido (Raro)"
+result_item_id = &"sandalias_tecido"
+result_rarity = 1
+requires_base = true
+ingredients = {
+"fibra_tucum": 24,
+"latex_seringueira": 15,
+"pena_arara": 1
+}
+profession_id = &"tecela"
+required_level = 5
+xp_reward = 48

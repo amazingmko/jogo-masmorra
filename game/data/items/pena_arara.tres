@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/item_data.gd" id="1_6thn4"]
+
+[resource]
+script = ExtResource("1_6thn4")
+id = &"pena_arara"
+display_name = "Pena de Arara"
+description = "Pena colorida e rara. Pedida nas peças Raras ou melhores."
+rarity = 1
+max_stack = 999

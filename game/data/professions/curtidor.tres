@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ProfessionData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/profession_data.gd" id="1_6o6s1"]
+
+[resource]
+script = ExtResource("1_6o6s1")
+id = &"curtidor"
+display_name = "Curtidor"
+description = "Trabalha o couro de jacaré: armaduras de couro e arcos."
+max_level = 100
+base_xp = 60
+xp_growth = 1.045

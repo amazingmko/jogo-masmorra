@@ -12,7 +12,7 @@ const CLASS_COLORS := {
 	GameEnums.HeroClass.MAGE: Color("b483e8"),
 }
 
-@export var hero_id: StringName = &"guardiao"
+@export var hero_id: StringName = &"icamiaba"
 @export var turn_speed: float = 14.0
 
 var hero: HeroData

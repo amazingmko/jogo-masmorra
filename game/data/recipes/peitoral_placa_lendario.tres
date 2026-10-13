@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_mnwvw"]
+
+[resource]
+script = ExtResource("1_mnwvw")
+id = &"peitoral_placa_lendario"
+display_name = "Peitoral de Placa (Lendário)"
+result_item_id = &"peitoral_placa"
+result_rarity = 3
+requires_base = true
+ingredients = {
+"madeira_lei": 80,
+"minerio_ferro": 140,
+"muiraquita": 1,
+"pelo_mapinguari": 6,
+"pena_arara": 6
+}
+profession_id = &"ferreiro"
+required_level = 40
+xp_reward = 500

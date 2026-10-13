@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_vfbpc"]
+
+[resource]
+script = ExtResource("1_vfbpc")
+id = &"capuz_couro_epico"
+display_name = "Capuz de Couro (Épico)"
+result_item_id = &"capuz_couro"
+result_rarity = 2
+requires_base = true
+ingredients = {
+"couro_jacare": 66,
+"latex_seringueira": 36,
+"pelo_mapinguari": 2,
+"pena_arara": 3
+}
+profession_id = &"curtidor"
+required_level = 20
+xp_reward = 160

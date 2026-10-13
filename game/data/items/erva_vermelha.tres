@@ -1,9 +1,0 @@
-[gd_resource type="Resource" script_class="ItemData" format=3]
-
-[ext_resource type="Script" path="res://game/scripts/resources/item_data.gd" id="1_c8oxc"]
-
-[resource]
-script = ExtResource("1_c8oxc")
-id = &"erva_vermelha"
-display_name = "Erva Vermelha"
-description = "Planta que cresce no escuro. Usada em poções."

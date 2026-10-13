@@ -84,7 +84,7 @@ func _save_item(it: ItemData) -> void:
 
 
 func _armor(id: String, name: String, slot: int, armor_type: int) -> void:
-	var it := _item(id, name, "Peça de armadura. Raridade, nível e atributos são sorteados quando cai.",
+	var it := _item(id, name, "Peça de armadura, fabricada pelos artesãos.",
 		ItemData.Kind.ARMOR, GameEnums.Rarity.COMMON, 1, 1)
 	it.slot = slot
 	it.armor_type = armor_type
@@ -106,11 +106,18 @@ var _equipment_ids: Array[String] = []
 func _make_items() -> void:
 	var K := ItemData.Kind
 	var R := GameEnums.Rarity
-	_save_item(_item("fragmento_osso", "Fragmento de Osso", "Restos de mortos-vivos. Base de muitas receitas.", K.MATERIAL, R.COMMON, 1, 99))
-	_save_item(_item("minerio_ferro", "Minério de Ferro", "Encontrado nas paredes das masmorras rasas.", K.MATERIAL, R.COMMON, 1, 99))
-	_save_item(_item("couro_rasgado", "Couro Rasgado", "Pode ser trabalhado em armaduras de couro.", K.MATERIAL, R.COMMON, 1, 99))
-	_save_item(_item("erva_vermelha", "Erva Vermelha", "Planta que cresce no escuro. Usada em poções.", K.MATERIAL, R.COMMON, 1, 99))
-	_save_item(_item("pocao_vida", "Poção de Vida", "Recupera 20 de vida.", K.CONSUMABLE, R.COMMON, 1, 20, {"heal": 20}))
+	# Reagentes da Amazônia (ver replica/tematica-amazonica.md). Só eles caem nas masmorras.
+	_save_item(_item("minerio_ferro", "Minério de Ferro", "Veios de ferro nas pedras da terra firme. Ferreiro.", K.MATERIAL, R.COMMON, 1, 999))
+	_save_item(_item("madeira_lei", "Madeira de Lei", "Ipê e maçaranduba, duras como pedra. Ferreiro, Curtidor e Tecelã.", K.MATERIAL, R.COMMON, 1, 999))
+	_save_item(_item("latex_seringueira", "Látex de Seringueira", "Borracha que impermeabiliza couro e tecido. Curtidor e Tecelã.", K.MATERIAL, R.COMMON, 1, 999))
+	_save_item(_item("couro_jacare", "Couro de Jacaré", "Couro grosso e resistente. Curtidor.", K.MATERIAL, R.COMMON, 1, 999))
+	_save_item(_item("fibra_tucum", "Fibra de Tucum", "Fibra de palmeira, fina e forte. Tecelã.", K.MATERIAL, R.COMMON, 1, 999))
+	_save_item(_item("oleo_andiroba", "Óleo de Andiroba", "Óleo que cura e protege. Erveira.", K.MATERIAL, R.COMMON, 1, 999))
+	_save_item(_item("semente_guarana", "Semente de Guaraná", "Dá energia e foco. Erveira.", K.MATERIAL, R.RARE, 1, 999))
+	_save_item(_item("pena_arara", "Pena de Arara", "Pena colorida e rara. Pedida nas peças Raras ou melhores.", K.MATERIAL, R.RARE, 1, 999))
+	_save_item(_item("pelo_mapinguari", "Pelo de Mapinguari", "Só o chefe deixa. Pedido nas peças Épicas e Lendárias.", K.MATERIAL, R.EPIC, 2, 999))
+	_save_item(_item("muiraquita", "Muiraquitã", "Amuleto de pedra verde. Só o chefe no Mítico deixa, e raramente. Peças Lendárias.", K.MATERIAL, R.LEGENDARY, 3, 999))
+	_save_item(_item("pocao_vida", "Garrafada de Cura", "Garrafada de andiroba. Recupera vida.", K.CONSUMABLE, R.COMMON, 1, 20, {"heal": 20}))
 
 	var S := GameEnums.Slot
 	var P := GameEnums.PrimaryStat
@@ -162,26 +169,31 @@ func _make_heroes() -> void:
 	var H := GameEnums.HeroClass
 	var E := GameEnums.Element
 	var P := GameEnums.PrimaryStat
-	_hero("guardiao", "Guardião", "Aguenta pancada e protege o grupo. Força, placa.", H.TANK, E.NEUTRAL, P.STRENGTH, "espada", 120, 50, 120, 4.5, "espada_ferro")
-	_hero("batedora", "Batedora", "Rápida, ataca de longe. Agilidade, couro.", H.RANGER, E.NATURE, P.AGILITY, "arco", 90, 30, 180, 5.5, "arco_simples")
-	_hero("arcanista", "Arcanista", "Frágil, mas com magia poderosa. Inteligência, tecido.", H.MAGE, E.FIRE, P.INTELLECT, "cajado", 80, 20, 220, 5.0, "cajado_aprendiz")
+	_hero("icamiaba", "Icamiaba", "Guerreira da lenda das Icamiabas. Aguenta pancada e protege. Força, placa.", H.TANK, E.NEUTRAL, P.STRENGTH, "espada", 120, 50, 120, 4.5, "espada_ferro")
+	_hero("mateira", "Mateira", "Caçadora da mata, rápida, ataca de longe. Agilidade, couro.", H.RANGER, E.NATURE, P.AGILITY, "arco", 90, 30, 180, 5.5, "arco_simples")
+	_hero("encantado", "Encantado do Rio", "Magia das águas encantadas. Frágil, mas poderoso. Inteligência, tecido.", H.MAGE, E.WATER, P.INTELLECT, "cajado", 80, 20, 220, 5.0, "cajado_aprendiz")
+
+
+func _profession(id: String, name: String, desc: String) -> void:
+	var p := ProfessionData.new()
+	p.id = StringName(id)
+	p.display_name = name
+	p.description = desc
+	p.max_level = 100
+	p.base_xp = 60
+	p.xp_growth = 1.045
+	_save(p, "res://game/data/professions/%s.tres" % id)
 
 
 func _make_professions() -> void:
-	var smith := ProfessionData.new()
-	smith.id = &"ferreiro"
-	smith.display_name = "Ferreiro"
-	smith.description = "Forja armas e armaduras de metal."
-	_save(smith, "res://game/data/professions/ferreiro.tres")
-	var alch := ProfessionData.new()
-	alch.id = &"alquimista"
-	alch.display_name = "Alquimista"
-	alch.description = "Prepara poções e elixires."
-	_save(alch, "res://game/data/professions/alquimista.tres")
+	_profession("ferreiro", "Ferreiro", "Forja espadas e armaduras de placa com ferro e madeira de lei.")
+	_profession("curtidor", "Curtidor", "Trabalha o couro de jacaré: armaduras de couro e arcos.")
+	_profession("tecela", "Tecelã", "Tece fibra de tucum: armaduras de tecido e cajados.")
+	_profession("erveira", "Erveira", "Prepara garrafadas com óleos e sementes da mata.")
 
 
 func _recipe(id: String, name: String, result: String, ingredients: Dictionary,
-		profession: String, level: int, xp: int) -> void:
+		profession: String, level: int, xp: int, rarity: int = 0, needs_base: bool = false) -> void:
 	var r := RecipeData.new()
 	r.id = StringName(id)
 	r.display_name = name
@@ -190,16 +202,52 @@ func _recipe(id: String, name: String, result: String, ingredients: Dictionary,
 	r.profession_id = StringName(profession)
 	r.required_level = level
 	r.xp_reward = xp
+	r.result_rarity = rarity
+	r.requires_base = needs_base
 	_save(r, "res://game/data/recipes/%s.tres" % id)
 
 
+## Quem fabrica cada peça e com quais reagentes: [profissão, reagente principal, secundário].
+const CRAFT_SOURCES := {
+	"espada_ferro": ["ferreiro", "minerio_ferro", "madeira_lei"],
+	"arco_simples": ["curtidor", "madeira_lei", "couro_jacare"],
+	"cajado_aprendiz": ["tecela", "madeira_lei", "fibra_tucum"],
+	"placa": ["ferreiro", "minerio_ferro", "madeira_lei"],
+	"couro": ["curtidor", "couro_jacare", "latex_seringueira"],
+	"tecido": ["tecela", "fibra_tucum", "latex_seringueira"],
+}
+## Peso de cada slot no custo (igual ao do ItemFactory: arma e peito custam mais).
+const COST_WEIGHT := [1.2, 0.8, 1.0, 0.6, 0.9, 0.6]
+const RARITY_SUFFIX := ["comum", "raro", "epico", "lendario"]
+## Por raridade: multiplicador dos reagentes base, nível de profissão exigido e XP.
+const CHAIN_MULT := [1, 3, 6, 10]
+const CHAIN_LEVEL := [1, 5, 20, 40]
+const CHAIN_XP := [30, 80, 200, 500]
+
+
 func _make_recipes() -> void:
-	_recipe("forjar_espada_ferro", "Espada de Ferro", "espada_ferro",
-		{"minerio_ferro": 5, "fragmento_osso": 2}, "ferreiro", 1, 40)
-	_recipe("costurar_armadura_couro", "Armadura de Couro", "armadura_couro",
-		{"couro_rasgado": 6}, "", 0, 0)
-	_recipe("preparar_pocao_vida", "Poção de Vida", "pocao_vida",
-		{"erva_vermelha": 3}, "alquimista", 1, 15)
+	# Cada peça tem 4 receitas em cadeia: Comum → Raro (pede a Comum) → Épico → Lendário.
+	for item_id in _equipment_ids:
+		var item: ItemData = load("res://game/data/items/%s.tres" % item_id)
+		var key: String = item_id if CRAFT_SOURCES.has(item_id) else ["tecido", "couro", "placa"][item.armor_type]
+		var src: Array = CRAFT_SOURCES[key]
+		var w: float = COST_WEIGHT[item.slot]
+		for r in 4:
+			var m: int = CHAIN_MULT[r]
+			var ing := {
+				src[1]: maxi(int(round(14 * w)) * m, 1),
+				src[2]: maxi(int(round(8 * w)) * m, 1),
+			}
+			if r >= 1:
+				ing["pena_arara"] = maxi(int(round([0, 2, 4, 6][r] * w)), 1)
+			if r >= 2:
+				ing["pelo_mapinguari"] = maxi(int(round([0, 0, 3, 6][r] * w)), 1)
+			if r == 3:
+				ing["muiraquita"] = 1
+			_recipe("%s_%s" % [item_id, RARITY_SUFFIX[r]], "%s (%s)" % [item.display_name, GameEnums.RARITY_NAMES[r]],
+				item_id, ing, src[0], CHAIN_LEVEL[r], int(round(CHAIN_XP[r] * w)), r, r > 0)
+	_recipe("preparar_garrafada", "Garrafada de Cura", "pocao_vida",
+		{"oleo_andiroba": 3}, "erveira", 1, 15)
 
 
 func _entry(item_id: String, weight: int, min_qty: int, max_qty: int) -> DropEntry:
@@ -211,12 +259,13 @@ func _entry(item_id: String, weight: int, min_qty: int, max_qty: int) -> DropEnt
 	return e
 
 
-func _table(id: String, rolls: int, nothing: int, entries: Array[DropEntry]) -> void:
+func _table(id: String, rolls: int, nothing: int, entries: Array[DropEntry], extra: Array[StringName] = []) -> void:
 	var t := DropTable.new()
 	t.id = StringName(id)
 	t.rolls = rolls
 	t.nothing_weight = nothing
 	t.entries = entries
+	t.extra_tables = extra
 	_save(t, "res://game/data/drop_tables/%s.tres" % id)
 
 
@@ -237,27 +286,43 @@ func _make_drop_tables() -> void:
 		equip.append(_entry(id, 10, 1, 1))
 	_table("equipamento", 1, 0, equip)
 
-	# Inimigos, baús e chefe deixam só reagentes. O chefe deixa bem mais.
+	# Inimigos, baús e chefe deixam só reagentes. O chefe deixa bem mais, e os troféus dele.
 	_table("esqueleto", 1, 30, [
-		_entry("fragmento_osso", 55, 1, 2),
 		_entry("minerio_ferro", 35, 1, 2),
+		_entry("madeira_lei", 35, 1, 2),
+		_entry("latex_seringueira", 20, 1, 2),
 	])
 	_table("rato_gigante", 1, 40, [
-		_entry("couro_rasgado", 55, 1, 2),
-		_entry("erva_vermelha", 35, 1, 1),
+		_entry("couro_jacare", 40, 1, 2),
+		_entry("fibra_tucum", 35, 1, 2),
+		_entry("latex_seringueira", 20, 1, 2),
+		_entry("oleo_andiroba", 10, 1, 1),
+		_entry("pena_arara", 4, 1, 1),
 	])
 	_table("bau", 3, 0, [
-		_entry("minerio_ferro", 30, 2, 4),
-		_entry("fragmento_osso", 25, 2, 3),
-		_entry("couro_rasgado", 25, 2, 3),
-		_entry("erva_vermelha", 15, 1, 2),
-		_entry("pocao_vida", 5, 1, 1),
+		_entry("minerio_ferro", 18, 2, 3),
+		_entry("madeira_lei", 18, 2, 3),
+		_entry("couro_jacare", 18, 2, 3),
+		_entry("fibra_tucum", 18, 2, 3),
+		_entry("latex_seringueira", 12, 1, 2),
+		_entry("pena_arara", 10, 1, 2),
+		_entry("oleo_andiroba", 8, 1, 2),
+		_entry("semente_guarana", 5, 1, 1),
 	])
 	_table("chefe_rei_ossudo", 6, 0, [
-		_entry("minerio_ferro", 30, 3, 6),
-		_entry("fragmento_osso", 30, 3, 6),
-		_entry("couro_rasgado", 25, 3, 5),
-		_entry("erva_vermelha", 15, 2, 4),
+		_entry("minerio_ferro", 20, 3, 5),
+		_entry("madeira_lei", 20, 3, 5),
+		_entry("couro_jacare", 20, 3, 5),
+		_entry("fibra_tucum", 20, 3, 5),
+		_entry("latex_seringueira", 10, 2, 3),
+		_entry("pena_arara", 10, 2, 3),
+	], [&"trofeus_chefe"])
+	# Troféus: sempre sorteados junto com o chefe. A Muiraquitã só no Mítico.
+	var muiraquita := _entry("muiraquita", 10, 1, 1)
+	muiraquita.min_difficulty = 3
+	_table("trofeus_chefe", 2, 0, [
+		_entry("pelo_mapinguari", 90, 1, 2),
+		muiraquita,
 	])
 
 

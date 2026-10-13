@@ -11,18 +11,55 @@ Feito em **Godot 4.7.2 (Standard, GDScript)**.
 3. Clique em **Importar e Editar**. Na primeira vez o Godot leva alguns segundos preparando os arquivos.
 4. Aperte **F5** (ou o botão ▶ no canto superior direito) para jogar.
 
-### Base (hub) — fase 4a
+### Base (hub)
 
 O jogo abre na base. Ande até um ponto e toque no botão azul (PC: **E**):
 
-- **Portal da Masmorra** — começa a run (por enquanto só Normal)
-- **Baú e Equipamento** — vestir e tirar peças, ver atributos e materiais
-- **Quadro de Heróis** — trocar de herói (Guardião: força/placa · Batedora: agilidade/couro · Arcanista: inteligência/tecido)
-- **Artesão** — crafting chega na fase 4b
+- **Portal da Masmorra** — escolher a dificuldade, decidir se gasta energia e começar a run
+- **Baú e Equipamento** — vestir e tirar peças, ver atributos e reagentes
+- **Quadro de Heróis** — trocar de herói (Icamiaba: força/placa · Mateira: agilidade/couro · Encantado do Rio: inteligência/tecido)
+- **Oficina dos Artesãos** — fabricar equipamento e garrafadas
+
+### Crafting (Oficina dos Artesãos)
+
+Nada de equipamento cai nas masmorras: **tudo é fabricado**. Cada profissão sobe do nível 1 ao 100 fabricando.
+
+| profissão | fabrica | reagentes principais |
+| --- | --- | --- |
+| Ferreiro | espada e armadura de placa | Minério de Ferro, Madeira de Lei |
+| Curtidor | arco e armadura de couro | Couro de Jacaré, Látex de Seringueira, Madeira de Lei |
+| Tecelã | cajado e armadura de tecido | Fibra de Tucum, Látex de Seringueira, Madeira de Lei |
+| Erveira | Garrafada de Cura | Óleo de Andiroba |
+
+Cada peça tem uma **cadeia de raridade**: a Rara pede a peça Comum, a Épica pede a Rara, a Lendária pede a Épica.
+
+| raridade | chance base | nível de profissão | nível de item | reagentes extras |
+| --- | --- | --- | --- | --- |
+| Comum | 90% | 1 | 5 | — |
+| Raro | 65% | 5 | 10 | 3× a Comum + Pena de Arara |
+| Épico | 40% | 20 | 16 | 6× + Pena + **Pelo de Mapinguari** (chefe) |
+| Lendário | 15% | 40 | 24 | 10× + Pena + Pelo + **Muiraquitã** (chefe no Mítico) |
+
+- A chance sobe +1% (Comum/Raro) ou +0,5% (Épico/Lendário) por nível de profissão acima do exigido, e **+10% por falha seguida** na mesma receita (zera ao acertar). Teto: 95%.
+- **Na falha:** perde metade dos reagentes, a peça-base volta e a profissão ganha 30% da XP.
+- Se a peça-base estava vestida, a peça nova é vestida no lugar dela.
+
+### Dificuldades e energia
+
+| dificuldade | inimigos (vida / dano) | XP | reagentes | para liberar |
+| --- | --- | --- | --- | --- |
+| Normal | ×1 / ×1 | ×1 | ×1 | — |
+| Difícil | ×1,8 / ×1,5 | ×2 | ×1,5 | vencer o Normal + nível de item médio 8 |
+| Heroico | ×3,2 / ×2,2 | ×4 | ×2 | vencer o Difícil + nível de item médio 12 |
+| Mítico | ×5,6 / ×3,2 | ×8 | ×3 + Muiraquitã | vencer o Heroico + nível de item médio 16 |
+
+Em dificuldades maiores os inimigos também ficam mais agressivos. O nível de item médio é a média das 6 peças vestidas (slot vazio conta 0).
+
+**Energia:** até 5, recarrega 1 por hora. Jogar é sempre liberado; gastar 1 energia faz a run render a recompensa completa. Sem energia, a run rende 35% dos reagentes e nenhum troféu do chefe (XP não muda). Os números ficam em `game/scripts/systems/difficulty.gd` e `crafting.gd`.
 
 ### A run
 
-5 andares gerados aleatoriamente. Nas salas de combate as portas fecham até o último inimigo cair. Baús (amarelo no minimapa) dão loot, a fonte (verde) cura, o portal azul leva ao próximo andar depois de escolher 1 entre 3 bênçãos. No 5º andar, o Rei Ossudo. Inimigos, baús e chefe deixam cair **só reagentes** (o chefe, bem mais): todo equipamento é fabricado no Artesão (fase 4b). Todo loot e XP ficam com o herói, mesmo perdendo.
+5 andares gerados aleatoriamente. Nas salas de combate as portas fecham até o último inimigo cair. Baús (amarelo no minimapa) dão reagentes, a fonte (verde) cura, o portal azul leva ao próximo andar depois de escolher 1 entre 3 bênçãos. No 5º andar, o Rei Ossudo (vira o Mapinguari na próxima etapa), que deixa muitos reagentes e o Pelo de Mapinguari. XP e reagentes ficam com o herói, mesmo perdendo.
 
 ### Inimigos
 
@@ -54,7 +91,7 @@ Cada sala tem um **perigo** de 0 a 1, que sobe com o andar e com a distância da
 ```
 game/
   autoload/      sistemas globais: ItemDB (catálogo), GameState (progresso), SaveSystem
-  data/          dados do jogo — itens, heróis, drops, receitas, profissões, buffs (.tres)
+  data/          dados do jogo — reagentes e moldes de itens, heróis, drops, receitas, profissões, buffs (.tres)
   scripts/       moldes de dados, regras (inventário, itens, atributos, XP, drop, crafting, save),
                  combate, masmorra (planta, salas, baús/fonte/portal), hub, jogabilidade e interface
   scenes/        cenas
@@ -65,7 +102,7 @@ replica/         documentos do método e de design: recon, matriz de features, a
 .claude/ .kiro/  skills do replica-skill
 ```
 
-Para criar um item novo: no painel **FileSystem** do Godot, abra `game/data/items/`, clique com o botão direito num item, **Duplicar**, e mude os campos no **Inspector**. Faça o mesmo para receitas e tabelas de drop.
+Para criar um item novo: no painel **FileSystem** do Godot, abra `game/data/items/`, clique com o botão direito num item, **Duplicar**, e mude os campos no **Inspector**. Faça o mesmo para receitas (`game/data/recipes/`, uma por peça e raridade) e tabelas de drop.
 
 ## Testes
 
@@ -74,9 +111,9 @@ godot --headless --path . --script res://tests/run_tests.gd
 # fluxo base -> masmorra -> base:
 godot --headless --path . --script res://tests/flow_hub.gd
 # robô jogando uma run inteira (pega erros e dá noção de dificuldade):
-godot --headless --fixed-fps 60 --path . --script res://tests/sim_run.gd -- hero=guardiao seed=123
+godot --headless --fixed-fps 60 --path . --script res://tests/sim_run.gd -- hero=icamiaba seed=123
 # só o chefe (pula para o 5º andar com as outras salas limpas):
-godot --headless --fixed-fps 60 --path . --script res://tests/sim_run.gd -- hero=batedora seed=7 floor=5 boss_only
+godot --headless --fixed-fps 60 --path . --script res://tests/sim_run.gd -- hero=mateira seed=7 floor=5 boss_only
 ```
 
 ## Ordem do método

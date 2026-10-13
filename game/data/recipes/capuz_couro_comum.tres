@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_28kl4"]
+
+[resource]
+script = ExtResource("1_28kl4")
+id = &"capuz_couro_comum"
+display_name = "Capuz de Couro (Comum)"
+result_item_id = &"capuz_couro"
+ingredients = {
+"couro_jacare": 11,
+"latex_seringueira": 6
+}
+profession_id = &"curtidor"
+required_level = 1
+xp_reward = 24

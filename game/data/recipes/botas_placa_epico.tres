@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_v0vtg"]
+
+[resource]
+script = ExtResource("1_v0vtg")
+id = &"botas_placa_epico"
+display_name = "Botas de Placa (Épico)"
+result_item_id = &"botas_placa"
+result_rarity = 2
+requires_base = true
+ingredients = {
+"madeira_lei": 30,
+"minerio_ferro": 48,
+"pelo_mapinguari": 2,
+"pena_arara": 2
+}
+profession_id = &"ferreiro"
+required_level = 20
+xp_reward = 120

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_migpm"]
+
+[resource]
+script = ExtResource("1_migpm")
+id = &"calca_tecido_lendario"
+display_name = "Calça de Tecido (Lendário)"
+result_item_id = &"calca_tecido"
+result_rarity = 3
+requires_base = true
+ingredients = {
+"fibra_tucum": 130,
+"latex_seringueira": 70,
+"muiraquita": 1,
+"pelo_mapinguari": 5,
+"pena_arara": 5
+}
+profession_id = &"tecela"
+required_level = 40
+xp_reward = 450

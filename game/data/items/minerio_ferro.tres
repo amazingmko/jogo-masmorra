@@ -6,4 +6,5 @@
 script = ExtResource("1_c7pjn")
 id = &"minerio_ferro"
 display_name = "Minério de Ferro"
-description = "Encontrado nas paredes das masmorras rasas."
+description = "Veios de ferro nas pedras da terra firme. Ferreiro."
+max_stack = 999

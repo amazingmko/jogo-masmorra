@@ -1,4 +1,6 @@
-# Temática amazônica (proposta para a autora revisar)
+# Temática amazônica (aprovada em 13/10/2026)
+
+**No jogo (fase 4b):** heróis Icamiaba, Mateira e Encantado do Rio · profissões Ferreiro, Curtidor, Tecelã e Erveira · reagentes amazônicos. **Próximo:** Mapinguari no lugar do Rei Ossudo e bichos da Terra Firme no lugar dos esqueletos; depois a Druida da Mata.
 
 ## A ideia em uma frase
 
@@ -53,9 +55,9 @@ Uma **comunidade ribeirinha** em casas de palafita e flutuantes, com porto e can
 
 | profissão (antes) | proposta | faz |
 | --- | --- | --- |
-| Ferreiro | **Ferreiro** | armas e armadura de placa (metal e madeira de lei) |
+| Ferreiro | **Ferreiro** | espadas e armadura de placa (metal e madeira de lei) |
 | Coureiro | **Curtidor** | armadura de couro e arcos |
-| Alfaiate | **Tecelã** | armadura de tecido (fibras de tucum e buriti) |
+| Alfaiate | **Tecelã** | armadura de tecido (fibras de tucum e buriti) e cajados |
 | Alquimista | **Erveira** | garrafadas e poções (andiroba, copaíba, guaraná) |
 
 ## Reagentes (substituem os genéricos atuais)

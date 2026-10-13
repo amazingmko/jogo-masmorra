@@ -6,7 +6,7 @@
 script = ExtResource("1_kpnql")
 id = &"capuz_tecido"
 display_name = "Capuz de Tecido"
-description = "Peça de armadura. Raridade, nível e atributos são sorteados quando cai."
+description = "Peça de armadura, fabricada pelos artesãos."
 kind = 2
 max_stack = 1
 slot = 1

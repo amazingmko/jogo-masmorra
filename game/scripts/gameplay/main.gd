@@ -29,6 +29,9 @@ const XP_ROOM_CLEAR := 4
 const XP_RUN_VICTORY := 50
 
 var run_seed := 0
+## Dificuldade da run (GameState.run_difficulty, escolhida no portal) e se a energia foi gasta.
+var difficulty := 0
+var full_rewards := true
 var floor_number := 0
 var layout: DungeonLayout
 var builder: DungeonBuilder
@@ -78,6 +81,8 @@ func new_run(seed: int = 0) -> void:
 	get_tree().paused = false
 	_run_id += 1
 	_run_over = false
+	difficulty = clampi(GameState.run_difficulty, 0, 3)
+	full_rewards = GameState.run_full_rewards
 	_rng.seed = seed if seed > 0 else randi()
 	run_seed = _rng.seed
 	_stats = {"kills": 0, "loot": {}, "started": Time.get_ticks_msec(), "buffs": [], "xp": 0,
@@ -114,7 +119,8 @@ func _next_floor() -> void:
 	_player.velocity = Vector3.ZERO
 	_camera.snap()
 	_hud.minimap.show_layout(layout)
-	_hud.set_wave("Andar %d/%d" % [floor_number, FLOORS])
+	_hud.set_wave("Andar %d/%d · %s%s" % [floor_number, FLOORS, Difficulty.name_of(difficulty),
+		"" if full_rewards else " · sem energia"])
 	_hud.show_toast("Andar %d — encontre o %s" % [floor_number,
 		"chefe" if floor_number == FLOORS else "portal azul"], Color("4db8ff"))
 	GameState.save()
@@ -178,7 +184,8 @@ func _spawn(enemy_id: StringName, room: DungeonRoom, at: Vector3 = Vector3.INF, 
 		return null
 	# O chefe já é desenhado para o último andar: não recebe o reforço por andar.
 	var level := 0 if data.is_boss else floor_number - 1
-	var enemy := Enemy.create(data, 1.0 + HEALTH_PER_FLOOR * level, 1.0 + DAMAGE_PER_FLOOR * level)
+	var enemy := Enemy.create(data, (1.0 + HEALTH_PER_FLOOR * level) * Difficulty.HEALTH_MULT[difficulty],
+		(1.0 + DAMAGE_PER_FLOOR * level) * Difficulty.DAMAGE_MULT[difficulty])
 	enemy.is_summon = summoned
 	enemy.threat = room_threat(room, data.is_boss)
 	enemy.loot_context = _loot_context("boss" if enemy.is_boss else "normal")
@@ -195,7 +202,7 @@ func _spawn(enemy_id: StringName, room: DungeonRoom, at: Vector3 = Vector3.INF, 
 
 ## Perigo da sala, de 0 a 1: sobe com o andar e com a distância da entrada.
 ## Controla o comportamento dos inimigos (sequências de ataques, esquivas, recuos e magias extras).
-## As dificuldades Difícil/Heroico/Mítico vão somar a este valor na fase 4b.
+## Difícil, Heroico e Mítico somam um bônus (Difficulty.THREAT_BONUS).
 func room_threat(room: DungeonRoom, boss: bool = false) -> float:
 	if boss:
 		return 1.0
@@ -206,7 +213,7 @@ func room_threat(room: DungeonRoom, boss: bool = false) -> float:
 		for r in layout.rooms:
 			max_depth = maxi(max_depth, int(r.depth))
 		depth_part = float(layout.rooms[room.index].depth) / float(max_depth)
-	return clampf(floor_part * 0.8 + depth_part * 0.2, 0.0, 1.0)
+	return clampf(floor_part * 0.8 + depth_part * 0.2 + Difficulty.THREAT_BONUS[difficulty], 0.0, 1.0)
 
 
 func _on_summon_requested(enemy: Enemy, summon_id: StringName, count: int, at: Vector3) -> void:
@@ -310,15 +317,17 @@ func on_loot_collected(item: ItemData, qty: int, instance: Dictionary = {}) -> v
 		_stats.best = instance
 
 
-## Contexto de loot: nível de item cresce com o andar (Normal: 1 a 10).
+## Contexto de loot: dificuldade (mais reagentes e troféus) e energia (recompensa completa ou não).
 func _loot_context(profile: String) -> Dictionary:
 	var ilvl := clampi(floor_number * 2 - _rng.randi_range(0, 1), 1, 10)
-	return {"ilvl": ilvl, "profile": profile, "hero": _player.hero}
+	return {"ilvl": ilvl, "profile": profile, "hero": _player.hero, "difficulty": difficulty,
+		"reward_mult": Difficulty.REWARD_MULT[difficulty], "full_rewards": full_rewards}
 
 
 func _give_xp(amount: int) -> void:
 	if amount <= 0:
 		return
+	amount = int(round(amount * Difficulty.XP_MULT[difficulty]))
 	_stats.xp += amount
 	GameState.add_xp(_player.hero_id, amount)
 
@@ -345,9 +354,16 @@ func _finish(victory: bool) -> void:
 	_run_over = true
 	if victory:
 		_give_xp(XP_RUN_VICTORY)
+		var first_clear := GameState.highest_cleared < difficulty
+		GameState.record_clear(difficulty)
+		if first_clear and difficulty < 3:
+			_hud.show_toast("%s liberado no portal (se o equipamento alcançar)!" % Difficulty.name_of(difficulty + 1),
+				Difficulty.color_of(difficulty + 1))
 	GameState.save()
 	var seconds: int = (Time.get_ticks_msec() - int(_stats.started)) / 1000
 	var lines := PackedStringArray()
+	lines.append("%s%s" % [Difficulty.name_of(difficulty), "" if full_rewards else
+		" · sem energia: reagentes reduzidos e sem troféus do chefe"])
 	lines.append("Andar alcançado: %d/%d   ·   Inimigos derrotados: %d   ·   Tempo: %d:%02d" % [
 		floor_number, FLOORS, _stats.kills, seconds / 60, seconds % 60])
 	if not _stats.buffs.is_empty():

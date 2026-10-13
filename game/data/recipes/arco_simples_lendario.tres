@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_u1wlh"]
+
+[resource]
+script = ExtResource("1_u1wlh")
+id = &"arco_simples_lendario"
+display_name = "Arco Simples (Lendário)"
+result_item_id = &"arco_simples"
+result_rarity = 3
+requires_base = true
+ingredients = {
+"couro_jacare": 100,
+"madeira_lei": 170,
+"muiraquita": 1,
+"pelo_mapinguari": 7,
+"pena_arara": 7
+}
+profession_id = &"curtidor"
+required_level = 40
+xp_reward = 600

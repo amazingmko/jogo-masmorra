@@ -6,37 +6,55 @@
 [sub_resource type="Resource" id="Resource_hlpk6"]
 script = ExtResource("1_hlpk6")
 item_id = &"minerio_ferro"
-weight = 30
+weight = 18
 min_qty = 2
-max_qty = 4
+max_qty = 3
 
 [sub_resource type="Resource" id="Resource_56rfa"]
 script = ExtResource("1_hlpk6")
-item_id = &"fragmento_osso"
-weight = 25
+item_id = &"madeira_lei"
+weight = 18
 min_qty = 2
 max_qty = 3
 
 [sub_resource type="Resource" id="Resource_nhi7f"]
 script = ExtResource("1_hlpk6")
-item_id = &"couro_rasgado"
-weight = 25
+item_id = &"couro_jacare"
+weight = 18
 min_qty = 2
 max_qty = 3
 
 [sub_resource type="Resource" id="Resource_3onyb"]
 script = ExtResource("1_hlpk6")
-item_id = &"erva_vermelha"
-weight = 15
-max_qty = 2
+item_id = &"fibra_tucum"
+weight = 18
+min_qty = 2
+max_qty = 3
 
 [sub_resource type="Resource" id="Resource_6a66u"]
 script = ExtResource("1_hlpk6")
-item_id = &"pocao_vida"
+item_id = &"latex_seringueira"
+weight = 12
+max_qty = 2
+
+[sub_resource type="Resource" id="Resource_bygfc"]
+script = ExtResource("1_hlpk6")
+item_id = &"pena_arara"
+max_qty = 2
+
+[sub_resource type="Resource" id="Resource_gvxg1"]
+script = ExtResource("1_hlpk6")
+item_id = &"oleo_andiroba"
+weight = 8
+max_qty = 2
+
+[sub_resource type="Resource" id="Resource_45u0t"]
+script = ExtResource("1_hlpk6")
+item_id = &"semente_guarana"
 weight = 5
 
 [resource]
 script = ExtResource("2_56rfa")
 id = &"bau"
 rolls = 3
-entries = Array[ExtResource("1_hlpk6")]([SubResource("Resource_hlpk6"), SubResource("Resource_56rfa"), SubResource("Resource_nhi7f"), SubResource("Resource_3onyb"), SubResource("Resource_6a66u")])
+entries = Array[ExtResource("1_hlpk6")]([SubResource("Resource_hlpk6"), SubResource("Resource_56rfa"), SubResource("Resource_nhi7f"), SubResource("Resource_3onyb"), SubResource("Resource_6a66u"), SubResource("Resource_bygfc"), SubResource("Resource_gvxg1"), SubResource("Resource_45u0t")])

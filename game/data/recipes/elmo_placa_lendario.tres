@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_utqlk"]
+
+[resource]
+script = ExtResource("1_utqlk")
+id = &"elmo_placa_lendario"
+display_name = "Elmo de Placa (Lendário)"
+result_item_id = &"elmo_placa"
+result_rarity = 3
+requires_base = true
+ingredients = {
+"madeira_lei": 60,
+"minerio_ferro": 110,
+"muiraquita": 1,
+"pelo_mapinguari": 5,
+"pena_arara": 5
+}
+profession_id = &"ferreiro"
+required_level = 40
+xp_reward = 400

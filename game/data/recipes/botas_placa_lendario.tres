@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_5y20c"]
+
+[resource]
+script = ExtResource("1_5y20c")
+id = &"botas_placa_lendario"
+display_name = "Botas de Placa (Lendário)"
+result_item_id = &"botas_placa"
+result_rarity = 3
+requires_base = true
+ingredients = {
+"madeira_lei": 50,
+"minerio_ferro": 80,
+"muiraquita": 1,
+"pelo_mapinguari": 4,
+"pena_arara": 4
+}
+profession_id = &"ferreiro"
+required_level = 40
+xp_reward = 300

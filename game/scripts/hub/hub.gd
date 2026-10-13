@@ -1,6 +1,6 @@
 extends Node3D
 ## Hub: a base entre as runs. Uma praça com quatro pontos de interação:
-##   Portal da Masmorra (norte) · Baú e Equipamento (oeste) · Quadro de Heróis (leste) · Artesão (sul)
+##   Portal da Masmorra (norte) · Baú e Equipamento (oeste) · Quadro de Heróis (leste) · Oficina dos Artesãos (sul)
 ## A praça é montada por código (visual provisório até a etapa de arte).
 
 const DUNGEON_SCENE := "res://game/scenes/main.tscn"
@@ -56,7 +56,7 @@ func _build_town() -> void:
 	_add_station(&"portal", "Portal da Masmorra", "ENTRAR", Vector3(0, 0, -8), _portal_visual())
 	_add_station(&"bau", "Baú e Equipamento", "ABRIR", Vector3(-7.5, 0, 0), _chest_visual())
 	_add_station(&"herois", "Quadro de Heróis", "ABRIR", Vector3(7.5, 0, 0), _board_visual())
-	_add_station(&"artesao", "Artesão", "FALAR", Vector3(0, 0, 7.5), _artisan_visual())
+	_add_station(&"artesao", "Oficina dos Artesãos", "FALAR", Vector3(0, 0, 7.5), _artisan_visual())
 
 	for pos in [Vector3(-12, 2.5, -12), Vector3(12, 2.5, -12), Vector3(-12, 2.5, 12), Vector3(12, 2.5, 12)]:
 		var light := OmniLight3D.new()

@@ -6,14 +6,19 @@ extends RefCounted
 
 
 ## context:
-##   ilvl     nível de item dos equipamentos que caírem
-##   profile  "normal", "chest" ou "boss" (chances de raridade)
-##   hero     HeroData do jogador (metade dos equipamentos vem no tipo dele)
+##   ilvl          nível de item dos equipamentos que caírem
+##   profile       "normal", "chest" ou "boss" (chances de raridade)
+##   hero          HeroData do jogador (metade dos equipamentos vem no tipo dele)
+##   difficulty    0 Normal … 3 Mítico (filtra entradas com min_difficulty; padrão: todas)
+##   reward_mult   multiplica a quantidade de materiais (padrão 1)
+##   full_rewards  false = run sem energia: só uma fração dos materiais e nada Épico ou acima
 static func roll(table: DropTable, catalog: ItemCatalog, rng: RandomNumberGenerator, context: Dictionary) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if table == null:
 		return out
-	for drop in table.roll(rng):
+	var full: bool = context.get("full_rewards", true)
+	var mult: float = float(context.get("reward_mult", 1.0)) * (1.0 if full else Difficulty.NO_ENERGY_REWARD)
+	for drop in table.roll(rng, int(context.get("difficulty", 99))):
 		var id := String(drop.item_id)
 		if id.begins_with("@"):
 			for i in int(drop.qty):
@@ -27,8 +32,23 @@ static func roll(table: DropTable, catalog: ItemCatalog, rng: RandomNumberGenera
 			for i in int(drop.qty):
 				out.append(_make(item, rng, context))
 		else:
-			out.append({"item": item, "qty": int(drop.qty), "instance": {}})
+			if not full and item.rarity >= GameEnums.Rarity.EPIC:
+				continue
+			var qty := scale_qty(int(drop.qty), mult, rng)
+			if qty > 0:
+				out.append({"item": item, "qty": qty, "instance": {}})
+	for extra_id in table.extra_tables:
+		out.append_array(roll(catalog.get_drop_table(extra_id), catalog, rng, context))
 	return out
+
+
+## Multiplica uma quantidade sem perder frações: 3 × 1,5 = 4 ou 5 (meio a meio).
+static func scale_qty(qty: int, mult: float, rng: RandomNumberGenerator) -> int:
+	var exact := qty * mult
+	var whole := int(floor(exact))
+	if rng.randf() < exact - whole:
+		whole += 1
+	return whole
 
 
 ## Sorteia uma peça de uma tabela de equipamentos; metade das vezes, prefere o que o herói usa.

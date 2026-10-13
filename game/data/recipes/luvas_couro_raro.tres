@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_5re4r"]
+
+[resource]
+script = ExtResource("1_5re4r")
+id = &"luvas_couro_raro"
+display_name = "Luvas de Couro (Raro)"
+result_item_id = &"luvas_couro"
+result_rarity = 1
+requires_base = true
+ingredients = {
+"couro_jacare": 24,
+"latex_seringueira": 15,
+"pena_arara": 1
+}
+profession_id = &"curtidor"
+required_level = 5
+xp_reward = 48

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HeroData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/hero_data.gd" id="1_aj6tg"]
+
+[resource]
+script = ExtResource("1_aj6tg")
+id = &"mateira"
+display_name = "Mateira"
+description = "Caçadora da mata, rápida, ataca de longe. Agilidade, couro."
+hero_class = 1
+element = 3
+primary_stat = 1
+weapon_type = &"arco"
+max_health = 90
+max_energy = 180
+move_speed = 5.5
+starting_weapon_id = &"arco_simples"

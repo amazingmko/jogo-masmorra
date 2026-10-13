@@ -21,6 +21,8 @@ func _process(_delta: float) -> bool:
 	_test_inventory(catalog)
 	_test_crafting(catalog)
 	_test_professions(catalog)
+	_test_difficulty_and_energy(catalog)
+	_test_save_migration()
 	_test_save_file()
 	_test_health()
 	_test_damage(catalog)
@@ -67,7 +69,7 @@ func _test_drops(catalog: ItemCatalog) -> void:
 			same = false
 	check(same, "drop com a mesma semente é reproduzível")
 
-	# Em 10 mil sorteios, a taxa de "nada" deve ficar perto de 30/112.
+	# Em 10 mil sorteios, a taxa de "nada" deve ficar perto de 30/120.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
 	var empty := 0
@@ -75,7 +77,7 @@ func _test_drops(catalog: ItemCatalog) -> void:
 	for i in n:
 		if table.roll(rng).is_empty():
 			empty += 1
-	var expected := 30.0 / 112.0
+	var expected := 30.0 / 120.0
 	check(absf(float(empty) / n - expected) < 0.02, "taxa de drop vazio ~%.2f (obtido %.3f)" % [expected, float(empty) / n])
 
 	# Chefe sorteia 3 vezes e nunca vem vazio.
@@ -107,33 +109,149 @@ func _test_inventory(catalog: ItemCatalog) -> void:
 
 
 func _test_crafting(catalog: ItemCatalog) -> void:
+	var R := GameEnums.Rarity
 	var inv := Inventory.new()
 	var prof := ProfessionProgress.new()
-	var recipe := catalog.get_recipe(&"forjar_espada_ferro")
-	var r := Crafting.craft(recipe, inv, prof, catalog)
-	check(not r.ok, "não forja sem ingredientes")
-	inv.add(catalog.get_item(&"minerio_ferro"), 6)
-	inv.add(catalog.get_item(&"fragmento_osso"), 2)
-	r = Crafting.craft(recipe, inv, prof, catalog)
-	check(r.ok, "forja com ingredientes: %s" % r.reason)
-	check(inv.count(&"espada_ferro") == 1, "espada entra no inventário")
-	check(inv.count(&"minerio_ferro") == 1 and inv.count(&"fragmento_osso") == 0, "ingredientes consumidos")
-	check(prof.xp_of(&"ferreiro") == 40, "ferreiro ganha XP")
+	var smith := catalog.get_profession(&"ferreiro")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3
+	var common := catalog.get_recipe(&"elmo_placa_comum")
+	var rare := catalog.get_recipe(&"elmo_placa_raro")
+	var epic := catalog.get_recipe(&"elmo_placa_epico")
+	var legendary := catalog.get_recipe(&"elmo_placa_lendario")
+	check(common != null and rare != null and epic != null and legendary != null, "cada peça tem receitas Comum, Rara, Épica e Lendária")
+	check(not common.requires_base and rare.requires_base and epic.requires_base and legendary.requires_base,
+		"Rara, Épica e Lendária pedem a peça anterior")
+	check(epic.ingredients.has("pelo_mapinguari") and legendary.ingredients.has("muiraquita"),
+		"Épica pede Pelo de Mapinguari; Lendária pede Muiraquitã")
+	check(int(rare.ingredients.minerio_ferro) == 3 * int(common.ingredients.minerio_ferro), "Rara custa 3× os reagentes da Comum")
 
-	var locked := RecipeData.new()
-	locked.id = &"teste"
-	locked.result_item_id = &"espada_ferro"
-	locked.profession_id = &"ferreiro"
-	locked.required_level = 5
-	check(Crafting.check(locked, inv, prof).begins_with("Precisa de nível"), "receita bloqueada por nível de profissão")
+	var r := Crafting.craft(common, inv, prof, catalog, rng)
+	check(not r.ok, "não fabrica sem reagentes")
+
+	# Chance: base por raridade, bônus de nível acima do exigido e de falhas seguidas, teto de 95%.
+	check(is_equal_approx(Crafting.success_chance(common, prof), 0.90), "Comum começa com 90%")
+	check(is_equal_approx(Crafting.success_chance(epic, prof), 0.40), "Épica começa com 40%")
+	check(is_equal_approx(Crafting.success_chance(epic, prof, 2), 0.60), "+10% por falha seguida")
+	prof.add_xp(smith, 999999)
+	check(is_equal_approx(Crafting.success_chance(common, prof), 0.95), "chance nunca passa de 95%")
+
+	# Falha: metade dos reagentes (para cima), peça-base volta, XP parcial.
+	var fresh := ProfessionProgress.new()
+	var always_fail := RecipeData.new()
+	always_fail.id = &"teste_falha"
+	always_fail.result_item_id = &"elmo_placa"
+	always_fail.result_rarity = R.LEGENDARY
+	always_fail.requires_base = true
+	always_fail.profession_id = &"ferreiro"
+	always_fail.ingredients = {"minerio_ferro": 7}
+	always_fail.xp_reward = 100
+	var inv2 := Inventory.new()
+	inv2.add(catalog.get_item(&"minerio_ferro"), 7)
+	inv2.add_equipment(ItemFactory.roll(catalog.get_item(&"elmo_placa"), 16, R.EPIC, rng))
+	var fails := 0
+	var lost_ok := true
+	for i in 30:
+		var inv3 := Inventory.new()
+		inv3.from_dict(inv2.to_dict())
+		var res := Crafting.craft(always_fail, inv3, fresh, catalog, rng)
+		if res.ok and not res.success:
+			fails += 1
+			if inv3.count(&"minerio_ferro") != 3 or inv3.equipment.size() != 1 or int(inv3.equipment[0].rarity) != R.EPIC:
+				lost_ok = false
+	check(fails > 15, "Lendária falha na maioria das vezes (15%%): %d/30" % fails)
+	check(lost_ok, "falha perde metade dos reagentes (4 de 7) e devolve a peça-base")
+	check(fresh.xp_of(&"ferreiro") > 0 or fresh.level_of(&"ferreiro") > 1, "falha também dá XP de profissão")
+
+	# Sucesso em cadeia: Comum vira base da Rara.
+	var inv4 := Inventory.new()
+	var prof4 := ProfessionProgress.new()
+	prof4.add_xp(smith, 5000)  # nível alto o bastante para a Rara
+	for id in common.ingredients:
+		inv4.add(catalog.get_item(StringName(id)), int(common.ingredients[id]) * 20)
+	for id in rare.ingredients:
+		inv4.add(catalog.get_item(StringName(id)), int(rare.ingredients[id]) * 20)
+	var made_common := false
+	for i in 20:
+		var res := Crafting.craft(common, inv4, prof4, catalog, rng)
+		if res.success:
+			made_common = true
+			break
+	check(made_common and inv4.equipment.size() == 1 and int(inv4.equipment[0].ilvl) == Crafting.CRAFTED_ILVL[0],
+		"fabrica a peça Comum com o nível de item certo")
+	check(Crafting.check(rare, inv4, prof4) == "", "com a Comum na bolsa, a Rara fica disponível")
+	var made_rare := false
+	for i in 20:
+		var res := Crafting.craft(rare, inv4, prof4, catalog, rng)
+		if res.success:
+			made_rare = true
+			break
+	var rares := inv4.equipment.filter(func(e: Dictionary) -> bool: return int(e.rarity) == R.RARE)
+	var commons := inv4.equipment.filter(func(e: Dictionary) -> bool: return int(e.rarity) == R.COMMON)
+	check(made_rare and rares.size() == 1 and commons.is_empty(), "a Rara consome a Comum")
+	check(Crafting.check(rare, inv4, prof4).begins_with("Precisa da peça"), "sem a peça-base, a Rara trava")
+
+	var low := ProfessionProgress.new()
+	check(Crafting.check(epic, inv4, low).begins_with("Precisa de nível"), "receita bloqueada por nível de profissão")
 
 
 func _test_professions(catalog: ItemCatalog) -> void:
 	var smith := catalog.get_profession(&"ferreiro")
-	check(smith.xp_to_next(1) == 100 and smith.xp_to_next(2) == 115, "curva de XP cresce 15% por nível")
+	check(smith.xp_to_next(1) == 60 and smith.xp_to_next(2) == 63, "curva de XP cresce 4,5% por nível")
 	var prof := ProfessionProgress.new()
-	prof.add_xp(smith, 230)
-	check(prof.level_of(&"ferreiro") == 3 and prof.xp_of(&"ferreiro") == 15, "sobe vários níveis e guarda a sobra")
+	prof.add_xp(smith, 150)
+	check(prof.level_of(&"ferreiro") == 3 and prof.xp_of(&"ferreiro") == 27, "sobe vários níveis e guarda a sobra")
+	for id in [&"ferreiro", &"curtidor", &"tecela", &"erveira"]:
+		check(catalog.get_profession(id) != null, "profissão %s existe" % id)
+
+
+func _test_difficulty_and_energy(catalog: ItemCatalog) -> void:
+	check(Difficulty.lock_reason(0, -1, 0.0) == "", "Normal sempre liberado")
+	check(Difficulty.lock_reason(1, -1, 20.0).contains("vencer o Normal"), "Difícil pede vencer o Normal")
+	check(Difficulty.lock_reason(1, 0, 5.0).contains("nível de item médio 8"), "Difícil pede nível de item médio 8")
+	check(Difficulty.lock_reason(1, 0, 8.0) == "", "Difícil libera com Normal vencido e média 8")
+	check(Difficulty.lock_reason(3, 1, 30.0) != "", "Mítico pede vencer o Heroico")
+
+	# Recompensa: dificuldade multiplica reagentes; sem energia, cai uma fração e nada Épico+.
+	var boss := catalog.get_drop_table(&"chefe_rei_ossudo")
+	var totals := [0, 0, 0]
+	var pelos := [0, 0, 0]
+	var muiraquitas := [0, 0, 0]
+	var contexts := [{"difficulty": 0, "reward_mult": 1.0, "full_rewards": true},
+		{"difficulty": 3, "reward_mult": Difficulty.REWARD_MULT[3], "full_rewards": true},
+		{"difficulty": 0, "reward_mult": 1.0, "full_rewards": false}]
+	for c in 3:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 11
+		for i in 300:
+			for d in LootRoller.roll(boss, catalog, rng, contexts[c]):
+				totals[c] += int(d.qty)
+				if d.item.id == &"pelo_mapinguari":
+					pelos[c] += int(d.qty)
+				if d.item.id == &"muiraquita":
+					muiraquitas[c] += int(d.qty)
+	check(totals[1] > totals[0] * 2.5, "Mítico rende ~3× mais reagentes (%d vs %d)" % [totals[1], totals[0]])
+	check(pelos[0] > 0 and muiraquitas[0] == 0, "chefe sempre deixa Pelo de Mapinguari; Muiraquitã não cai no Normal")
+	check(muiraquitas[1] > 0, "Muiraquitã cai no Mítico (%d em 300 chefes)" % muiraquitas[1])
+	check(totals[2] < totals[0] * 0.5 and pelos[2] == 0, "sem energia: bem menos reagentes e nenhum troféu")
+
+
+func _test_save_migration() -> void:
+	var old := {
+		"save_version": 2,
+		"selected_hero": "batedora",
+		"unlocked_heroes": ["guardiao", "batedora", "arcanista"],
+		"heroes": {"guardiao": {"level": 4, "xp": 10, "equipped": {}}},
+		"inventory": {"stacks": {"fragmento_osso": 5, "madeira_lei": 2, "erva_vermelha": 3}, "equipment": []},
+		"professions": {"alquimista": {"level": 2, "xp": 5}},
+	}
+	var data := SaveFile.migrate(old)
+	check(int(data.save_version) == 3, "save antigo migra para a versão 3")
+	check(data.selected_hero == "mateira" and data.heroes.has("icamiaba") and not data.heroes.has("guardiao"),
+		"heróis renomeados mantêm o progresso")
+	check(int(data.inventory.stacks.madeira_lei) == 7 and int(data.inventory.stacks.oleo_andiroba) == 3,
+		"reagentes antigos viram os novos e somam")
+	check(data.professions.has("erveira"), "Alquimista vira Erveira")
 
 
 func _test_save_file() -> void:
@@ -284,7 +402,7 @@ func _test_items_and_stats(catalog: ItemCatalog) -> void:
 			legendary_drop = true
 	check(not legendary_drop, "lendário nunca cai de inimigo (só crafting)")
 
-	var guardian := catalog.get_hero(&"guardiao")
+	var guardian := catalog.get_hero(&"icamiaba")
 	check(ItemFactory.can_use(guardian, helm) and not ItemFactory.can_use(guardian, robe), "guardião veste placa e não tecido")
 	check(ItemFactory.can_use(guardian, catalog.get_item(&"espada_ferro")) and not ItemFactory.can_use(guardian, catalog.get_item(&"arco_simples")),
 		"guardião usa espada e não arco")

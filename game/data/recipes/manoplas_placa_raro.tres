@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_r0vt6"]
+
+[resource]
+script = ExtResource("1_r0vt6")
+id = &"manoplas_placa_raro"
+display_name = "Manoplas de Placa (Raro)"
+result_item_id = &"manoplas_placa"
+result_rarity = 1
+requires_base = true
+ingredients = {
+"madeira_lei": 15,
+"minerio_ferro": 24,
+"pena_arara": 1
+}
+profession_id = &"ferreiro"
+required_level = 5
+xp_reward = 48

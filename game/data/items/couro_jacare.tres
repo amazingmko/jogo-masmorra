@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/item_data.gd" id="1_qfwlx"]
+
+[resource]
+script = ExtResource("1_qfwlx")
+id = &"couro_jacare"
+display_name = "Couro de Jacaré"
+description = "Couro grosso e resistente. Curtidor."
+max_stack = 999

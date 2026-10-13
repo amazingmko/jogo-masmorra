@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_hlneu"]
+
+[resource]
+script = ExtResource("1_hlneu")
+id = &"sandalias_tecido_comum"
+display_name = "Sandálias de Tecido (Comum)"
+result_item_id = &"sandalias_tecido"
+ingredients = {
+"fibra_tucum": 8,
+"latex_seringueira": 5
+}
+profession_id = &"tecela"
+required_level = 1
+xp_reward = 18

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_3nl1c"]
+
+[resource]
+script = ExtResource("1_3nl1c")
+id = &"grevas_placa_lendario"
+display_name = "Grevas de Placa (Lendário)"
+result_item_id = &"grevas_placa"
+result_rarity = 3
+requires_base = true
+ingredients = {
+"madeira_lei": 70,
+"minerio_ferro": 130,
+"muiraquita": 1,
+"pelo_mapinguari": 5,
+"pena_arara": 5
+}
+profession_id = &"ferreiro"
+required_level = 40
+xp_reward = 450

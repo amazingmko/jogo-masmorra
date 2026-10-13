@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_xuvjn"]
+
+[resource]
+script = ExtResource("1_xuvjn")
+id = &"capuz_tecido_raro"
+display_name = "Capuz de Tecido (Raro)"
+result_item_id = &"capuz_tecido"
+result_rarity = 1
+requires_base = true
+ingredients = {
+"fibra_tucum": 33,
+"latex_seringueira": 18,
+"pena_arara": 2
+}
+profession_id = &"tecela"
+required_level = 5
+xp_reward = 64

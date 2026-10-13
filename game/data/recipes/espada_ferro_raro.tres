@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_08lvr"]
+
+[resource]
+script = ExtResource("1_08lvr")
+id = &"espada_ferro_raro"
+display_name = "Espada de Ferro (Raro)"
+result_item_id = &"espada_ferro"
+result_rarity = 1
+requires_base = true
+ingredients = {
+"madeira_lei": 30,
+"minerio_ferro": 51,
+"pena_arara": 2
+}
+profession_id = &"ferreiro"
+required_level = 5
+xp_reward = 96

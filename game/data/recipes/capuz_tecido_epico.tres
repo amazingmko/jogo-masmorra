@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_3go64"]
+
+[resource]
+script = ExtResource("1_3go64")
+id = &"capuz_tecido_epico"
+display_name = "Capuz de Tecido (Épico)"
+result_item_id = &"capuz_tecido"
+result_rarity = 2
+requires_base = true
+ingredients = {
+"fibra_tucum": 66,
+"latex_seringueira": 36,
+"pelo_mapinguari": 2,
+"pena_arara": 3
+}
+profession_id = &"tecela"
+required_level = 20
+xp_reward = 160

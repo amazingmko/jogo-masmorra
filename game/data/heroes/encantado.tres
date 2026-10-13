@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HeroData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/hero_data.gd" id="1_ugaj4"]
+
+[resource]
+script = ExtResource("1_ugaj4")
+id = &"encantado"
+display_name = "Encantado do Rio"
+description = "Magia das águas encantadas. Frágil, mas poderoso. Inteligência, tecido."
+hero_class = 2
+element = 2
+primary_stat = 2
+weapon_type = &"cajado"
+max_health = 80
+max_shield = 20
+max_energy = 220
+starting_weapon_id = &"cajado_aprendiz"

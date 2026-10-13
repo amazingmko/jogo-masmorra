@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_xox3j"]
+
+[resource]
+script = ExtResource("1_xox3j")
+id = &"preparar_garrafada"
+display_name = "Garrafada de Cura"
+result_item_id = &"pocao_vida"
+ingredients = {
+"oleo_andiroba": 3
+}
+profession_id = &"erveira"
+required_level = 1
+xp_reward = 15

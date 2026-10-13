@@ -5,17 +5,33 @@
 
 [sub_resource type="Resource" id="Resource_jbdf6"]
 script = ExtResource("1_jbdf6")
-item_id = &"couro_rasgado"
-weight = 55
+item_id = &"couro_jacare"
+weight = 40
 max_qty = 2
 
 [sub_resource type="Resource" id="Resource_bgjcn"]
 script = ExtResource("1_jbdf6")
-item_id = &"erva_vermelha"
+item_id = &"fibra_tucum"
 weight = 35
+max_qty = 2
+
+[sub_resource type="Resource" id="Resource_05a72"]
+script = ExtResource("1_jbdf6")
+item_id = &"latex_seringueira"
+weight = 20
+max_qty = 2
+
+[sub_resource type="Resource" id="Resource_pqux2"]
+script = ExtResource("1_jbdf6")
+item_id = &"oleo_andiroba"
+
+[sub_resource type="Resource" id="Resource_qbicw"]
+script = ExtResource("1_jbdf6")
+item_id = &"pena_arara"
+weight = 4
 
 [resource]
 script = ExtResource("2_bgjcn")
 id = &"rato_gigante"
 nothing_weight = 40
-entries = Array[ExtResource("1_jbdf6")]([SubResource("Resource_jbdf6"), SubResource("Resource_bgjcn")])
+entries = Array[ExtResource("1_jbdf6")]([SubResource("Resource_jbdf6"), SubResource("Resource_bgjcn"), SubResource("Resource_05a72"), SubResource("Resource_pqux2"), SubResource("Resource_qbicw")])

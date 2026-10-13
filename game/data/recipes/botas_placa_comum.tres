@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_8e5gx"]
+
+[resource]
+script = ExtResource("1_8e5gx")
+id = &"botas_placa_comum"
+display_name = "Botas de Placa (Comum)"
+result_item_id = &"botas_placa"
+ingredients = {
+"madeira_lei": 5,
+"minerio_ferro": 8
+}
+profession_id = &"ferreiro"
+required_level = 1
+xp_reward = 18
