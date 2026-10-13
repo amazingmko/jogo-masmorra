@@ -29,6 +29,21 @@ length = 5.0
 speed = 14.0
 color = Color(1, 0.5411765, 0.23921569, 1)
 
+[sub_resource type="Resource" id="Resource_s2sob"]
+script = ExtResource("1_u6gvu")
+id = &"lanca_osso"
+display_name = "Lança de Osso"
+kind = 2
+weight = 6
+range_min = 3.0
+range_max = 10.0
+cooldown = 5.0
+min_threat = 0.3
+recover = 0.4
+damage = 12
+speed = 13.0
+color = Color(0.9490196, 0.9254902, 1, 1)
+
 [resource]
 script = ExtResource("1_p6ais")
 id = &"esqueleto"
@@ -37,5 +52,5 @@ color = Color(0.8117647, 0.78431374, 0.72156864, 1)
 max_health = 240
 damage = 15
 preferred_distance = 1.3
-attacks = Array[ExtResource("1_u6gvu")]([SubResource("Resource_u6gvu"), SubResource("Resource_637rj")])
+attacks = Array[ExtResource("1_u6gvu")]([SubResource("Resource_u6gvu"), SubResource("Resource_637rj"), SubResource("Resource_s2sob")])
 drop_table_id = &"esqueleto"

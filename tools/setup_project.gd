@@ -337,21 +337,29 @@ func _make_enemies() -> void:
 	_enemy("esqueleto", "Esqueleto", E.NEUTRAL, Color("cfc8b8"), 1.0, 240, 2.8, M.CHASE, 1.3, "esqueleto", 3, [
 		_atk("golpe", "Golpe", K.MELEE, 0, 2.0, 0.55, 1.6, 15, RED, {"radius": 2.0, "cone_half_angle": 60.0, "recover": 0.5, "weight": 10}),
 		_atk("estocada", "Estocada", K.CHARGE, 3.0, 6.5, 0.6, 5.0, 18, ORANGE, {"length": 5.0, "radius": 1.2, "speed": 14.0, "recover": 0.6, "weight": 6}),
+		_atk("lanca_osso", "Lança de Osso", K.PROJECTILE, 3.0, 10.0, 0.6, 5.0, 12, BONE,
+			{"speed": 13.0, "recover": 0.4, "weight": 6, "min_threat": 0.3}),
 	])
 	_enemy("rato_gigante", "Rato Gigante", E.NATURE, Color("8a6a4f"), 0.7, 120, 4.4, M.SKITTER, 1.0, "rato_gigante", 2, [
 		_atk("mordida", "Mordida", K.MELEE, 0, 1.6, 0.35, 1.2, 10, RED, {"radius": 1.4, "recover": 0.4}),
 		_atk("salto", "Salto", K.CHARGE, 2.5, 6.0, 0.45, 4.0, 12, ORANGE, {"length": 5.0, "radius": 1.0, "speed": 16.0, "recover": 0.5, "weight": 7}),
+		_atk("praga", "Praga", K.GROUND_AOE, 2.0, 8.0, 0.8, 6.0, 5, POISON,
+			{"radius": 1.4, "recover": 0.4, "linger": 3.0, "effect": F.POISON, "effect_duration": 3.0, "effect_power": 4, "weight": 5, "min_threat": 0.45}),
 	])
 	_enemy("esqueleto_arqueiro", "Esqueleto Arqueiro", E.NEUTRAL, Color("e3dccb"), 0.95, 160, 2.9, M.KITE, 7.5, "esqueleto", 3, [
 		_atk("flecha", "Flecha", K.PROJECTILE, 2.5, 13.0, 0.5, 2.0, 10, BONE, {"speed": 15.0, "recover": 0.4, "weight": 10}),
 		_atk("saraivada", "Saraivada", K.FAN, 3.0, 12.0, 0.8, 5.0, 10, ORANGE, {"speed": 13.0, "count": 3, "spread_deg": 22.0, "recover": 0.6, "weight": 6}),
 		_atk("chute", "Chute", K.MELEE, 0, 1.8, 0.4, 3.0, 8, RED, {"radius": 1.8, "recover": 0.3, "weight": 8}),
+		_atk("flecha_gelida", "Flecha Gélida", K.PROJECTILE, 2.5, 13.0, 0.6, 6.0, 9, Color("4db8ff"),
+			{"speed": 14.0, "recover": 0.4, "effect": F.SLOW, "effect_duration": 2.0, "effect_power": 35, "weight": 6, "min_threat": 0.35}),
 	])
 	_enemy("aranha_cripta", "Aranha da Cripta", E.NATURE, Color("4f6b3a"), 0.8, 150, 4.0, M.SKITTER, 1.2, "rato_gigante", 3, [
 		_atk("picada", "Picada Venenosa", K.MELEE, 0, 1.7, 0.4, 1.4, 8, POISON,
 			{"radius": 1.5, "recover": 0.4, "effect": F.POISON, "effect_duration": 4.0, "effect_power": 6}),
 		_atk("cuspe", "Cuspe Ácido", K.GROUND_AOE, 2.0, 9.0, 0.9, 5.0, 6, POISON,
 			{"radius": 1.7, "recover": 0.5, "linger": 4.0, "effect": F.POISON, "effect_duration": 3.0, "effect_power": 6, "weight": 8}),
+		_atk("teia", "Teia", K.PROJECTILE, 2.5, 10.0, 0.6, 7.0, 4, BONE,
+			{"speed": 11.0, "recover": 0.4, "effect": F.ROOT, "effect_duration": 1.0, "weight": 5, "min_threat": 0.5}),
 	])
 	_enemy("xama_ossos", "Xamã de Ossos", E.NEUTRAL, Color("8e7cc3"), 1.0, 180, 2.5, M.KITE, 8.0, "esqueleto", 5, [
 		_atk("raio", "Raio Sombrio", K.PROJECTILE, 2.5, 13.0, 0.55, 2.4, 11, ROOT, {"speed": 12.0, "recover": 0.4, "weight": 10}),
@@ -359,16 +367,22 @@ func _make_enemies() -> void:
 			{"speed": 10.0, "recover": 0.5, "effect": F.ROOT, "effect_duration": 1.2, "weight": 8}),
 		_atk("nuvem", "Nuvem Tóxica", K.GROUND_AOE, 2.0, 12.0, 1.1, 6.0, 8, POISON,
 			{"radius": 2.2, "recover": 0.6, "linger": 4.0, "effect": F.POISON, "effect_duration": 3.0, "effect_power": 6, "weight": 7}),
+		_atk("chuva_ossos", "Chuva de Ossos", K.GROUND_AOE, 2.0, 12.0, 1.0, 7.0, 12, BONE,
+			{"count": 3, "radius": 1.5, "recover": 0.6, "weight": 6, "min_threat": 0.6}),
 	])
 	_enemy("esqueleto_bruto", "Esqueleto Bruto", E.NEUTRAL, Color("9e8f7a"), 1.5, 700, 2.2, M.CHASE, 1.8, "esqueleto", 8, [
 		_atk("esmagar", "Esmagar", K.MELEE, 0, 2.8, 0.9, 3.0, 30, RED, {"radius": 2.8, "recover": 0.9}),
 		_atk("investida", "Investida", K.CHARGE, 3.0, 8.0, 0.8, 6.0, 30, ORANGE, {"length": 7.0, "radius": 1.8, "speed": 15.0, "recover": 1.0, "weight": 7}),
+		_atk("tremor", "Tremor", K.NOVA, 0, 6.0, 0.9, 7.0, 14, BONE,
+			{"count": 8, "speed": 8.0, "recover": 0.7, "weight": 5, "min_threat": 0.55}),
 	])
 	_enemy("rei_ossudo", "Rei Ossudo", E.NEUTRAL, Color("d6b25e"), 2.1, 4500, 2.8, M.STRAFE, 2.8, "chefe_rei_ossudo", 60, [
 		_atk("varredura", "Varredura", K.MELEE, 0, 3.8, 0.7, 2.5, 30, RED,
 			{"radius": 3.8, "cone_half_angle": 70.0, "recover": 0.6, "weight": 10}),
 		_atk("investida_real", "Investida Real", K.CHARGE, 3.0, 12.0, 0.8, 6.0, 35, ORANGE,
 			{"length": 10.0, "radius": 2.2, "speed": 16.0, "recover": 0.9, "weight": 8}),
+		_atk("lancas_rei", "Lanças do Rei", K.FAN, 3.0, 16.0, 0.7, 5.0, 18, BONE,
+			{"count": 5, "spread_deg": 30.0, "speed": 13.0, "below_health": 0.75, "recover": 0.4, "weight": 7}),
 		_atk("chamado", "Chamado dos Mortos", K.SUMMON, 0, 30.0, 1.0, 14.0, 0, ROOT,
 			{"count": 2, "summon_id": &"esqueleto", "below_health": 0.85, "recover": 0.5, "weight": 6}),
 		_atk("onda_ossos", "Onda de Ossos", K.NOVA, 0, 30.0, 0.9, 7.0, 15, BONE,

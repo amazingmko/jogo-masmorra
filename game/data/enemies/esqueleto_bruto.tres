@@ -31,6 +31,22 @@ length = 7.0
 speed = 15.0
 color = Color(1, 0.5411765, 0.23921569, 1)
 
+[sub_resource type="Resource" id="Resource_v3ahd"]
+script = ExtResource("1_54p22")
+id = &"tremor"
+display_name = "Tremor"
+kind = 5
+weight = 5
+range_max = 6.0
+cooldown = 7.0
+min_threat = 0.55
+windup = 0.9
+recover = 0.7
+damage = 14
+count = 8
+speed = 8.0
+color = Color(0.9490196, 0.9254902, 1, 1)
+
 [resource]
 script = ExtResource("1_4oe0h")
 id = &"esqueleto_bruto"
@@ -41,6 +57,6 @@ max_health = 700
 damage = 30
 move_speed = 2.2
 preferred_distance = 1.8
-attacks = Array[ExtResource("1_54p22")]([SubResource("Resource_54p22"), SubResource("Resource_gfe1o")])
+attacks = Array[ExtResource("1_54p22")]([SubResource("Resource_54p22"), SubResource("Resource_gfe1o"), SubResource("Resource_v3ahd")])
 drop_table_id = &"esqueleto"
 xp_reward = 8

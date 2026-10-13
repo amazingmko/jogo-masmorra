@@ -42,6 +42,23 @@ recover = 0.3
 damage = 8
 radius = 1.8
 
+[sub_resource type="Resource" id="Resource_oq5ri"]
+script = ExtResource("1_fu813")
+id = &"flecha_gelida"
+display_name = "Flecha Gélida"
+kind = 2
+weight = 6
+range_min = 2.5
+range_max = 13.0
+cooldown = 6.0
+min_threat = 0.35
+recover = 0.4
+damage = 9
+speed = 14.0
+color = Color(0.3019608, 0.72156864, 1, 1)
+effect = 3
+effect_power = 35
+
 [resource]
 script = ExtResource("2_vsc3x")
 id = &"esqueleto_arqueiro"
@@ -53,5 +70,5 @@ damage = 10
 move_speed = 2.9
 movement = 3
 preferred_distance = 7.5
-attacks = Array[ExtResource("1_fu813")]([SubResource("Resource_fu813"), SubResource("Resource_vsc3x"), SubResource("Resource_gq0jq")])
+attacks = Array[ExtResource("1_fu813")]([SubResource("Resource_fu813"), SubResource("Resource_vsc3x"), SubResource("Resource_gq0jq"), SubResource("Resource_oq5ri")])
 drop_table_id = &"esqueleto"

@@ -35,6 +35,7 @@ static func create(dir: Vector3, stats: WeaponStats, elem: GameEnums.Element, cr
 
 
 func _ready() -> void:
+	add_to_group("player_projectiles")  # inimigos enxergam e tentam desviar
 	collision_layer = 0
 	collision_mask = Layers.WORLD | Layers.ENEMIES
 	monitorable = false

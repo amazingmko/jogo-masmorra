@@ -180,6 +180,7 @@ func _spawn(enemy_id: StringName, room: DungeonRoom, at: Vector3 = Vector3.INF, 
 	var level := 0 if data.is_boss else floor_number - 1
 	var enemy := Enemy.create(data, 1.0 + HEALTH_PER_FLOOR * level, 1.0 + DAMAGE_PER_FLOOR * level)
 	enemy.is_summon = summoned
+	enemy.threat = room_threat(room, data.is_boss)
 	enemy.loot_context = _loot_context("boss" if enemy.is_boss else "normal")
 	enemy.home_room = room
 	room.alive += 1
@@ -190,6 +191,22 @@ func _spawn(enemy_id: StringName, room: DungeonRoom, at: Vector3 = Vector3.INF, 
 	enemy.announced.connect(func(_e: Enemy, text: String) -> void: _hud.show_toast(text, Color("ffa53d")))
 	_alive += 1
 	return enemy
+
+
+## Perigo da sala, de 0 a 1: sobe com o andar e com a distância da entrada.
+## Controla o comportamento dos inimigos (sequências de ataques, esquivas, recuos e magias extras).
+## As dificuldades Difícil/Heroico/Mítico vão somar a este valor na fase 4b.
+func room_threat(room: DungeonRoom, boss: bool = false) -> float:
+	if boss:
+		return 1.0
+	var floor_part := float(floor_number - 1) / float(FLOORS - 1)
+	var depth_part := 0.0
+	if layout and room:
+		var max_depth := 1
+		for r in layout.rooms:
+			max_depth = maxi(max_depth, int(r.depth))
+		depth_part = float(layout.rooms[room.index].depth) / float(max_depth)
+	return clampf(floor_part * 0.8 + depth_part * 0.2, 0.0, 1.0)
 
 
 func _on_summon_requested(enemy: Enemy, summon_id: StringName, count: int, at: Vector3) -> void:

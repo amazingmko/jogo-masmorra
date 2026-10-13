@@ -33,6 +33,23 @@ color = Color(1, 0.5411765, 0.23921569, 1)
 
 [sub_resource type="Resource" id="Resource_twp5b"]
 script = ExtResource("1_6ahwk")
+id = &"lancas_rei"
+display_name = "Lanças do Rei"
+kind = 3
+weight = 7
+range_min = 3.0
+range_max = 16.0
+cooldown = 5.0
+below_health = 0.75
+windup = 0.7
+recover = 0.4
+damage = 18
+count = 5
+speed = 13.0
+color = Color(0.9490196, 0.9254902, 1, 1)
+
+[sub_resource type="Resource" id="Resource_6n5d7"]
+script = ExtResource("1_6ahwk")
 id = &"chamado"
 display_name = "Chamado dos Mortos"
 kind = 6
@@ -47,7 +64,7 @@ count = 2
 color = Color(0.7058824, 0.5137255, 0.9098039, 1)
 summon_id = &"esqueleto"
 
-[sub_resource type="Resource" id="Resource_6n5d7"]
+[sub_resource type="Resource" id="Resource_8l35a"]
 script = ExtResource("1_6ahwk")
 id = &"onda_ossos"
 display_name = "Onda de Ossos"
@@ -62,7 +79,7 @@ count = 12
 speed = 9.0
 color = Color(0.9490196, 0.9254902, 1, 1)
 
-[sub_resource type="Resource" id="Resource_8l35a"]
+[sub_resource type="Resource" id="Resource_xjge3"]
 script = ExtResource("1_6ahwk")
 id = &"espinhos"
 display_name = "Espinhos da Cripta"
@@ -77,7 +94,7 @@ damage = 25
 radius = 1.6
 count = 5
 
-[sub_resource type="Resource" id="Resource_xjge3"]
+[sub_resource type="Resource" id="Resource_0ke1y"]
 script = ExtResource("1_6ahwk")
 id = &"juizo"
 display_name = "Juízo do Rei"
@@ -105,6 +122,6 @@ damage = 30
 movement = 1
 preferred_distance = 2.8
 is_boss = true
-attacks = Array[ExtResource("1_6ahwk")]([SubResource("Resource_6ahwk"), SubResource("Resource_cta7g"), SubResource("Resource_twp5b"), SubResource("Resource_6n5d7"), SubResource("Resource_8l35a"), SubResource("Resource_xjge3")])
+attacks = Array[ExtResource("1_6ahwk")]([SubResource("Resource_6ahwk"), SubResource("Resource_cta7g"), SubResource("Resource_twp5b"), SubResource("Resource_6n5d7"), SubResource("Resource_8l35a"), SubResource("Resource_xjge3"), SubResource("Resource_0ke1y")])
 drop_table_id = &"chefe_rei_ossudo"
 xp_reward = 60

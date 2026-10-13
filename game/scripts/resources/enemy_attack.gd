@@ -29,6 +29,8 @@ enum Effect { NONE, POISON, ROOT, SLOW }
 @export var cooldown: float = 2.0
 ## Só usa quando a vida do inimigo está abaixo desta fração (1 = sempre). Cria as fases do chefe.
 @export_range(0.0, 1.0) var below_health: float = 1.0
+## Só aparece em salas com perigo a partir deste valor (0 = sempre). Ver Enemy.threat.
+@export_range(0.0, 1.0) var min_threat: float = 0.0
 
 @export_group("Tempo")
 ## Duração do aviso no chão antes do ataque acontecer.
@@ -62,3 +64,8 @@ enum Effect { NONE, POISON, ROOT, SLOW }
 @export var effect_power: int = 0
 ## Ajudante que aparece (SUMMON).
 @export var summon_id: StringName
+
+
+## Magias e disparos: os inimigos usam enquanto recuam, e o chefe usa mais quanto menos vida tem.
+func is_spell() -> bool:
+	return kind != Kind.MELEE and kind != Kind.CHARGE

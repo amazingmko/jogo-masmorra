@@ -22,6 +22,25 @@ static func damage_number(parent: Node, at: Vector3, amount: int, crit: bool, co
 	tween.chain().tween_callback(label.queue_free)
 
 
+## Texto curto que sobe e some (ex.: "esquiva").
+static func float_text(parent: Node, at: Vector3, text: String, color: Color = Color.WHITE) -> void:
+	var label := Label3D.new()
+	label.text = text
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.font_size = 56
+	label.outline_size = 14
+	label.modulate = color
+	label.pixel_size = 0.006
+	parent.add_child(label)
+	label.global_position = at
+	var tween := label.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(label, "global_position", at + Vector3(0, 0.9, 0), 0.6)
+	tween.tween_property(label, "modulate:a", 0.0, 0.6).set_delay(0.2)
+	tween.chain().tween_callback(label.queue_free)
+
+
 ## Pisca a malha em branco por um instante.
 static func flash(material: StandardMaterial3D, base_color: Color, flash_color: Color = Color.WHITE) -> void:
 	if material == null:

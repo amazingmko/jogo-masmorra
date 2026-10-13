@@ -2,7 +2,11 @@ class_name Enemy
 extends CharacterBody3D
 ## Inimigo com movimento próprio e vários ataques (definidos no EnemyData).
 ## Ciclo: MOVE (anda do seu jeito, decide atacar) → WINDUP (aviso no chão) → ataque → RECOVER → MOVE.
-## Chefes usam os mesmos ataques, com fases (EnemyAttack.below_health) e fúria abaixo de 30% de vida.
+## Por cima disso, uma tática: PRESS (parte para cima e emenda uma sequência de ataques) e
+## BACK_OFF (recua, rodeia e solta magias de longe). Também esquiva de disparos e golpes do herói.
+## O "perigo" da sala (threat, 0 a 1) aumenta sequências, esquivas, recuos e libera magias extras.
+## Chefes usam os mesmos ataques, com fases (EnemyAttack.below_health); quanto menos vida,
+## mais rápidos ficam e mais magias soltam. Abaixo de 30% de vida entram em fúria.
 
 signal died(enemy: Enemy)
 signal summon_requested(enemy: Enemy, summon_id: StringName, count: int, at: Vector3)
@@ -11,6 +15,7 @@ signal announced(enemy: Enemy, text: String)
 enum State { MOVE, WINDUP, CHARGING, RECOVER, DEAD }
 ## RUSH: vai direto · FLANK: arco pelo lado · DASH: arrancada curta · FEINT: recua e volta com tudo
 ## SIDESTEP: pulo lateral · CIRCLE: rodeia · RETREAT: abre distância (atiradores)
+enum Tactic { PRESS, BACK_OFF }
 enum Maneuver { RUSH, FLANK, DASH, FEINT, SIDESTEP, CIRCLE, RETREAT }
 
 const ENRAGE_AT := 0.3
@@ -29,6 +34,9 @@ var home_room: Node3D
 ## Inimigos invocados não deixam loot nem XP.
 var is_summon := false
 var enraged := false
+## Perigo da sala (0 a 1), definido pela run antes de entrar na cena.
+var threat := 0.0
+var tactic: Tactic = Tactic.PRESS
 
 var _attacks: Array[EnemyAttack] = []
 var _cooldowns := {}
@@ -50,6 +58,16 @@ var _hunger := 0.0
 ## Personalidade sorteada ao nascer: dois inimigos iguais não se movem igual.
 var _aggression := 1.0
 var _speed_jitter := 1.0
+var _caution := 0.5
+# Tática, sequência de ataques e esquiva.
+var _tactic_left := 0.0
+var _combo_left := 1
+var _dodge_cd := 0.0
+var _dodge_left := 0.0
+var _dodge_dir := Vector3.ZERO
+var _seen_shots := {}
+var _recent_damage := 0
+var _recent_timer := 0.0
 var _own_telegraphs: Array[Telegraph] = []
 
 var _player: Player
@@ -95,14 +113,22 @@ func _ready() -> void:
 	_speed_jitter = _rng.randf_range(0.92, 1.1)
 	_wander = _rng.randf_range(-1.0, 1.0)
 	_maneuver_left = _rng.randf_range(0.0, 0.4)
+	_caution = _rng.randf_range(0.2, 0.8)
+	_dodge_cd = _rng.randf_range(0.5, 2.0)
+	_combo_left = _new_combo()
 
 
 func _physics_process(delta: float) -> void:
 	if state == State.DEAD:
 		return
 	velocity.y = 0.0 if is_on_floor() else velocity.y - _gravity * delta
+	var haste := _haste()
 	for a in _cooldowns:
-		_cooldowns[a] -= delta
+		_cooldowns[a] -= delta * haste
+	_dodge_cd -= delta
+	_recent_timer -= delta
+	if _recent_timer <= 0.0:
+		_recent_damage = 0
 
 	var player_alive := _player != null and is_instance_valid(_player) and not _player.health.is_dead
 	var to_player := Vector3.ZERO
@@ -113,16 +139,25 @@ func _physics_process(delta: float) -> void:
 
 	match state:
 		State.MOVE:
-			var v := _movement_velocity(delta, to_player, dist) if player_alive else Vector3.ZERO
-			v += _separation()
-			_set_horizontal(v)
-			if v.length() > 0.2:
-				_face(v, delta)
-			elif player_alive:
+			if _dodge_left > 0.0:
+				# Esquiva: deslize rápido para o lado, sem decidir nada no meio.
+				_dodge_left -= delta
+				_set_horizontal(_dodge_dir * _move_speed() * 3.0)
 				_face(to_player, delta)
-			_decision -= delta
-			if player_alive and _decision <= 0.0:
-				_try_attack(dist)
+			else:
+				if player_alive:
+					_update_tactic(delta)
+					_watch_shots()
+				var v := _movement_velocity(delta, to_player, dist) if player_alive else Vector3.ZERO
+				v += _separation()
+				_set_horizontal(v)
+				if v.length() > 0.2:
+					_face(v, delta)
+				elif player_alive:
+					_face(to_player, delta)
+				_decision -= delta * haste
+				if player_alive and _decision <= 0.0:
+					_try_attack(dist)
 		State.WINDUP:
 			_set_horizontal(Vector3.ZERO)
 			_face(_aim_dir, delta * 2.0)
@@ -143,8 +178,8 @@ func _physics_process(delta: float) -> void:
 			_timer -= delta
 			if _timer <= 0.0:
 				state = State.MOVE
-				_decision = _rng.randf_range(0.2, 0.7) * (0.6 if enraged else 1.0)
 				_maneuver_left = 0.0  # sai do ataque já com uma manobra nova
+				_after_attack()
 
 	if state != State.CHARGING:
 		velocity += _knockback
@@ -158,7 +193,12 @@ func take_hit(amount: int, crit: bool, from_direction: Vector3) -> void:
 	if health.untouchable:
 		Fx.damage_number(get_parent(), global_position + Vector3(0, 2.2 * data.body_scale, 0), 0, false, Color("8b5cf6"))
 		return
+	if _try_evade(from_direction):
+		return
 	health.take_damage(amount)
+	_recent_damage += amount
+	_recent_timer = 1.2
+	_react_to_pain()
 	Fx.damage_number(get_parent(), global_position + Vector3(0, 1.7 * data.body_scale, 0), amount, crit)
 	Fx.flash(_material, data.color)
 	var push := from_direction
@@ -180,10 +220,11 @@ func dismiss() -> void:
 
 func _movement_velocity(delta: float, to_player: Vector3, dist: float) -> Vector3:
 	var dir_to := to_player.normalized() if dist > 0.01 else Vector3.FORWARD
-	var speed := data.move_speed * _speed_jitter * (1.25 if enraged else 1.0)
+	var speed := _move_speed()
 	var pref := data.preferred_distance
-	# Fome: cresce enquanto não ataca; quanto maior, mais ele parte para cima.
-	_hunger = minf(_hunger + delta * 0.35 * _aggression, 1.5)
+	# Fome: cresce enquanto não ataca; quanto maior, mais ele parte para cima. Recuando, não cresce.
+	if tactic == Tactic.PRESS:
+		_hunger = minf(_hunger + delta * 0.35 * _aggression, 1.5)
 	# Desvio suave e contínuo (passeio aleatório do ângulo), nunca o mesmo ritmo.
 	_wander = clampf(_wander + _rng.randf_range(-1.0, 1.0) * delta * 4.0, -1.0, 1.0)
 
@@ -269,6 +310,12 @@ func _pick_maneuver(dist: float, pref: float) -> void:
 				w = {Maneuver.FLANK: 3.0, Maneuver.RUSH: 1.5 + h, Maneuver.SIDESTEP: 1.0}
 			else:
 				w = {Maneuver.CIRCLE: 2.5, Maneuver.SIDESTEP: 2.0, Maneuver.FLANK: 1.0 + h}
+	if tactic == Tactic.BACK_OFF:
+		# Recuando: abre distância e fica rodeando, mas sem sumir de perto.
+		if dist < pref + 3.5:
+			w = {Maneuver.RETREAT: 3.0, Maneuver.SIDESTEP: 2.0, Maneuver.CIRCLE: 1.0}
+		else:
+			w = {Maneuver.CIRCLE: 2.5, Maneuver.SIDESTEP: 2.0, Maneuver.FLANK: 0.8}
 	var total := 0.0
 	for k in w:
 		total += float(w[k])
@@ -310,6 +357,165 @@ func _set_maneuver(m: int) -> void:
 			_maneuver_left = _rng.randf_range(0.35, 0.7)
 
 
+# ---------- tática: pressionar, recuar, esquivar ----------
+
+## 0 para inimigos comuns; para o chefe, cresce de 0 a 1 conforme perde vida.
+func _rage() -> float:
+	if not is_boss:
+		return 0.0
+	return clampf(1.0 - float(health.health) / float(maxi(health.max_health, 1)), 0.0, 1.0)
+
+
+## Ritmo de decisões e recargas: salas mais perigosas e chefe ferido agem mais rápido.
+func _haste() -> float:
+	return 1.0 + 0.25 * threat + 0.9 * _rage()
+
+
+func _move_speed() -> float:
+	return data.move_speed * _speed_jitter * (1.25 if enraged else 1.0) * (1.0 + 0.08 * threat + 0.45 * _rage())
+
+
+## Quantos ataques emenda antes de pensar em recuar.
+func _new_combo() -> int:
+	var extra := _rng.randi_range(0, int(round(threat * 2.0)))
+	if is_boss:
+		extra += int(round(_rage() * 2.0))
+	return 1 + extra
+
+
+## Chance de esquivar quando vê um disparo vindo ou leva um golpe.
+func _dodge_chance() -> float:
+	var c := 0.06 + 0.3 * threat
+	match data.movement:
+		EnemyData.Movement.SKITTER:
+			c *= 1.3
+		EnemyData.Movement.KITE:
+			c *= 1.1
+		EnemyData.Movement.CHASE:
+			c *= 0.75
+	if is_boss:
+		c = 0.08 + 0.25 * _rage()
+	return c
+
+
+func _update_tactic(delta: float) -> void:
+	if tactic != Tactic.BACK_OFF:
+		return
+	_tactic_left -= delta
+	if _tactic_left <= 0.0:
+		_set_tactic(Tactic.PRESS)
+
+
+func _set_tactic(t: Tactic) -> void:
+	tactic = t
+	_maneuver_left = 0.0
+	if t == Tactic.BACK_OFF:
+		var rage := _rage()
+		_tactic_left = _rng.randf_range(0.8, 1.7) * (1.0 - 0.5 * rage)
+		_hunger = 0.0
+		_decision = _rng.randf_range(0.3, 0.7)
+	else:
+		_combo_left = _new_combo()
+		_hunger = 0.4 * _aggression  # volta com vontade
+		_decision = _rng.randf_range(0.1, 0.35)
+
+
+## Depois de cada ataque: continua a sequência, ou recua um pouco, ou segue pressionando.
+func _after_attack() -> void:
+	var quick := 0.6 if enraged else 1.0
+	if tactic == Tactic.BACK_OFF:
+		_decision = _rng.randf_range(0.5, 1.0) * quick / _haste()
+		return
+	_combo_left -= 1
+	if _combo_left > 0:
+		_decision = _rng.randf_range(0.05, 0.2)
+		return
+	var back_chance := 0.0
+	match data.movement:
+		EnemyData.Movement.KITE:
+			back_chance = 0.6 + 0.3 * threat
+		EnemyData.Movement.SKITTER:
+			back_chance = 0.3 + 0.4 * threat
+		EnemyData.Movement.CHASE:
+			back_chance = 0.15 + 0.35 * threat
+		EnemyData.Movement.STRAFE:
+			back_chance = 0.35
+	back_chance *= 0.6 + 0.8 * _caution
+	if _rng.randf() < back_chance:
+		_set_tactic(Tactic.BACK_OFF)
+	else:
+		_combo_left = _new_combo()
+		_decision = _rng.randf_range(0.2, 0.7) * quick / _haste()
+
+
+## Levou muito dano em pouco tempo: chance de sair da briga por um instante.
+func _react_to_pain() -> void:
+	if is_boss or tactic == Tactic.BACK_OFF or state != State.MOVE:
+		return
+	if _recent_damage < int(health.max_health * 0.3):
+		return
+	if _rng.randf() < 0.25 + 0.45 * threat * (0.5 + _caution):
+		_recent_damage = 0
+		_start_dodge(-_dir_to_player())
+		_set_tactic(Tactic.BACK_OFF)
+
+
+## Golpe do herói chegando: chance de sair de lado e não tomar o dano.
+func _try_evade(from_direction: Vector3) -> bool:
+	if state != State.MOVE or _dodge_cd > 0.0 or _dodge_left > 0.0:
+		return false
+	if _rng.randf() >= _dodge_chance() * 0.5:
+		return false
+	var away := from_direction
+	away.y = 0.0
+	away = away.normalized() if away.length() > 0.01 else -_dir_to_player()
+	var side := Vector3(-away.z, 0, away.x) * (1.0 if _rng.randf() < 0.5 else -1.0)
+	_start_dodge((side + away * 0.6).normalized())
+	return true
+
+
+## Olha os disparos do herói; se um vem na sua direção, talvez saia da frente.
+func _watch_shots() -> void:
+	if _dodge_cd > 0.0:
+		return
+	for shot in get_tree().get_nodes_in_group("player_projectiles"):
+		var id := shot.get_instance_id()
+		if _seen_shots.has(id):
+			continue
+		var rel: Vector3 = global_position - shot.global_position
+		rel.y = 0.0
+		var dir: Vector3 = shot.direction
+		var along := rel.dot(dir)
+		if along <= 0.0 or along > 6.0:
+			continue
+		var lateral_v := rel - dir * along
+		if lateral_v.length() > 1.0:
+			continue
+		_seen_shots[id] = true
+		if _seen_shots.size() > 64:
+			_seen_shots.clear()
+		if _rng.randf() < _dodge_chance():
+			var out := lateral_v.normalized() if lateral_v.length() > 0.05 else Vector3(-dir.z, 0, dir.x)
+			_start_dodge(out, false)
+			return
+
+
+func _start_dodge(dir: Vector3, show_text: bool = true) -> void:
+	_dodge_dir = dir.normalized()
+	_dodge_left = 0.22
+	_dodge_cd = _rng.randf_range(1.4, 2.6) * (1.0 - 0.4 * _rage())
+	if show_text:
+		Fx.float_text(get_parent(), global_position + Vector3(0, 1.8 * data.body_scale, 0), "esquiva", Color("9fd8ff"))
+
+
+func _dir_to_player() -> Vector3:
+	if _player == null or not is_instance_valid(_player):
+		return Vector3.FORWARD
+	var d := _player.global_position - global_position
+	d.y = 0.0
+	return d.normalized() if d.length() > 0.01 else Vector3.FORWARD
+
+
 ## Empurra para longe de outros inimigos muito próximos (não se amontoam).
 func _separation() -> Vector3:
 	var push := Vector3.ZERO
@@ -330,29 +536,43 @@ func _separation() -> Vector3:
 func _try_attack(dist: float) -> void:
 	var hp_frac := float(health.health) / float(maxi(health.max_health, 1))
 	var options: Array[EnemyAttack] = []
-	var total := 0
+	var weights: Array[float] = []
+	var total := 0.0
+	var rage := _rage()
 	for a in _attacks:
-		if _cooldowns[a] <= 0.0 and dist >= a.range_min and dist <= a.range_max and hp_frac <= a.below_health:
-			options.append(a)
-			total += a.weight
+		if _cooldowns[a] > 0.0 or dist < a.range_min or dist > a.range_max:
+			continue
+		if hp_frac > a.below_health or threat < a.min_threat:
+			continue
+		if tactic == Tactic.BACK_OFF and not a.is_spell():
+			continue
+		var w := float(a.weight)
+		if a.is_spell():
+			# Recuando, prefere magia; chefe ferido também.
+			w *= (1.5 if tactic == Tactic.BACK_OFF else 1.0) * (1.0 + 2.0 * rage)
+		options.append(a)
+		weights.append(w)
+		total += w
 	if options.is_empty():
 		_decision = 0.15
 		return
-	var pick := _rng.randi_range(1, total)
-	for a in options:
-		pick -= a.weight
-		if pick <= 0:
-			_start(a)
+	var pick := _rng.randf() * total
+	for i in options.size():
+		pick -= weights[i]
+		if pick <= 0.0:
+			_start(options[i])
 			return
+	_start(options[-1])
 
 
 func _start(a: EnemyAttack) -> void:
 	_attack = a
 	_hunger = 0.0
 	state = State.WINDUP
-	var haste := 0.8 if enraged else 1.0
+	var haste := (0.8 if enraged else 1.0) * (1.0 - 0.15 * _rage())
 	_timer = a.windup * haste
 	_cooldowns[a] = a.cooldown * (0.7 if enraged else 1.0)
+	_dodge_left = 0.0
 
 	# Mira: onde o herói está, com uma leve antecipação para disparos.
 	var target := _player.global_position
@@ -461,6 +681,9 @@ func _execute() -> void:
 func _enter_recover() -> void:
 	state = State.RECOVER
 	_timer = _attack.recover * (0.7 if enraged else 1.0) if _attack else 0.5
+	# No meio de uma sequência, a pausa é menor: o próximo golpe vem logo.
+	if tactic == Tactic.PRESS and _combo_left > 1:
+		_timer *= 0.55
 
 
 func _fire(a: EnemyAttack, dir: Vector3) -> void:

@@ -28,17 +28,19 @@ O jogo abre na base. Ande até um ponto e toque no botão azul (PC: **E**):
 
 Todo ataque inimigo mostra um **aviso no chão** antes de acontecer (o preenchimento cresce até o impacto): saia da área para desviar. Cada inimigo tem vários ataques, editáveis em `game/data/enemies/` (lista "Ataques" no Inspector).
 
-O movimento é sorteado a cada fração de segundo entre manobras (ir direto, arco pelo lado, arrancada, finta, pulo lateral, rodear, recuar), sempre puxando para o herói. Quanto mais tempo um inimigo fica sem atacar, mais agressivo ele fica. Cada inimigo também nasce com velocidade e agressividade levemente diferentes.
+Os inimigos alternam entre **pressionar** (partem para cima e emendam uma sequência de ataques) e **recuar** (abrem distância, rodeiam e soltam magias de longe). Também **esquivam**: saem da frente de disparos e às vezes escapam de um golpe (aparece "esquiva"). Quem apanha muito de uma vez pode recuar para se recompor. O movimento é sorteado entre manobras (direto, arco pelo lado, arrancada, finta, pulo lateral, rodear, recuar), sempre puxando para o herói.
+
+Cada sala tem um **perigo** de 0 a 1, que sobe com o andar e com a distância da entrada. Quanto maior, mais longas as sequências, mais esquivas e recuos e mais magias: alguns ataques só aparecem em salas perigosas (campo "Min Threat" no Inspector). O **chefe** fica mais rápido, ataca mais seguido e solta mais magias quanto menos vida tem.
 
 | inimigo | aparece | estilo |
 | --- | --- | --- |
-| Esqueleto | andar 1+ | avança em arcos e arrancadas; golpe em cone e estocada |
-| Rato Gigante | andar 1+ | manobras curtas e nervosas, fintas; mordida e salto |
-| Esqueleto Arqueiro | andar 1+ | mantém distância; flecha e leque de 3 |
-| Aranha da Cripta | andar 2+ | picada **venenosa** e cuspe que deixa poça |
-| Xamã de Ossos | andar 3+ | **raízes** que prendem, raio e nuvem tóxica |
-| Esqueleto Bruto | andar 3+ | esmagar em área e investida longa |
-| **Rei Ossudo** (chefe) | andar 5 | varredura e investida → abaixo de 85%: invoca esqueletos → abaixo de 60%: onda de ossos e espinhos → abaixo de 45%: **Juízo do Rei** (a sala inteira; só as luzes verdes são seguras) → abaixo de 30%: **enfurecido** |
+| Esqueleto | andar 1+ | avança em arcos e arrancadas; golpe, estocada · salas perigosas: lança de osso |
+| Rato Gigante | andar 1+ | manobras curtas e nervosas, fintas; mordida e salto · salas perigosas: praga venenosa |
+| Esqueleto Arqueiro | andar 1+ | mantém distância; flecha e leque de 3 · salas perigosas: flecha gélida (lentidão) |
+| Aranha da Cripta | andar 2+ | picada **venenosa** e cuspe que deixa poça · salas perigosas: teia que prende |
+| Xamã de Ossos | andar 3+ | **raízes** que prendem, raio e nuvem tóxica · salas perigosas: chuva de ossos |
+| Esqueleto Bruto | andar 3+ | esmagar em área e investida longa · salas perigosas: tremor |
+| **Rei Ossudo** (chefe) | andar 5 | varredura e investida → abaixo de 85%: invoca esqueletos → abaixo de 75%: lanças em leque → abaixo de 60%: onda de ossos e espinhos → abaixo de 45%: **Juízo do Rei** (a sala inteira; só as luzes verdes são seguras) → abaixo de 30%: **enfurecido** |
 
 | ação | PC | celular / mouse |
 | --- | --- | --- |
