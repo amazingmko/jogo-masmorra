@@ -26,12 +26,14 @@ O jogo abre na base. Ande até um ponto e toque no botão azul (PC: **E**):
 
 ### Inimigos
 
-Todo ataque inimigo mostra um **aviso no chão** antes de acontecer (o preenchimento cresce até o impacto): saia da área para desviar. Cada inimigo tem seu jeito de se mover e vários ataques, editáveis em `game/data/enemies/` (lista "Ataques" no Inspector).
+Todo ataque inimigo mostra um **aviso no chão** antes de acontecer (o preenchimento cresce até o impacto): saia da área para desviar. Cada inimigo tem vários ataques, editáveis em `game/data/enemies/` (lista "Ataques" no Inspector).
+
+O movimento é sorteado a cada fração de segundo entre manobras (ir direto, arco pelo lado, arrancada, finta, pulo lateral, rodear, recuar), sempre puxando para o herói. Quanto mais tempo um inimigo fica sem atacar, mais agressivo ele fica. Cada inimigo também nasce com velocidade e agressividade levemente diferentes.
 
 | inimigo | aparece | estilo |
 | --- | --- | --- |
-| Esqueleto | andar 1+ | ginga ao avançar; golpe em cone e estocada |
-| Rato Gigante | andar 1+ | zigue-zague rápido; mordida e salto |
+| Esqueleto | andar 1+ | avança em arcos e arrancadas; golpe em cone e estocada |
+| Rato Gigante | andar 1+ | manobras curtas e nervosas, fintas; mordida e salto |
 | Esqueleto Arqueiro | andar 1+ | mantém distância; flecha e leque de 3 |
 | Aranha da Cripta | andar 2+ | picada **venenosa** e cuspe que deixa poça |
 | Xamã de Ossos | andar 3+ | **raízes** que prendem, raio e nuvem tóxica |

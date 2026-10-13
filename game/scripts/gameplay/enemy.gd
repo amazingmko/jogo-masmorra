@@ -9,6 +9,9 @@ signal summon_requested(enemy: Enemy, summon_id: StringName, count: int, at: Vec
 signal announced(enemy: Enemy, text: String)
 
 enum State { MOVE, WINDUP, CHARGING, RECOVER, DEAD }
+## RUSH: vai direto · FLANK: arco pelo lado · DASH: arrancada curta · FEINT: recua e volta com tudo
+## SIDESTEP: pulo lateral · CIRCLE: rodeia · RETREAT: abre distância (atiradores)
+enum Maneuver { RUSH, FLANK, DASH, FEINT, SIDESTEP, CIRCLE, RETREAT }
 
 const ENRAGE_AT := 0.3
 
@@ -35,12 +38,18 @@ var _decision := 0.5
 var _aim_dir := Vector3.FORWARD
 var _charge_left := 0.0
 var _charge_hit := false
-var _strafe_sign := 1.0
-var _strafe_timer := 0.0
-var _zig_sign := 1.0
-var _zig_timer := 0.0
-var _pause := 0.0
-var _weave_t := 0.0
+# Movimento: manobras sorteadas (ver _pick_maneuver), sempre puxando para o herói.
+var _side := 1.0
+var _maneuver := Maneuver.RUSH
+var _maneuver_left := 0.0
+var _maneuver_angle := 0.0
+var _maneuver_speed := 1.0
+var _next_maneuver := -1
+var _wander := 0.0
+var _hunger := 0.0
+## Personalidade sorteada ao nascer: dois inimigos iguais não se movem igual.
+var _aggression := 1.0
+var _speed_jitter := 1.0
 var _own_telegraphs: Array[Telegraph] = []
 
 var _player: Player
@@ -81,7 +90,11 @@ func _ready() -> void:
 		# Começam com recargas diferentes, para não atacarem todos ao mesmo tempo.
 		_cooldowns[a] = _rng.randf_range(0.2, a.cooldown * 0.6)
 	_decision = _rng.randf_range(0.3, 0.9)
-	_strafe_sign = 1.0 if _rng.randf() < 0.5 else -1.0
+	_side = 1.0 if _rng.randf() < 0.5 else -1.0
+	_aggression = _rng.randf_range(0.8, 1.25)
+	_speed_jitter = _rng.randf_range(0.92, 1.1)
+	_wander = _rng.randf_range(-1.0, 1.0)
+	_maneuver_left = _rng.randf_range(0.0, 0.4)
 
 
 func _physics_process(delta: float) -> void:
@@ -131,6 +144,7 @@ func _physics_process(delta: float) -> void:
 			if _timer <= 0.0:
 				state = State.MOVE
 				_decision = _rng.randf_range(0.2, 0.7) * (0.6 if enraged else 1.0)
+				_maneuver_left = 0.0  # sai do ataque já com uma manobra nova
 
 	if state != State.CHARGING:
 		velocity += _knockback
@@ -165,51 +179,135 @@ func dismiss() -> void:
 # ---------- movimento ----------
 
 func _movement_velocity(delta: float, to_player: Vector3, dist: float) -> Vector3:
-	if _pause > 0.0:
-		_pause -= delta
-		return Vector3.ZERO
 	var dir_to := to_player.normalized() if dist > 0.01 else Vector3.FORWARD
-	var speed := data.move_speed * (1.25 if enraged else 1.0)
+	var speed := data.move_speed * _speed_jitter * (1.25 if enraged else 1.0)
 	var pref := data.preferred_distance
-	var tangent := Vector3(-dir_to.z, 0, dir_to.x) * _strafe_sign
-	_strafe_timer -= delta
-	if _strafe_timer <= 0.0:
-		_strafe_timer = _rng.randf_range(1.0, 2.6)
-		if _rng.randf() < 0.6:
-			_strafe_sign *= -1.0
+	# Fome: cresce enquanto não ataca; quanto maior, mais ele parte para cima.
+	_hunger = minf(_hunger + delta * 0.35 * _aggression, 1.5)
+	# Desvio suave e contínuo (passeio aleatório do ângulo), nunca o mesmo ritmo.
+	_wander = clampf(_wander + _rng.randf_range(-1.0, 1.0) * delta * 4.0, -1.0, 1.0)
 
+	_maneuver_left -= delta
+	if is_on_wall() and _maneuver != Maneuver.RUSH:
+		_maneuver_left = minf(_maneuver_left, 0.05)
+		_side = -_side
+	if _maneuver_left <= 0.0:
+		_pick_maneuver(dist, pref)
+
+	# Mira um pouco à frente de onde o herói está indo.
+	var lead_dir := dir_to
+	if _player and dist > 1.5:
+		var lead := _player.velocity * clampf(dist / maxf(speed * 2.0, 0.1), 0.0, 0.6)
+		lead.y = 0.0
+		var aimed := to_player + lead
+		if aimed.length() > 0.01:
+			lead_dir = aimed.normalized()
+	var tangent := Vector3(-dir_to.z, 0, dir_to.x) * _side
+	var noise := deg_to_rad(18.0) * _wander
+	var v := Vector3.ZERO
+
+	match _maneuver:
+		Maneuver.RUSH:
+			v = lead_dir.rotated(Vector3.UP, noise) * speed * _maneuver_speed
+		Maneuver.FLANK:
+			# Arco: começa bem aberto e vai fechando no herói.
+			v = lead_dir.rotated(Vector3.UP, _maneuver_angle * _side + noise * 0.5) * speed * _maneuver_speed
+		Maneuver.DASH:
+			v = lead_dir.rotated(Vector3.UP, noise * 0.3) * speed * _maneuver_speed
+		Maneuver.FEINT:
+			v = (-dir_to * 0.6 + tangent * 0.8).normalized() * speed * 0.9
+		Maneuver.SIDESTEP:
+			v = (tangent + dir_to * 0.35).normalized() * speed * _maneuver_speed
+		Maneuver.CIRCLE:
+			# Rodeia, mas vai apertando o círculo.
+			var pull := clampf((dist - pref * 0.8) * 0.4, -0.6, 0.6) + 0.15 * _hunger
+			v = (tangent + dir_to * pull).normalized().rotated(Vector3.UP, noise * 0.5) * speed * _maneuver_speed
+		Maneuver.RETREAT:
+			v = (-dir_to + tangent * 0.7).normalized().rotated(Vector3.UP, noise) * speed * 1.05
+	return v
+
+
+## Sorteia a próxima manobra. Os pesos dependem do tipo de movimento, da distância
+## e da "fome" (tempo sem atacar): todas as manobras terminam empurrando para o herói.
+func _pick_maneuver(dist: float, pref: float) -> void:
+	if _rng.randf() < 0.4:
+		_side = -_side
+	if _next_maneuver >= 0:
+		# Finta sempre emenda numa arrancada ou investida.
+		_set_maneuver(_next_maneuver)
+		_next_maneuver = -1
+		return
+	var far := dist > pref + 1.0
+	var h := _hunger * _aggression
+	var w := {}
 	match data.movement:
 		EnemyData.Movement.CHASE:
-			# Avança gingando de um lado para o outro; perto, rodeia devagar.
-			_weave_t += delta
-			if dist > pref:
-				return (dir_to + tangent * 0.45 * sin(_weave_t * 2.3)).normalized() * speed
-			return tangent * speed * 0.35
+			if far:
+				w = {Maneuver.RUSH: 3.0 + h * 2.0, Maneuver.FLANK: 3.0, Maneuver.DASH: 1.5 + h,
+					Maneuver.FEINT: 0.8, Maneuver.SIDESTEP: 1.0}
+			else:
+				w = {Maneuver.CIRCLE: 2.0, Maneuver.SIDESTEP: 1.5, Maneuver.DASH: 1.0 + h * 2.0,
+					Maneuver.RUSH: 1.0 + h, Maneuver.FEINT: 0.7}
+		EnemyData.Movement.SKITTER:
+			if far:
+				w = {Maneuver.DASH: 2.5 + h * 2.0, Maneuver.SIDESTEP: 2.5, Maneuver.FLANK: 2.5,
+					Maneuver.FEINT: 1.5, Maneuver.RUSH: 1.5 + h}
+			else:
+				w = {Maneuver.SIDESTEP: 2.5, Maneuver.CIRCLE: 1.5, Maneuver.DASH: 1.5 + h * 2.0,
+					Maneuver.FEINT: 1.0}
 		EnemyData.Movement.STRAFE:
 			if dist > pref + 1.5:
-				return (dir_to * 0.85 + tangent * 0.45).normalized() * speed
-			if dist < pref - 1.0:
-				return (-dir_to * 0.7 + tangent * 0.6).normalized() * speed
-			return tangent * speed * 0.85
-		EnemyData.Movement.SKITTER:
-			# Zigue-zague rápido, com paradinhas imprevisíveis.
-			_zig_timer -= delta
-			if _zig_timer <= 0.0:
-				_zig_sign *= -1.0
-				_zig_timer = _rng.randf_range(0.25, 0.6)
-				if _rng.randf() < 0.12:
-					_pause = _rng.randf_range(0.2, 0.45)
-			if dist > pref:
-				return dir_to.rotated(Vector3.UP, deg_to_rad(45.0) * _zig_sign) * speed
-			return tangent * speed * 0.6
+				w = {Maneuver.FLANK: 3.0, Maneuver.RUSH: 2.0 + h * 2.0, Maneuver.DASH: 1.0 + h}
+			else:
+				w = {Maneuver.CIRCLE: 3.0, Maneuver.SIDESTEP: 1.5, Maneuver.DASH: 1.0 + h * 1.5,
+					Maneuver.FLANK: 1.0}
 		EnemyData.Movement.KITE:
-			# Mantém distância: foge se o herói chega perto, circula no meio-termo.
 			if dist < pref - 2.5:
-				return (-dir_to + tangent * 0.5).normalized() * speed * 1.1
-			if dist > pref + 2.0:
-				return (dir_to + tangent * 0.3).normalized() * speed
-			return tangent * speed * 0.7
-	return Vector3.ZERO
+				w = {Maneuver.RETREAT: 4.0, Maneuver.SIDESTEP: 2.0}
+			elif dist > pref + 2.0:
+				# Longe demais: avança para pressionar, sem andar em linha reta.
+				w = {Maneuver.FLANK: 3.0, Maneuver.RUSH: 1.5 + h, Maneuver.SIDESTEP: 1.0}
+			else:
+				w = {Maneuver.CIRCLE: 2.5, Maneuver.SIDESTEP: 2.0, Maneuver.FLANK: 1.0 + h}
+	var total := 0.0
+	for k in w:
+		total += float(w[k])
+	var roll := _rng.randf() * total
+	for k in w:
+		roll -= float(w[k])
+		if roll <= 0.0:
+			_set_maneuver(int(k))
+			return
+	_set_maneuver(Maneuver.RUSH)
+
+
+func _set_maneuver(m: int) -> void:
+	_maneuver = m as Maneuver
+	var quick := data.movement == EnemyData.Movement.SKITTER
+	var t_scale := 0.6 if quick else 1.0
+	_maneuver_speed = 1.0
+	match _maneuver:
+		Maneuver.RUSH:
+			_maneuver_left = _rng.randf_range(0.4, 1.1) * t_scale
+			_maneuver_speed = _rng.randf_range(1.0, 1.15)
+		Maneuver.FLANK:
+			_maneuver_left = _rng.randf_range(0.5, 1.2) * t_scale
+			_maneuver_angle = deg_to_rad(_rng.randf_range(25.0, 70.0))
+			_maneuver_speed = _rng.randf_range(1.0, 1.1)
+		Maneuver.DASH:
+			_maneuver_left = _rng.randf_range(0.18, 0.35)
+			_maneuver_speed = _rng.randf_range(1.6, 2.1)
+		Maneuver.FEINT:
+			_maneuver_left = _rng.randf_range(0.15, 0.3)
+			_next_maneuver = Maneuver.DASH if _rng.randf() < 0.6 else Maneuver.RUSH
+		Maneuver.SIDESTEP:
+			_maneuver_left = _rng.randf_range(0.15, 0.35)
+			_maneuver_speed = _rng.randf_range(1.2, 1.5)
+		Maneuver.CIRCLE:
+			_maneuver_left = _rng.randf_range(0.5, 1.3)
+			_maneuver_speed = _rng.randf_range(0.6, 0.9)
+		Maneuver.RETREAT:
+			_maneuver_left = _rng.randf_range(0.35, 0.7)
 
 
 ## Empurra para longe de outros inimigos muito próximos (não se amontoam).
@@ -250,6 +348,7 @@ func _try_attack(dist: float) -> void:
 
 func _start(a: EnemyAttack) -> void:
 	_attack = a
+	_hunger = 0.0
 	state = State.WINDUP
 	var haste := 0.8 if enraged else 1.0
 	_timer = a.windup * haste
