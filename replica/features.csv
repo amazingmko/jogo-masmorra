@@ -21,7 +21,7 @@ Habilidade passiva por herói,heróis,should,yes,no,GoG
 Elementos com vantagem de dano (+30%),combate,should,yes,yes,GoG
 Raridade de itens e heróis (comum a lendário),itens,should,yes,yes,GoG
 Slots de equipamento por herói (arma e armadura),itens,should,yes,yes,GoG - essencial na visão da autora
-Inimigos com padrões de ataque para desviar,combate,should,yes,partial,SK
+Inimigos com padrões de ataque para desviar,combate,should,yes,yes,"SK - feito com avisos no chão, 7 tipos de ataque, veneno/raízes e chefe com fases"
 Minimapa da fase,interface,should,yes,yes,SK
 Lojas e mercadores dentro da run,run,should,yes,no,SK
 Reviver uma vez por run,run,should,yes,no,SK
@@ -47,3 +47,5 @@ Token GOG e marketplace,economia,could,yes,skip,não é mecânica de jogo
 Energia que limita quantas runs por dia,economia,could,yes,skip,GoG - uma das reclamações mais citadas dos jogadores
 Personagens arte música e nomes dos originais,conteúdo,could,yes,skip,pertencem aos estúdios - tudo será criado do zero
 Níveis de dificuldade (ex.: Normal / Heroico / Lendário) com inimigos mais fortes e recompensas melhores,modos,could,no,no,ideia da autora - futuro
+Chefe com fases e mega magia (zonas seguras),combate,should,no,yes,pedido da autora
+"Efeitos negativos: veneno, raízes, lentidão",combate,should,no,yes,pedido da autora

@@ -284,8 +284,8 @@ func _make_buffs() -> void:
 
 
 func _enemy(id: String, name: String, element: int, color: Color, body_scale: float,
-		hp: int, damage: int, speed: float, attack_range: float, windup: float, recover: float,
-		drop_table: String, xp: int) -> void:
+		hp: int, speed: float, movement: int, preferred: float, drop_table: String, xp: int,
+		attacks: Array[EnemyAttack], boss := false) -> void:
 	var e := EnemyData.new()
 	e.id = StringName(id)
 	e.display_name = name
@@ -293,22 +293,91 @@ func _enemy(id: String, name: String, element: int, color: Color, body_scale: fl
 	e.color = color
 	e.body_scale = body_scale
 	e.max_health = hp
-	e.damage = damage
 	e.move_speed = speed
-	e.attack_range = attack_range
-	e.windup_time = windup
-	e.recover_time = recover
+	e.movement = movement
+	e.preferred_distance = preferred
 	e.drop_table_id = StringName(drop_table)
 	e.xp_reward = xp
+	e.attacks = attacks
+	e.is_boss = boss
+	# Valores do golpe simples (só usados se a lista de ataques ficar vazia).
+	e.damage = attacks[0].damage if not attacks.is_empty() else 10
 	_save(e, "res://game/data/enemies/%s.tres" % id)
+
+
+## Atalho para criar um ataque. Campos extras vão em `extra` (ex.: {"effect": ..., "count": 3}).
+func _atk(id: String, name: String, kind: int, rmin: float, rmax: float, windup: float, cooldown: float,
+		damage: int, color: Color, extra: Dictionary = {}) -> EnemyAttack:
+	var a := EnemyAttack.new()
+	a.id = StringName(id)
+	a.display_name = name
+	a.kind = kind
+	a.range_min = rmin
+	a.range_max = rmax
+	a.windup = windup
+	a.cooldown = cooldown
+	a.damage = damage
+	a.color = color
+	for key in extra:
+		a.set(key, extra[key])
+	return a
 
 
 func _make_enemies() -> void:
 	var E := GameEnums.Element
-	_enemy("esqueleto", "Esqueleto", E.NEUTRAL, Color("cfc8b8"), 1.0, 240, 10, 2.6, 1.3, 0.6, 0.8, "esqueleto", 3)
-	_enemy("rato_gigante", "Rato Gigante", E.NATURE, Color("8a6a4f"), 0.7, 120, 10, 4.2, 1.0, 0.45, 0.7, "rato_gigante", 2)
-	_enemy("esqueleto_bruto", "Esqueleto Bruto", E.NEUTRAL, Color("9e8f7a"), 1.5, 700, 20, 2.0, 1.8, 0.9, 1.2, "esqueleto", 8)
-	_enemy("rei_ossudo", "Rei Ossudo", E.NEUTRAL, Color("d6b25e"), 2.1, 3200, 20, 2.3, 2.6, 1.0, 1.0, "chefe_rei_ossudo", 60)
+	var K := EnemyAttack.Kind
+	var F := EnemyAttack.Effect
+	var M := EnemyData.Movement
+	var RED := Color("e05555")
+	var ORANGE := Color("ff8a3d")
+	var POISON := Color("8be06b")
+	var ROOT := Color("b483e8")
+	var BONE := Color("f2ecff")
+
+	_enemy("esqueleto", "Esqueleto", E.NEUTRAL, Color("cfc8b8"), 1.0, 240, 2.8, M.CHASE, 1.3, "esqueleto", 3, [
+		_atk("golpe", "Golpe", K.MELEE, 0, 2.0, 0.55, 1.6, 15, RED, {"radius": 2.0, "cone_half_angle": 60.0, "recover": 0.5, "weight": 10}),
+		_atk("estocada", "Estocada", K.CHARGE, 3.0, 6.5, 0.6, 5.0, 18, ORANGE, {"length": 5.0, "radius": 1.2, "speed": 14.0, "recover": 0.6, "weight": 6}),
+	])
+	_enemy("rato_gigante", "Rato Gigante", E.NATURE, Color("8a6a4f"), 0.7, 120, 4.4, M.SKITTER, 1.0, "rato_gigante", 2, [
+		_atk("mordida", "Mordida", K.MELEE, 0, 1.6, 0.35, 1.2, 10, RED, {"radius": 1.4, "recover": 0.4}),
+		_atk("salto", "Salto", K.CHARGE, 2.5, 6.0, 0.45, 4.0, 12, ORANGE, {"length": 5.0, "radius": 1.0, "speed": 16.0, "recover": 0.5, "weight": 7}),
+	])
+	_enemy("esqueleto_arqueiro", "Esqueleto Arqueiro", E.NEUTRAL, Color("e3dccb"), 0.95, 160, 2.9, M.KITE, 7.5, "esqueleto", 3, [
+		_atk("flecha", "Flecha", K.PROJECTILE, 2.5, 13.0, 0.5, 2.0, 10, BONE, {"speed": 15.0, "recover": 0.4, "weight": 10}),
+		_atk("saraivada", "Saraivada", K.FAN, 3.0, 12.0, 0.8, 5.0, 10, ORANGE, {"speed": 13.0, "count": 3, "spread_deg": 22.0, "recover": 0.6, "weight": 6}),
+		_atk("chute", "Chute", K.MELEE, 0, 1.8, 0.4, 3.0, 8, RED, {"radius": 1.8, "recover": 0.3, "weight": 8}),
+	])
+	_enemy("aranha_cripta", "Aranha da Cripta", E.NATURE, Color("4f6b3a"), 0.8, 150, 4.0, M.SKITTER, 1.2, "rato_gigante", 3, [
+		_atk("picada", "Picada Venenosa", K.MELEE, 0, 1.7, 0.4, 1.4, 8, POISON,
+			{"radius": 1.5, "recover": 0.4, "effect": F.POISON, "effect_duration": 4.0, "effect_power": 6}),
+		_atk("cuspe", "Cuspe Ácido", K.GROUND_AOE, 2.0, 9.0, 0.9, 5.0, 6, POISON,
+			{"radius": 1.7, "recover": 0.5, "linger": 4.0, "effect": F.POISON, "effect_duration": 3.0, "effect_power": 6, "weight": 8}),
+	])
+	_enemy("xama_ossos", "Xamã de Ossos", E.NEUTRAL, Color("8e7cc3"), 1.0, 180, 2.5, M.KITE, 8.0, "esqueleto", 5, [
+		_atk("raio", "Raio Sombrio", K.PROJECTILE, 2.5, 13.0, 0.55, 2.4, 11, ROOT, {"speed": 12.0, "recover": 0.4, "weight": 10}),
+		_atk("raizes", "Raízes de Osso", K.PROJECTILE, 2.5, 12.0, 0.7, 4.5, 8, ROOT,
+			{"speed": 10.0, "recover": 0.5, "effect": F.ROOT, "effect_duration": 1.2, "weight": 8}),
+		_atk("nuvem", "Nuvem Tóxica", K.GROUND_AOE, 2.0, 12.0, 1.1, 6.0, 8, POISON,
+			{"radius": 2.2, "recover": 0.6, "linger": 4.0, "effect": F.POISON, "effect_duration": 3.0, "effect_power": 6, "weight": 7}),
+	])
+	_enemy("esqueleto_bruto", "Esqueleto Bruto", E.NEUTRAL, Color("9e8f7a"), 1.5, 700, 2.2, M.CHASE, 1.8, "esqueleto", 8, [
+		_atk("esmagar", "Esmagar", K.MELEE, 0, 2.8, 0.9, 3.0, 30, RED, {"radius": 2.8, "recover": 0.9}),
+		_atk("investida", "Investida", K.CHARGE, 3.0, 8.0, 0.8, 6.0, 30, ORANGE, {"length": 7.0, "radius": 1.8, "speed": 15.0, "recover": 1.0, "weight": 7}),
+	])
+	_enemy("rei_ossudo", "Rei Ossudo", E.NEUTRAL, Color("d6b25e"), 2.1, 4500, 2.8, M.STRAFE, 2.8, "chefe_rei_ossudo", 60, [
+		_atk("varredura", "Varredura", K.MELEE, 0, 3.8, 0.7, 2.5, 30, RED,
+			{"radius": 3.8, "cone_half_angle": 70.0, "recover": 0.6, "weight": 10}),
+		_atk("investida_real", "Investida Real", K.CHARGE, 3.0, 12.0, 0.8, 6.0, 35, ORANGE,
+			{"length": 10.0, "radius": 2.2, "speed": 16.0, "recover": 0.9, "weight": 8}),
+		_atk("chamado", "Chamado dos Mortos", K.SUMMON, 0, 30.0, 1.0, 14.0, 0, ROOT,
+			{"count": 2, "summon_id": &"esqueleto", "below_health": 0.85, "recover": 0.5, "weight": 6}),
+		_atk("onda_ossos", "Onda de Ossos", K.NOVA, 0, 30.0, 0.9, 7.0, 15, BONE,
+			{"count": 12, "speed": 9.0, "below_health": 0.6, "recover": 0.6, "weight": 8}),
+		_atk("espinhos", "Espinhos da Cripta", K.GROUND_AOE, 0, 30.0, 1.0, 6.0, 25, RED,
+			{"count": 5, "radius": 1.6, "below_health": 0.6, "recover": 0.5, "weight": 8}),
+		_atk("juizo", "Juízo do Rei", K.MEGA, 0, 40.0, 3.5, 22.0, 40, Color("ff5a36"),
+			{"radius": 10.5, "count": 2, "damage_percent_of_target": 0.6, "below_health": 0.45, "recover": 1.2, "weight": 30}),
+	], true)
 
 
 # ---------- cenas ----------

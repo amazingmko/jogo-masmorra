@@ -24,6 +24,20 @@ O jogo abre na base. Ande até um ponto e toque no botão azul (PC: **E**):
 
 5 andares gerados aleatoriamente. Nas salas de combate as portas fecham até o último inimigo cair. Baús (amarelo no minimapa) dão loot, a fonte (verde) cura, o portal azul leva ao próximo andar depois de escolher 1 entre 3 bênçãos. No 5º andar, o Rei Ossudo. Inimigos e baús deixam cair **equipamento com raridade (Comum, Raro, Épico), nível de item e atributos**; metade das peças vem no tipo de armadura do herói atual. Todo loot e XP ficam com o herói, mesmo perdendo.
 
+### Inimigos
+
+Todo ataque inimigo mostra um **aviso no chão** antes de acontecer (o preenchimento cresce até o impacto): saia da área para desviar. Cada inimigo tem seu jeito de se mover e vários ataques, editáveis em `game/data/enemies/` (lista "Ataques" no Inspector).
+
+| inimigo | aparece | estilo |
+| --- | --- | --- |
+| Esqueleto | andar 1+ | ginga ao avançar; golpe em cone e estocada |
+| Rato Gigante | andar 1+ | zigue-zague rápido; mordida e salto |
+| Esqueleto Arqueiro | andar 1+ | mantém distância; flecha e leque de 3 |
+| Aranha da Cripta | andar 2+ | picada **venenosa** e cuspe que deixa poça |
+| Xamã de Ossos | andar 3+ | **raízes** que prendem, raio e nuvem tóxica |
+| Esqueleto Bruto | andar 3+ | esmagar em área e investida longa |
+| **Rei Ossudo** (chefe) | andar 5 | varredura e investida → abaixo de 85%: invoca esqueletos → abaixo de 60%: onda de ossos e espinhos → abaixo de 45%: **Juízo do Rei** (a sala inteira; só as luzes verdes são seguras) → abaixo de 30%: **enfurecido** |
+
 | ação | PC | celular / mouse |
 | --- | --- | --- |
 | andar | WASD ou setas | arrastar na metade esquerda da tela (joystick) |
@@ -57,6 +71,8 @@ godot --headless --path . --script res://tests/run_tests.gd
 godot --headless --path . --script res://tests/flow_hub.gd
 # robô jogando uma run inteira (pega erros e dá noção de dificuldade):
 godot --headless --fixed-fps 60 --path . --script res://tests/sim_run.gd -- hero=guardiao seed=123
+# só o chefe (pula para o 5º andar com as outras salas limpas):
+godot --headless --fixed-fps 60 --path . --script res://tests/sim_run.gd -- hero=batedora seed=7 floor=5 boss_only
 ```
 
 ## Ordem do método

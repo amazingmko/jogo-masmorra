@@ -1,6 +1,34 @@
 [gd_resource type="Resource" script_class="EnemyData" format=3]
 
+[ext_resource type="Script" path="res://game/scripts/resources/enemy_attack.gd" id="1_ssuth"]
 [ext_resource type="Script" path="res://game/scripts/resources/enemy_data.gd" id="1_y6klw"]
+
+[sub_resource type="Resource" id="Resource_ssuth"]
+script = ExtResource("1_ssuth")
+id = &"mordida"
+display_name = "Mordida"
+range_max = 1.6
+cooldown = 1.2
+windup = 0.35
+recover = 0.4
+radius = 1.4
+
+[sub_resource type="Resource" id="Resource_nh2qj"]
+script = ExtResource("1_ssuth")
+id = &"salto"
+display_name = "Salto"
+kind = 1
+weight = 7
+range_min = 2.5
+range_max = 6.0
+cooldown = 4.0
+windup = 0.45
+recover = 0.5
+damage = 12
+radius = 1.0
+length = 5.0
+speed = 16.0
+color = Color(1, 0.5411765, 0.23921569, 1)
 
 [resource]
 script = ExtResource("1_y6klw")
@@ -11,9 +39,9 @@ color = Color(0.5411765, 0.41568628, 0.30980393, 1)
 body_scale = 0.7
 max_health = 120
 damage = 10
-move_speed = 4.2
-attack_range = 1.0
-windup_time = 0.45
-recover_time = 0.7
+move_speed = 4.4
+movement = 2
+preferred_distance = 1.0
+attacks = Array[ExtResource("1_ssuth")]([SubResource("Resource_ssuth"), SubResource("Resource_nh2qj")])
 drop_table_id = &"rato_gigante"
 xp_reward = 2

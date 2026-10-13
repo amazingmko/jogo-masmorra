@@ -1,6 +1,35 @@
 [gd_resource type="Resource" script_class="EnemyData" format=3]
 
 [ext_resource type="Script" path="res://game/scripts/resources/enemy_data.gd" id="1_4oe0h"]
+[ext_resource type="Script" path="res://game/scripts/resources/enemy_attack.gd" id="1_54p22"]
+
+[sub_resource type="Resource" id="Resource_54p22"]
+script = ExtResource("1_54p22")
+id = &"esmagar"
+display_name = "Esmagar"
+range_max = 2.8
+cooldown = 3.0
+windup = 0.9
+recover = 0.9
+damage = 30
+radius = 2.8
+
+[sub_resource type="Resource" id="Resource_gfe1o"]
+script = ExtResource("1_54p22")
+id = &"investida"
+display_name = "Investida"
+kind = 1
+weight = 7
+range_min = 3.0
+range_max = 8.0
+cooldown = 6.0
+windup = 0.8
+recover = 1.0
+damage = 30
+radius = 1.8
+length = 7.0
+speed = 15.0
+color = Color(1, 0.5411765, 0.23921569, 1)
 
 [resource]
 script = ExtResource("1_4oe0h")
@@ -9,10 +38,9 @@ display_name = "Esqueleto Bruto"
 color = Color(0.61960787, 0.56078434, 0.47843137, 1)
 body_scale = 1.5
 max_health = 700
-damage = 20
-move_speed = 2.0
-attack_range = 1.8
-windup_time = 0.9
-recover_time = 1.2
+damage = 30
+move_speed = 2.2
+preferred_distance = 1.8
+attacks = Array[ExtResource("1_54p22")]([SubResource("Resource_54p22"), SubResource("Resource_gfe1o")])
 drop_table_id = &"esqueleto"
 xp_reward = 8

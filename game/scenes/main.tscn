@@ -13,27 +13,27 @@ ambient_light_source = 2
 ambient_light_color = Color(0.41960785, 0.37254903, 0.5411765, 1)
 ambient_light_energy = 0.6
 
-[node name="Main" type="Node3D" unique_id=1034181822]
+[node name="Main" type="Node3D" unique_id=2100673476]
 script = ExtResource("1_ejk4j")
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1553229556]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=264324589]
 environment = SubResource("Environment_shkmv")
 
-[node name="Sun" type="DirectionalLight3D" parent="." unique_id=1718850869]
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=2105069107]
 transform = Transform3D(0.81915206, -0.46984634, 0.32898995, 0, 0.57357645, 0.81915206, -0.57357645, -0.6710101, 0.46984634, 0, 0, 0)
 shadow_enabled = true
 directional_shadow_max_distance = 40.0
 
-[node name="Dungeon" type="Node3D" parent="." unique_id=453441762]
+[node name="Dungeon" type="Node3D" parent="." unique_id=1821187249]
 
-[node name="Player" type="CharacterBody3D" parent="." unique_id=1331334693 instance=ExtResource("2_l3qal")]
+[node name="Player" type="CharacterBody3D" parent="." unique_id=1866063312 instance=ExtResource("2_l3qal")]
 script = ExtResource("3_uk16q")
 
-[node name="Camera" type="Camera3D" parent="." unique_id=537215273]
+[node name="Camera" type="Camera3D" parent="." unique_id=1928187873]
 transform = Transform3D(1, 0, 0, 0, 0.57357645, 0.81915206, 0, -0.81915206, 0.57357645, 0, 11, 7.5)
 fov = 50.0
 script = ExtResource("4_7j1va")
 target_path = NodePath("../Player")
 
-[node name="HUD" type="CanvasLayer" parent="." unique_id=1768940741]
+[node name="HUD" type="CanvasLayer" parent="." unique_id=155510252]
 script = ExtResource("5_rmvmd")

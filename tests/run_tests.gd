@@ -27,6 +27,7 @@ func _process(_delta: float) -> bool:
 	_test_dungeon_layout()
 	_test_items_and_stats(catalog)
 	_test_progression()
+	_test_telegraphs_and_status(catalog)
 
 	print("\n%d verificações passaram, %d falharam." % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
@@ -332,3 +333,82 @@ func _test_progression() -> void:
 	check(gained == 2 and p.level == 3 and p.xp == 26, "XP sobe vários níveis e guarda a sobra")
 	var capped := {"level": Progression.MAX_LEVEL, "xp": 0}
 	check(Progression.add_xp(capped, 99999) == 0 and capped.level == Progression.MAX_LEVEL, "não passa do nível máximo")
+
+
+func _test_telegraphs_and_status(catalog: ItemCatalog) -> void:
+	var holder := Node3D.new()
+	root.add_child(holder)
+
+	var circle := Telegraph.new()
+	circle.shape = Telegraph.Shape.CIRCLE
+	circle.radius = 2.0
+	circle.position = Vector3(10, 0, 0)
+	holder.add_child(circle)
+	check(circle.contains(Vector3(11, 0, 0)) and not circle.contains(Vector3(13, 0, 0)), "aviso em círculo: dentro e fora")
+	check(not circle.contains(circle.escape_point(Vector3(10.5, 0, 0))), "ponto de fuga do círculo fica fora")
+
+	var line := Telegraph.new()
+	line.shape = Telegraph.Shape.LINE
+	line.length = 6.0
+	line.width = 1.0
+	line.rotation.y = 0.0  # aponta para +z
+	holder.add_child(line)
+	check(line.contains(Vector3(0, 0, 4)) and not line.contains(Vector3(2, 0, 4)) and not line.contains(Vector3(0, 0, 8)),
+		"aviso em linha (investida)")
+
+	var cone := Telegraph.new()
+	cone.shape = Telegraph.Shape.CONE
+	cone.radius = 3.0
+	cone.half_angle_deg = 60.0
+	holder.add_child(cone)
+	check(cone.contains(Vector3(0, 0, 2)) and not cone.contains(Vector3(0, 0, -2)), "aviso em cone só pega na frente")
+
+	var mega := Telegraph.new()
+	mega.shape = Telegraph.Shape.MEGA
+	mega.radius = 10.0
+	mega.safe_zones = [Vector3(4, 0, 0)]
+	mega.safe_radius = 1.7
+	holder.add_child(mega)
+	check(mega.contains(Vector3(-3, 0, 2)) and not mega.contains(Vector3(4.5, 0, 0.5)), "mega magia: zona segura protege")
+	check(mega.escape_point(Vector3(-3, 0, 0)).is_equal_approx(Vector3(4, 0, 0)), "fuga da mega magia vai para a zona segura")
+	holder.free()
+
+	var hp := Health.new()
+	hp.max_health = 100
+	hp.invulnerability_time = 0.6
+	hp.reset()
+	var st := StatusEffects.new()
+	st.health = hp
+	st.apply(EnemyAttack.Effect.POISON, 2.0, 10)
+	hp.take_damage(1)  # abre a invencibilidade
+	st.tick(1.0)
+	check(hp.health == 89, "veneno atravessa a invencibilidade (10/s por 1s; vida %d)" % hp.health)
+	st.tick(1.5)
+	check(not st.has(EnemyAttack.Effect.POISON), "veneno acaba no tempo certo")
+	st.apply(EnemyAttack.Effect.ROOT, 1.0)
+	check(st.is_rooted() and st.move_factor() == 0.0, "raízes prendem o herói")
+	st.tick(1.1)
+	check(not st.is_rooted() and st.move_factor() == 1.0, "raízes soltam depois do tempo")
+	st.apply(EnemyAttack.Effect.SLOW, 2.0, 40)
+	check(is_equal_approx(st.move_factor(), 0.6), "lentidão de 40% reduz a velocidade")
+	hp.untouchable = true
+	check(hp.take_damage(50, true, true) == 0, "imune não toma dano nem com ataque que atravessa invencibilidade")
+	hp.free()
+	st.free()
+
+	var boss := catalog.get_enemy(&"rei_ossudo")
+	var kinds := {}
+	var has_phase := false
+	for a in boss.attacks:
+		kinds[a.kind] = true
+		if a.below_health < 1.0:
+			has_phase = true
+	check(boss.is_boss and kinds.has(EnemyAttack.Kind.MEGA) and kinds.has(EnemyAttack.Kind.SUMMON) and has_phase,
+		"chefe tem fases, invocação e mega magia")
+	var ranged := 0
+	for e: EnemyData in catalog.enemies.values():
+		for a in e.attacks:
+			if a.kind in [EnemyAttack.Kind.PROJECTILE, EnemyAttack.Kind.FAN] and not e.is_boss:
+				ranged += 1
+				break
+	check(ranged >= 2, "há inimigos que atacam de longe (%d)" % ranged)

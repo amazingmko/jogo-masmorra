@@ -15,7 +15,7 @@ var _materials := {}
 func _init() -> void:
 	_materials = {
 		"floor": _mat(Color("3b3350")),
-		"floor_boss": _mat(Color("4a2b3a")),
+		"floor_boss": _mat(Color("33274a")),
 		"wall": _mat(Color("5c5470")),
 		"pillar": _mat(Color("7a6f94")),
 		"corridor": _mat(Color("342d47")),

@@ -2,6 +2,8 @@ class_name EnemyData
 extends Resource
 ## Molde de um inimigo. Cada arquivo em game/data/enemies/ é um EnemyData.
 
+enum Movement { CHASE, STRAFE, SKITTER, KITE }
+
 @export var id: StringName
 @export var display_name: String = ""
 @export var element: GameEnums.Element = GameEnums.Element.NEUTRAL
@@ -14,12 +16,19 @@ extends Resource
 @export var damage: int = 1
 @export var move_speed: float = 2.8
 
-@export_group("Ataque")
-## Distância em que o inimigo para e prepara o golpe.
+@export_group("Movimento")
+## CHASE: avança com ginga · STRAFE: circula em volta · SKITTER: zigue-zague rápido · KITE: mantém distância
+@export var movement: Movement = Movement.CHASE
+## Distância que o inimigo tenta manter do herói.
+@export var preferred_distance: float = 1.2
+@export var is_boss: bool = false
+
+@export_group("Ataques")
+## Lista de ataques (ver EnemyAttack). Vazia = um golpe simples com os valores abaixo.
+@export var attacks: Array[EnemyAttack] = []
+## Valores do golpe simples (usados só se a lista acima estiver vazia).
 @export var attack_range: float = 1.4
-## Tempo de "aviso" antes do golpe. É a janela para o jogador desviar.
 @export var windup_time: float = 0.6
-## Pausa depois de golpear.
 @export var recover_time: float = 0.8
 
 @export_group("Recompensa")

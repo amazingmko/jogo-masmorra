@@ -24,12 +24,19 @@ var _panel_text: Label
 var _panel_button: Button
 var _buff_panel: PanelContainer
 var _buff_cards: HBoxContainer
+var _status_row: HBoxContainer
+var _boss_box: VBoxContainer
+var _boss_name: Label
+var _boss_bar: ProgressBar
+var _boss: Node
+var _player: Player
 
 
 func _ready() -> void:
 	add_to_group("loot_listeners")
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_status()
+	_build_boss_bar()
 	_build_minimap()
 	_build_controls()
 	_build_toasts()
@@ -48,11 +55,49 @@ func attack_held() -> bool:
 
 
 func bind_player(player: Player) -> void:
+	_player = player
 	player.health.changed.connect(_on_health_changed)
 	player.hero_changed.connect(_on_hero_changed)
 	_on_health_changed(player.health.health, player.health.max_health, player.health.armor, player.health.max_armor)
 	if player.hero:
 		_on_hero_changed(player.hero)
+
+
+## Barra de vida do chefe no topo da tela.
+func show_boss(boss: Node) -> void:
+	_boss = boss
+	_boss_name.text = boss.data.display_name
+	_boss_bar.max_value = boss.health.max_health
+	_boss_bar.value = boss.health.health
+	boss.health.changed.connect(func(hp: int, max_hp: int, _a: int, _b: int) -> void:
+		_boss_bar.max_value = max_hp
+		_boss_bar.value = hp
+		if boss.enraged:
+			_boss_name.text = "%s — ENFURECIDO" % boss.data.display_name)
+	_boss_box.visible = true
+
+
+func hide_boss() -> void:
+	_boss = null
+	_boss_box.visible = false
+
+
+func _process(_delta: float) -> void:
+	_refresh_status()
+
+
+func _refresh_status() -> void:
+	if _player == null or _status_row == null:
+		return
+	var effects: Array = _player.status.active()
+	while _status_row.get_child_count() > effects.size():
+		_status_row.get_child(_status_row.get_child_count() - 1).free()
+	while _status_row.get_child_count() < effects.size():
+		_status_row.add_child(_make_label(16))
+	for i in effects.size():
+		var chip: Label = _status_row.get_child(i)
+		chip.text = "%s %.1fs" % [effects[i].name, effects[i].time]
+		chip.add_theme_color_override("font_color", effects[i].color)
 
 
 func refresh_hero(hero: HeroData) -> void:
@@ -183,6 +228,9 @@ func _build_status() -> void:
 	box.add_child(_armor_bar)
 	_health_label = _make_label(16)
 	box.add_child(_health_label)
+	_status_row = HBoxContainer.new()
+	_status_row.add_theme_constant_override("separation", 12)
+	box.add_child(_status_row)
 
 	_wave_label = _make_label(26)
 	_wave_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
@@ -266,6 +314,25 @@ func _build_panel() -> void:
 	_panel_button.pressed.connect(func() -> void: restart_requested.emit())
 	box.add_child(_panel_button)
 	_panel.visible = false
+
+
+func _build_boss_bar() -> void:
+	_boss_box = VBoxContainer.new()
+	_boss_box.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	_boss_box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_boss_box.offset_top = 56
+	_boss_box.custom_minimum_size = Vector2(520, 0)
+	_boss_box.offset_left = -260
+	_boss_box.offset_right = 260
+	add_child(_boss_box)
+	_boss_name = _make_label(22)
+	_boss_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_boss_name.add_theme_color_override("font_color", Color("ffa53d"))
+	_boss_box.add_child(_boss_name)
+	_boss_bar = _make_bar(Color("c0392b"))
+	_boss_bar.custom_minimum_size = Vector2(520, 18)
+	_boss_box.add_child(_boss_bar)
+	_boss_box.visible = false
 
 
 func _build_minimap() -> void:

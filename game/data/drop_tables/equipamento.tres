@@ -3,79 +3,79 @@
 [ext_resource type="Script" path="res://game/scripts/resources/drop_entry.gd" id="1_21jqk"]
 [ext_resource type="Script" path="res://game/scripts/resources/drop_table.gd" id="2_6b6kh"]
 
-[sub_resource type="Resource" id="Resource_d23xs"]
+[sub_resource type="Resource" id="Resource_21jqk"]
 script = ExtResource("1_21jqk")
 item_id = &"espada_ferro"
 
-[sub_resource type="Resource" id="Resource_6xfih"]
+[sub_resource type="Resource" id="Resource_6b6kh"]
 script = ExtResource("1_21jqk")
 item_id = &"arco_simples"
 
-[sub_resource type="Resource" id="Resource_bpk3f"]
+[sub_resource type="Resource" id="Resource_d23xs"]
 script = ExtResource("1_21jqk")
 item_id = &"cajado_aprendiz"
 
-[sub_resource type="Resource" id="Resource_4idm7"]
+[sub_resource type="Resource" id="Resource_6xfih"]
 script = ExtResource("1_21jqk")
 item_id = &"capuz_tecido"
 
-[sub_resource type="Resource" id="Resource_huw10"]
+[sub_resource type="Resource" id="Resource_bpk3f"]
 script = ExtResource("1_21jqk")
 item_id = &"tunica_tecido"
 
-[sub_resource type="Resource" id="Resource_4lndb"]
+[sub_resource type="Resource" id="Resource_4idm7"]
 script = ExtResource("1_21jqk")
 item_id = &"luvas_tecido"
 
-[sub_resource type="Resource" id="Resource_pubek"]
+[sub_resource type="Resource" id="Resource_huw10"]
 script = ExtResource("1_21jqk")
 item_id = &"calca_tecido"
 
-[sub_resource type="Resource" id="Resource_pcn28"]
+[sub_resource type="Resource" id="Resource_4lndb"]
 script = ExtResource("1_21jqk")
 item_id = &"sandalias_tecido"
 
-[sub_resource type="Resource" id="Resource_dhqyq"]
+[sub_resource type="Resource" id="Resource_pubek"]
 script = ExtResource("1_21jqk")
 item_id = &"capuz_couro"
 
-[sub_resource type="Resource" id="Resource_lhc6k"]
+[sub_resource type="Resource" id="Resource_pcn28"]
 script = ExtResource("1_21jqk")
 item_id = &"armadura_couro"
 
-[sub_resource type="Resource" id="Resource_acca0"]
+[sub_resource type="Resource" id="Resource_dhqyq"]
 script = ExtResource("1_21jqk")
 item_id = &"luvas_couro"
 
-[sub_resource type="Resource" id="Resource_vk830"]
+[sub_resource type="Resource" id="Resource_lhc6k"]
 script = ExtResource("1_21jqk")
 item_id = &"calca_couro"
 
-[sub_resource type="Resource" id="Resource_jkihk"]
+[sub_resource type="Resource" id="Resource_acca0"]
 script = ExtResource("1_21jqk")
 item_id = &"botas_couro"
 
-[sub_resource type="Resource" id="Resource_r7a7t"]
+[sub_resource type="Resource" id="Resource_vk830"]
 script = ExtResource("1_21jqk")
 item_id = &"elmo_placa"
 
-[sub_resource type="Resource" id="Resource_0e6ks"]
+[sub_resource type="Resource" id="Resource_jkihk"]
 script = ExtResource("1_21jqk")
 item_id = &"peitoral_placa"
 
-[sub_resource type="Resource" id="Resource_xhw2y"]
+[sub_resource type="Resource" id="Resource_r7a7t"]
 script = ExtResource("1_21jqk")
 item_id = &"manoplas_placa"
 
-[sub_resource type="Resource" id="Resource_u2ep1"]
+[sub_resource type="Resource" id="Resource_0e6ks"]
 script = ExtResource("1_21jqk")
 item_id = &"grevas_placa"
 
-[sub_resource type="Resource" id="Resource_rh1jm"]
+[sub_resource type="Resource" id="Resource_xhw2y"]
 script = ExtResource("1_21jqk")
 item_id = &"botas_placa"
 
 [resource]
 script = ExtResource("2_6b6kh")
 id = &"equipamento"
-entries = Array[ExtResource("1_21jqk")]([SubResource("Resource_d23xs"), SubResource("Resource_6xfih"), SubResource("Resource_bpk3f"), SubResource("Resource_4idm7"), SubResource("Resource_huw10"), SubResource("Resource_4lndb"), SubResource("Resource_pubek"), SubResource("Resource_pcn28"), SubResource("Resource_dhqyq"), SubResource("Resource_lhc6k"), SubResource("Resource_acca0"), SubResource("Resource_vk830"), SubResource("Resource_jkihk"), SubResource("Resource_r7a7t"), SubResource("Resource_0e6ks"), SubResource("Resource_xhw2y"), SubResource("Resource_u2ep1"), SubResource("Resource_rh1jm")])
+entries = Array[ExtResource("1_21jqk")]([SubResource("Resource_21jqk"), SubResource("Resource_6b6kh"), SubResource("Resource_d23xs"), SubResource("Resource_6xfih"), SubResource("Resource_bpk3f"), SubResource("Resource_4idm7"), SubResource("Resource_huw10"), SubResource("Resource_4lndb"), SubResource("Resource_pubek"), SubResource("Resource_pcn28"), SubResource("Resource_dhqyq"), SubResource("Resource_lhc6k"), SubResource("Resource_acca0"), SubResource("Resource_vk830"), SubResource("Resource_jkihk"), SubResource("Resource_r7a7t"), SubResource("Resource_0e6ks"), SubResource("Resource_xhw2y")])

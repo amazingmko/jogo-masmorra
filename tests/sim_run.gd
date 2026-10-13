@@ -15,9 +15,15 @@ var _main: Node
 var _frames := 0
 var _hero := &"guardiao"
 var _seed := 0
+var _start_floor := 1
+var _dodges := 0
+var _mega_seen := 0
+var _was_in_danger := false
 var _shot_path := ""
 var _shot_frame := 1200
 var _shot_on_buff := false
+var _shot_on_mega := false
+var _mega_frame := -1
 var _buff_wait := 0
 var _last_pos := Vector3.ZERO
 var _stuck_frames := 0
@@ -32,10 +38,14 @@ func _initialize() -> void:
 			_hero = StringName(arg.trim_prefix("hero="))
 		elif arg.begins_with("seed="):
 			_seed = int(arg.trim_prefix("seed="))
+		elif arg.begins_with("floor="):
+			_start_floor = int(arg.trim_prefix("floor="))
 		elif arg.begins_with("shot="):
 			_shot_path = arg.trim_prefix("shot=")
 		elif arg == "shot_on=buff":
 			_shot_on_buff = true
+		elif arg == "shot_on=mega":
+			_shot_on_mega = true
 		elif arg.begins_with("shot_at="):
 			_shot_frame = int(arg.trim_prefix("shot_at=")) * 60
 
@@ -52,6 +62,13 @@ func _process(_delta: float) -> bool:
 		player.set_hero(root.get_node("ItemDB").get_hero(_hero))
 		if _seed > 0:
 			_main.new_run(_seed)
+		if _start_floor > 1:
+			_main.debug_jump_to_floor(_start_floor)
+		if "boss_only" in OS.get_cmdline_user_args():
+			# Só o chefe: as outras salas já começam limpas.
+			for room in _main.builder.rooms:
+				if room.type != 5:
+					room.cleared = true
 		Input.action_press("attack")
 		return false
 
@@ -86,12 +103,30 @@ func _process(_delta: float) -> bool:
 		quit(0)  # com captura, o objetivo é só a foto
 		return false
 
+	if _shot_on_mega and _shot_path != "":
+		for t in get_nodes_in_group("telegraphs"):
+			if t.shape == 3 and _mega_frame < 0:
+				_mega_frame = _frames
+		if _mega_frame > 0 and _frames == _mega_frame + 45:
+			root.get_viewport().get_texture().get_image().save_png(_shot_path)
+			print("captura salva em ", _shot_path)
+			quit(0)
+			return false
+
+	# Registro da mega magia: quanto de vida o herói perdeu nela.
+	for t in get_nodes_in_group("telegraphs"):
+		if t.shape == 3 and not t.has_meta("watched"):
+			t.set_meta("watched", true)
+			var hp_before: int = player.health.health
+			t.resolved.connect(func(hit: bool) -> void:
+				print("  mega magia: %s (vida %d -> %d)" % ["ATINGIU" if hit else "desviou", hp_before, player.health.health]))
+
 	if _main._run_over or _frames > MAX_SECONDS * 60:
 		var result: String = "tempo esgotado no andar %d" % _main.floor_number
 		if _main._run_over:
 			result = "CAIU no andar %d" % _main.floor_number if player.health.is_dead else "VENCEU a run"
-		print("RESULTADO [%s, semente %d]: %s em %ds; abates %d; buffs %s" % [
-			_hero, _main.run_seed, result, _frames / 60, _main._stats.kills, _main._stats.buffs])
+		print("RESULTADO [%s, semente %d]: %s em %ds; abates %d; desvios %d; mega magias %d; buffs %s" % [
+			_hero, _main.run_seed, result, _frames / 60, _main._stats.kills, _dodges, _mega_seen, _main._stats.buffs])
 		Input.action_release("attack")
 		quit(0 if _main._run_over else 1)
 	return false
@@ -124,6 +159,20 @@ func _steer(player: Node3D) -> Vector2:
 
 func _choose_target(player: Node3D) -> Vector3:
 	var pos: Vector3 = player.global_position
+	# 0) desviar: se está dentro de um aviso no chão, foge dele (mega magia: vai para a zona segura).
+	var danger: Node = null
+	for t in get_nodes_in_group("telegraphs"):
+		if t.is_pending() and t.contains(pos):
+			if danger == null or t.shape == 3 or t.time_left() < danger.time_left():
+				danger = t
+	if danger:
+		if not _was_in_danger:
+			_dodges += 1
+			if danger.shape == 3:
+				_mega_seen += 1
+		_was_in_danger = true
+		return danger.escape_point(pos)
+	_was_in_danger = false
 	# 1) inimigos
 	var enemy := _nearest(pos, get_nodes_in_group("enemies"))
 	if enemy:

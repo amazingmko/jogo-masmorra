@@ -11,12 +11,18 @@ extends Node3D
 const FLOORS := 5
 const ROOMS_PER_FLOOR := [6, 7, 8, 8, 8]
 const BOSS_ID := &"rei_ossudo"
-## Inimigos que podem aparecer a partir de cada andar.
+## Inimigos que podem aparecer a partir de cada andar (peso = chance relativa).
 const ENEMY_POOL := [
 	{"id": &"esqueleto", "from_floor": 1, "weight": 5},
 	{"id": &"rato_gigante", "from_floor": 1, "weight": 4},
-	{"id": &"esqueleto_bruto", "from_floor": 3, "weight": 1},
+	{"id": &"esqueleto_arqueiro", "from_floor": 1, "weight": 3},
+	{"id": &"aranha_cripta", "from_floor": 2, "weight": 3},
+	{"id": &"xama_ossos", "from_floor": 3, "weight": 2},
+	{"id": &"esqueleto_bruto", "from_floor": 3, "weight": 2},
 ]
+## Quanto o dano e a vida dos inimigos crescem por andar.
+const DAMAGE_PER_FLOOR := 0.10
+const HEALTH_PER_FLOOR := 0.15
 const HUB_SCENE := "res://game/scenes/hub.tscn"
 ## XP extra por sala limpa e por vencer o chefe.
 const XP_ROOM_CLEAR := 4
@@ -83,6 +89,12 @@ func new_run(seed: int = 0) -> void:
 	_next_floor()
 
 
+## Atalho para testes: pula direto para um andar (ex.: 5 para enfrentar o chefe).
+func debug_jump_to_floor(target: int) -> void:
+	floor_number = clampi(target, 1, FLOORS) - 1
+	_next_floor()
+
+
 func _next_floor() -> void:
 	floor_number += 1
 	_clear_floor()
@@ -111,7 +123,8 @@ func _next_floor() -> void:
 func _clear_floor() -> void:
 	for child in _dungeon.get_children():
 		child.queue_free()
-	for group in ["enemies", "pickups"]:
+	_hud.hide_boss()
+	for group in ["enemies", "pickups", "telegraphs", "enemy_projectiles"]:
 		for node in get_tree().get_nodes_in_group(group):
 			node.queue_free()
 
@@ -132,15 +145,15 @@ func _on_room_entered(room: DungeonRoom) -> void:
 		return
 	room.close_doors()
 	if room.type == DungeonLayout.RoomType.BOSS:
-		_spawn(BOSS_ID, room, 1.0)
-		_spawn(&"rato_gigante", room, 1.0)
-		_spawn(&"rato_gigante", room, 1.0)
+		var boss := _spawn(BOSS_ID, room)
+		if boss:
+			_hud.show_boss(boss)
 		_hud.show_toast("O Rei Ossudo acordou!", Color("e05555"))
 	else:
-		var count := 2 + floor_number + _rng.randi_range(0, 1)
-		var hp_mult := 1.0 + 0.15 * (floor_number - 1)
+		# 3–4 inimigos no 1º andar, até 5–6 no 5º: a dificuldade vem mais da variedade que do número.
+		var count := 3 + floor_number / 2 + _rng.randi_range(0, 1)
 		for i in count:
-			_spawn(_pick_enemy(), room, hp_mult)
+			_spawn(_pick_enemy(), room)
 
 
 func _pick_enemy() -> StringName:
@@ -158,26 +171,51 @@ func _pick_enemy() -> StringName:
 	return options[0].id
 
 
-func _spawn(enemy_id: StringName, room: DungeonRoom, hp_mult: float) -> void:
+func _spawn(enemy_id: StringName, room: DungeonRoom, at: Vector3 = Vector3.INF, summoned: bool = false) -> Enemy:
 	var data := ItemDB.get_enemy(enemy_id)
 	if data == null:
 		push_error("Inimigo inexistente: %s" % enemy_id)
-		return
-	var enemy := Enemy.create(data, hp_mult)
-	enemy.is_boss = enemy_id == BOSS_ID
+		return null
+	# O chefe já é desenhado para o último andar: não recebe o reforço por andar.
+	var level := 0 if data.is_boss else floor_number - 1
+	var enemy := Enemy.create(data, 1.0 + HEALTH_PER_FLOOR * level, 1.0 + DAMAGE_PER_FLOOR * level)
+	enemy.is_summon = summoned
 	enemy.loot_context = _loot_context("boss" if enemy.is_boss else "normal")
 	enemy.home_room = room
 	room.alive += 1
 	add_child(enemy)
-	enemy.global_position = room.random_point(_rng, _player.global_position, 5.0)
+	enemy.global_position = at if at != Vector3.INF else room.random_point(_rng, _player.global_position, 5.0)
 	enemy.died.connect(_on_enemy_died)
+	enemy.summon_requested.connect(_on_summon_requested)
+	enemy.announced.connect(func(_e: Enemy, text: String) -> void: _hud.show_toast(text, Color("ffa53d")))
 	_alive += 1
+	return enemy
+
+
+func _on_summon_requested(enemy: Enemy, summon_id: StringName, count: int, at: Vector3) -> void:
+	var room: DungeonRoom = enemy.home_room
+	if room == null or not is_instance_valid(room) or _run_over:
+		return
+	for i in count:
+		var angle := TAU * i / maxi(count, 1) + _rng.randf_range(-0.4, 0.4)
+		var spot := at + Vector3(cos(angle), 0, sin(angle)) * 2.5
+		if not room.contains(spot):
+			spot = room.random_point(_rng, _player.global_position, 3.0)
+		_spawn(summon_id, room, spot + Vector3(0, 0.1, 0), true)
+	_hud.show_toast("%s chamou reforços!" % enemy.data.display_name, Color("e05555"))
 
 
 func _on_enemy_died(enemy: Enemy) -> void:
-	_stats.kills += 1
-	_give_xp(enemy.data.xp_reward)
 	_alive -= 1
+	if not enemy.is_summon:
+		_stats.kills += 1
+		_give_xp(enemy.data.xp_reward)
+	if enemy.is_boss:
+		_hud.hide_boss()
+		# Com o chefe caído, os ajudantes dele se desfazem.
+		for other in get_tree().get_nodes_in_group("enemies"):
+			if other.home_room == enemy.home_room:
+				other.dismiss()
 	var room: DungeonRoom = enemy.home_room
 	if room == null or not is_instance_valid(room):
 		return

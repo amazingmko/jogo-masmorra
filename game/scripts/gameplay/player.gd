@@ -38,6 +38,10 @@ var _rng := RandomNumberGenerator.new()
 var _base_color := Color("e8c26a")
 var _material: StandardMaterial3D
 var _marker: MeshInstance3D
+var _roots: Node3D
+
+## Veneno, raízes e lentidão (ver StatusEffects).
+var status := StatusEffects.new()
 
 @onready var health: Health = $Health
 @onready var _body: Node3D = $Body
@@ -54,6 +58,11 @@ func _ready() -> void:
 	health.damaged.connect(_on_damaged)
 	health.died.connect(_on_died)
 	health.armor_regen_amount = 10
+	status.name = "StatusEffects"
+	status.health = health
+	add_child(status)
+	status.changed.connect(_on_status_changed)
+	_roots = _make_roots()
 	_marker = _make_target_marker()
 	GameState.hero_progress_changed.connect(_on_progress_changed)
 	set_hero(ItemDB.get_hero(GameState.selected_hero))
@@ -109,7 +118,31 @@ func revive(at: Vector3) -> void:
 	velocity = Vector3.ZERO
 	_body.rotation = Vector3.ZERO
 	health.reset()
+	status.clear()
 	controls_enabled = true
+
+
+## Chamado por avisos no chão e disparos inimigos.
+## ignore_invuln: atravessa a invencibilidade curta (mega magia).
+func receive_attack(amount: int, effect: int, effect_duration: float, effect_power: int,
+		_from: Vector3, ignore_invuln: bool = false) -> void:
+	if health.is_dead:
+		return
+	var landed := true
+	if amount > 0:
+		landed = health.take_damage(amount, true, ignore_invuln) > 0
+	if landed:
+		status.apply(effect, effect_duration, effect_power)
+
+
+func _on_status_changed() -> void:
+	_roots.visible = status.is_rooted()
+	var tint := _base_color
+	if status.has(EnemyAttack.Effect.POISON):
+		tint = _base_color.lerp(Color("6fdc7b"), 0.5)
+	elif status.has(EnemyAttack.Effect.SLOW):
+		tint = _base_color.lerp(Color("4db8ff"), 0.4)
+	_material.albedo_color = tint
 
 
 func _physics_process(delta: float) -> void:
@@ -117,7 +150,7 @@ func _physics_process(delta: float) -> void:
 	if controls_enabled:
 		input = touch_move if touch_move.length() > 0.05 else Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var direction := Vector3(input.x, 0.0, input.y)
-	var speed := move_speed
+	var speed := move_speed * status.move_factor()
 	velocity.x = direction.x * speed
 	velocity.z = direction.z * speed
 	velocity.y = 0.0 if is_on_floor() else velocity.y - _gravity * delta
@@ -198,6 +231,30 @@ func _on_died() -> void:
 
 
 # ---------- marcador de alvo ----------
+
+## Espinhos roxos em volta dos pés enquanto o herói está preso.
+func _make_roots() -> Node3D:
+	var root := Node3D.new()
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color("b483e8")
+	mat.emission_enabled = true
+	mat.emission = Color("8b5cf6")
+	for i in 6:
+		var spike := MeshInstance3D.new()
+		var cone := CylinderMesh.new()
+		cone.top_radius = 0.0
+		cone.bottom_radius = 0.12
+		cone.height = 0.7
+		spike.mesh = cone
+		spike.material_override = mat
+		var a := TAU * i / 6.0
+		spike.position = Vector3(cos(a) * 0.55, 0.35, sin(a) * 0.55)
+		spike.rotation = Vector3(sin(a) * 0.4, 0, -cos(a) * 0.4)
+		root.add_child(spike)
+	root.visible = false
+	add_child(root)
+	return root
+
 
 func _make_target_marker() -> MeshInstance3D:
 	var ring := MeshInstance3D.new()

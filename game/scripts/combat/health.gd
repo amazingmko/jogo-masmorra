@@ -18,6 +18,8 @@ signal died
 @export var armor_regen_amount: int = 1
 ## Fração do dano bloqueada pela Armadura (0 a 0.75).
 var damage_reduction: float = 0.0
+## Não toma dano nenhum (ex.: chefe canalizando a mega magia).
+var untouchable: bool = false
 ## Segundos de invencibilidade depois de apanhar (para o herói não morrer de uma vez).
 @export var invulnerability_time: float = 0.0
 
@@ -44,8 +46,10 @@ func reset() -> void:
 
 
 ## Aplica dano. Devolve quanto de dano foi realmente causado (0 se invencível ou morto).
-func take_damage(amount: int) -> int:
-	if is_dead or amount <= 0 or _invulnerable > 0.0:
+## grant_invuln: abre a janela de invencibilidade (falso para veneno).
+## ignore_invuln: atravessa a invencibilidade (veneno, mega magia).
+func take_damage(amount: int, grant_invuln: bool = true, ignore_invuln: bool = false) -> int:
+	if is_dead or amount <= 0 or (_invulnerable > 0.0 and not ignore_invuln) or untouchable:
 		return 0
 	amount = maxi(int(round(amount * (1.0 - damage_reduction))), 1)
 	var absorbed := mini(armor, amount)
@@ -53,7 +57,8 @@ func take_damage(amount: int) -> int:
 	health -= amount - absorbed
 	_since_hit = 0.0
 	_regen_timer = 0.0
-	_invulnerable = invulnerability_time
+	if grant_invuln:
+		_invulnerable = invulnerability_time
 	damaged.emit(amount)
 	if health <= 0:
 		health = 0
