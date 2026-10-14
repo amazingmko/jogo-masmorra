@@ -1,6 +1,6 @@
 # Temática amazônica (aprovada em 13/10/2026)
 
-**No jogo:** heróis Icamiaba, Mateira e Encantado do Rio · profissões Ferreiro, Curtidor, Tecelã e Erveira · reagentes amazônicos · **Terra Firme** com queixada, formiga-de-fogo, macaco-prego, aranha-caranguejeira, jararaca, onça-pintada e o **Mapinguari** (habilidades no README). **Próximo:** Druida da Mata.
+**No jogo:** heróis Icamiaba, Mateira e Encantado do Rio · profissões Ferreiro, Curtidor, Tecelã e Erveira · reagentes amazônicos · **Terra Firme** com queixada, formiga-de-fogo, macaco-prego, aranha-caranguejeira, jararaca, onça-pintada e o **Mapinguari** (habilidades no README). **Druida da Mata** jogável (Onça, Sucuri e Boto; o boto entrou como forma de cura e velocidade).
 
 ## A ideia em uma frase
 

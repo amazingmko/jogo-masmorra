@@ -17,8 +17,20 @@ O jogo abre na base. Ande até um ponto e toque no botão azul (PC: **E**):
 
 - **Portal da Masmorra** — escolher a dificuldade, decidir se gasta energia e começar a run
 - **Baú e Equipamento** — vestir e tirar peças, ver atributos e reagentes
-- **Quadro de Heróis** — trocar de herói (Icamiaba: força/placa · Mateira: agilidade/couro · Encantado do Rio: inteligência/tecido)
+- **Quadro de Heróis** — trocar de herói (Icamiaba: força/placa · Mateira: agilidade/couro · Encantado do Rio: inteligência/tecido · Druida da Mata: agilidade/couro)
 - **Oficina dos Artesãos** — fabricar equipamento e garrafadas
+
+### Druida da Mata
+
+Troca de forma com o botão verde **FORMA** (PC: **Q**). A troca é instantânea, com uma pausa curta entre uma e outra.
+
+| forma | jeito de lutar |
+| --- | --- |
+| **Onça** | corpo a corpo, golpes rápidos (+35% de velocidade de ataque) e anda mais rápido |
+| **Sucuri** | corpo a corpo com alcance maior; cada golpe **aperta** o inimigo e o segura no lugar por 0,8 s (o chefe, bem menos); recebe 25% menos dano |
+| **Boto** | jatos d'água de longe (dano menor), anda mais rápido e **recupera 1,5% da vida por segundo** |
+
+Arma: **Cajado de Raiz**, feito pelo Curtidor. Os números das formas ficam no começo de `game/scripts/gameplay/player.gd`.
 
 ### Crafting (Oficina dos Artesãos)
 
@@ -27,7 +39,7 @@ Nada de equipamento cai nas masmorras: **tudo é fabricado**. Cada profissão so
 | profissão | fabrica | reagentes principais |
 | --- | --- | --- |
 | Ferreiro | espada e armadura de placa | Minério de Ferro, Madeira de Lei |
-| Curtidor | arco e armadura de couro | Couro de Jacaré, Látex de Seringueira, Madeira de Lei |
+| Curtidor | arco, Cajado de Raiz e armadura de couro | Couro de Jacaré, Látex de Seringueira, Madeira de Lei |
 | Tecelã | cajado e armadura de tecido | Fibra de Tucum, Látex de Seringueira, Madeira de Lei |
 | Erveira | Garrafada de Cura | Óleo de Andiroba |
 
@@ -109,6 +121,7 @@ Cada habilidade vem do comportamento real do bicho ou da lenda.
 | --- | --- | --- |
 | andar | WASD ou setas | arrastar na metade esquerda da tela (joystick) |
 | atacar (mira sozinho) | segurar Espaço ou J | segurar o botão ATACAR |
+| trocar de forma (Druida) | Q ou K | botão FORMA |
 | interagir na base | E | botão azul |
 | nova run / salvar | R / G | — |
 

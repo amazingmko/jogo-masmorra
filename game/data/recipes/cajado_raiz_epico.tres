@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_j40st"]
+
+[resource]
+script = ExtResource("1_j40st")
+id = &"cajado_raiz_epico"
+display_name = "Cajado de Raiz (Épico)"
+result_item_id = &"cajado_raiz"
+result_rarity = 2
+requires_base = true
+ingredients = {
+"latex_seringueira": 60,
+"madeira_lei": 102,
+"pelo_mapinguari": 4,
+"pena_arara": 5
+}
+profession_id = &"curtidor"
+required_level = 20
+xp_reward = 240

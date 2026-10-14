@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="HeroData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/hero_data.gd" id="1_nuqq2"]
+
+[resource]
+script = ExtResource("1_nuqq2")
+id = &"druida"
+display_name = "Druida da Mata"
+description = "Guardiã da mata que vira bicho: Onça (golpes rápidos), Sucuri (aperta e prende, aguenta mais) e Boto (jatos d'água de longe, cura sem parar). Agilidade, couro."
+hero_class = 3
+element = 3
+primary_stat = 1
+weapon_type = &"cajado_raiz"
+max_health = 110
+max_shield = 35
+max_energy = 160
+move_speed = 5.2
+starting_weapon_id = &"cajado_raiz"

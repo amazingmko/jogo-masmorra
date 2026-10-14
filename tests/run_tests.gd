@@ -413,6 +413,13 @@ func _test_items_and_stats(catalog: ItemCatalog) -> void:
 			legendary_drop = true
 	check(not legendary_drop, "lendário nunca cai de inimigo (só crafting)")
 
+	var druid := catalog.get_hero(&"druida")
+	check(druid != null and druid.hero_class == GameEnums.HeroClass.DRUID and druid.armor_type() == GameEnums.ArmorType.LEATHER,
+		"Druida da Mata: classe nova, agilidade e couro")
+	check(ItemFactory.can_use(druid, catalog.get_item(&"cajado_raiz")) and ItemFactory.can_use(druid, catalog.get_item(&"capuz_couro")),
+		"Druida usa o Cajado de Raiz e armadura de couro")
+	check(catalog.get_recipe(&"cajado_raiz_comum") != null and catalog.get_recipe(&"cajado_raiz_comum").profession_id == &"curtidor",
+		"Curtidor fabrica o Cajado de Raiz")
 	var guardian := catalog.get_hero(&"icamiaba")
 	check(ItemFactory.can_use(guardian, helm) and not ItemFactory.can_use(guardian, robe), "guardião veste placa e não tecido")
 	check(ItemFactory.can_use(guardian, catalog.get_item(&"espada_ferro")) and not ItemFactory.can_use(guardian, catalog.get_item(&"arco_simples")),

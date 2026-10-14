@@ -11,7 +11,7 @@ signal hero_progress_changed(hero_id: StringName)
 signal leveled_up(hero_id: StringName, new_level: int)
 signal energy_changed(value: int)
 
-const STARTING_HEROES := ["icamiaba", "mateira", "encantado"]
+const STARTING_HEROES := ["icamiaba", "mateira", "encantado", "druida"]
 ## Energia de recompensa (opção B): jogar é ilimitado; gastar 1 energia faz a run render tudo.
 const MAX_ENERGY := 5
 const ENERGY_SECONDS := 3600

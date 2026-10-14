@@ -194,7 +194,7 @@ func _fill_heroes() -> void:
 			continue
 		var p := GameState.progress(hero.id)
 		var card := VBoxContainer.new()
-		card.custom_minimum_size = Vector2(260, 0)
+		card.custom_minimum_size = Vector2(225, 0)
 		card.add_theme_constant_override("separation", 6)
 		var box := _card_panel(GOLD if hero.id == _player.hero_id else Color(1, 1, 1, 0.3))
 		box.add_child(card)

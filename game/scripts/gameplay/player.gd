@@ -5,11 +5,32 @@ extends CharacterBody3D
 
 signal hero_changed(hero: HeroData)
 signal died
+## Druida: trocou de forma (nome para a interface).
+signal form_changed(form_name: String)
+
+## Formas da Druida da Mata. NONE = heróis que não trocam de forma.
+enum Form { NONE, ONCA, SUCURI, BOTO }
+## Como cada forma muda o ataque e o corpo:
+##   damage/speed: multiplicam o dano e a velocidade de ataque da arma
+##   range/projectile: alcance e velocidade do disparo (0 = corpo a corpo)
+##   move: multiplica a velocidade de andar · guard: redução de dano extra
+##   regen: fração da vida recuperada por segundo · constrict: segundos que o golpe prende o inimigo
+const FORMS := {
+	Form.ONCA: {"name": "Onça", "damage": 1.0, "speed": 1.35, "range": 1.9, "projectile": 0.0, "move": 1.12,
+		"guard": 0.0, "regen": 0.0, "constrict": 0.0, "color": Color("d9a441")},
+	Form.SUCURI: {"name": "Sucuri", "damage": 0.9, "speed": 0.85, "range": 2.6, "projectile": 0.0, "move": 0.9,
+		"guard": 0.25, "regen": 0.0, "constrict": 0.8, "color": Color("6f8f3a")},
+	Form.BOTO: {"name": "Boto", "damage": 0.55, "speed": 2.0, "range": 9.0, "projectile": 16.0, "move": 1.15,
+		"guard": 0.0, "regen": 0.015, "constrict": 0.0, "color": Color("f2a7c3")},
+}
+const FORM_ORDER := [Form.ONCA, Form.SUCURI, Form.BOTO]
+const FORM_COOLDOWN := 0.8
 
 const CLASS_COLORS := {
 	GameEnums.HeroClass.TANK: Color("e8c26a"),
 	GameEnums.HeroClass.RANGER: Color("7fc97a"),
 	GameEnums.HeroClass.MAGE: Color("b483e8"),
+	GameEnums.HeroClass.DRUID: Color("d9a441"),
 }
 
 @export var hero_id: StringName = &"icamiaba"
@@ -29,6 +50,11 @@ var touch_attack := false
 var controls_enabled := true
 ## No hub o herói só anda (sem atacar).
 var combat_enabled := true
+## Forma atual da Druida (NONE para os outros heróis) e o botão de toque de trocar.
+var form: Form = Form.NONE
+var touch_form := false
+var _form_cooldown := 0.0
+var _regen_acc := 0.0
 
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 var _attack_cooldown := 0.0
@@ -73,9 +99,10 @@ func set_hero(new_hero: HeroData) -> void:
 		return
 	hero = new_hero
 	hero_id = new_hero.id
+	form = Form.ONCA if is_shapeshifter() else Form.NONE
 	refresh_stats(true)
 	_base_color = CLASS_COLORS.get(new_hero.hero_class, Color.WHITE)
-	_material.albedo_color = _base_color
+	_apply_form_visual()
 	hero_changed.emit(new_hero)
 
 
@@ -100,6 +127,8 @@ func refresh_stats(full_heal: bool = false) -> void:
 	move_speed = stats.move_speed
 	crit_chance = stats.crit_chance
 	health.damage_reduction = stats.damage_reduction
+	if form != Form.NONE:
+		_apply_form_stats()
 	if full_heal:
 		health.max_health = stats.max_health
 		health.max_armor = stats.max_shield
@@ -160,6 +189,17 @@ func _physics_process(delta: float) -> void:
 	if direction.length() > 0.1:
 		_facing = direction.normalized()
 
+	_form_cooldown -= delta
+	if controls_enabled and combat_enabled and (touch_form or Input.is_action_just_pressed("form")):
+		touch_form = false
+		cycle_form()
+	if form == Form.BOTO and not health.is_dead:
+		# Boto: recupera um pouco de vida sem parar.
+		_regen_acc += health.max_health * float(FORMS[form].regen) * delta
+		if _regen_acc >= 1.0:
+			health.heal(int(_regen_acc))
+			_regen_acc -= int(_regen_acc)
+
 	_target = _find_target() if controls_enabled and combat_enabled else null
 	_update_marker()
 
@@ -214,6 +254,8 @@ func _melee_swing() -> void:
 		if dist <= reach + 0.4 and (dist < 0.6 or _facing.angle_to(to_enemy) <= deg_to_rad(70)):
 			var hit := Damage.roll(weapon_stats.damage, hero.element, enemy.data.element, crit_chance, _rng)
 			enemy.take_hit(hit.amount, hit.crit, to_enemy)
+			if form != Form.NONE and float(FORMS[form].constrict) > 0.0:
+				enemy.constrict(float(FORMS[form].constrict))
 
 
 # ---------- dano ----------
@@ -280,3 +322,66 @@ func _update_marker() -> void:
 	_marker.visible = _target != null
 	if _target:
 		_marker.global_position = _target.global_position + Vector3(0, 0.05, 0)
+
+
+# ---------- formas da Druida da Mata ----------
+
+func is_shapeshifter() -> bool:
+	return hero != null and hero.hero_class == GameEnums.HeroClass.DRUID
+
+
+## Passa para a próxima forma: Onça → Sucuri → Boto → Onça.
+func cycle_form() -> void:
+	if not is_shapeshifter() or _form_cooldown > 0.0 or health.is_dead:
+		return
+	var i := FORM_ORDER.find(form)
+	set_form(FORM_ORDER[(i + 1) % FORM_ORDER.size()])
+
+
+func set_form(new_form: Form) -> void:
+	if not is_shapeshifter():
+		return
+	form = new_form
+	_form_cooldown = FORM_COOLDOWN
+	_attack_cooldown = minf(_attack_cooldown, 0.2)
+	refresh_stats()
+	_apply_form_visual()
+	if is_inside_tree():
+		Fx.float_text(get_parent(), global_position + Vector3(0, 2.2, 0), FORMS[form].name, FORMS[form].color)
+	form_changed.emit(FORMS[form].name)
+
+
+func form_name() -> String:
+	return FORMS[form].name if form != Form.NONE else ""
+
+
+func _apply_form_stats() -> void:
+	var f: Dictionary = FORMS[form]
+	var w := WeaponStats.new()
+	w.damage = maxi(int(round(weapon_stats.damage * float(f.damage))), 1)
+	w.attack_speed = weapon_stats.attack_speed * float(f.speed)
+	w.attack_range = float(f.range)
+	w.projectile_speed = float(f.projectile)
+	weapon_stats = w
+	move_speed *= float(f.move)
+	health.damage_reduction = minf(health.damage_reduction + float(f.guard), 0.8)
+
+
+## Visual provisório: Onça e Sucuri andam "deitadas", o Boto fica em pé; cada uma com sua cor.
+func _apply_form_visual() -> void:
+	if _mesh == null:
+		return
+	_mesh.rotation_degrees = Vector3.ZERO
+	_mesh.scale = Vector3.ONE
+	if form == Form.NONE:
+		_material.albedo_color = _base_color
+		return
+	_base_color = FORMS[form].color
+	_material.albedo_color = _base_color
+	match form:
+		Form.ONCA:
+			_mesh.rotation_degrees.x = 80.0
+			_mesh.scale = Vector3(1.0, 1.1, 0.8)
+		Form.SUCURI:
+			_mesh.rotation_degrees.x = 88.0
+			_mesh.scale = Vector3(0.65, 1.6, 0.55)

@@ -95,6 +95,9 @@ func _process(_delta: float) -> bool:
 		_floor_started = _frames
 
 	hud.joystick.value = _steer(player)
+	# Druida: troca de forma a cada 10 s, para testar as três.
+	if player.is_shapeshifter() and _frames % 600 == 0:
+		player.cycle_form()
 
 	if _shot_path != "" and _frames == _shot_frame:
 		root.get_viewport().get_texture().get_image().save_png(_shot_path)

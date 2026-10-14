@@ -1,7 +1,7 @@
 class_name GameEnums
 ## Listas fixas usadas no jogo inteiro. Mude aqui e vale para todos os scripts.
 
-enum HeroClass { TANK, RANGER, MAGE }
+enum HeroClass { TANK, RANGER, MAGE, DRUID }
 
 enum Element { NEUTRAL, FIRE, WATER, NATURE }
 

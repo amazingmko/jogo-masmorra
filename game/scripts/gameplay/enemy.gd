@@ -78,6 +78,9 @@ var _alpha := 1.0
 var _tint := Color.WHITE
 ## Couro do Mapinguari: depois da Bocarra, a barriga fica exposta por alguns segundos.
 var _exposed_left := 0.0
+## Apertado pela Sucuri: não anda nem decide atacar. Depois, fica imune por um tempo.
+var _constrict_left := 0.0
+var _constrict_immune := 0.0
 var _mouth_material: StandardMaterial3D
 var _recent_timer := 0.0
 var _own_telegraphs: Array[Telegraph] = []
@@ -143,6 +146,8 @@ func _physics_process(delta: float) -> void:
 	for a in _cooldowns:
 		_cooldowns[a] -= delta * haste
 	_dodge_cd -= delta
+	_constrict_left -= delta
+	_constrict_immune -= delta
 	if _exposed_left > 0.0:
 		_exposed_left -= delta
 		if _exposed_left <= 0.0 and _mouth_material:
@@ -160,7 +165,9 @@ func _physics_process(delta: float) -> void:
 
 	match state:
 		State.MOVE:
-			if not _awake:
+			if _constrict_left > 0.0:
+				_set_horizontal(Vector3.ZERO)
+			elif not _awake:
 				# De tocaia: parado, esperando o herói chegar perto.
 				_set_horizontal(Vector3.ZERO)
 				if player_alive and dist <= data.ambush_range:
@@ -664,6 +671,18 @@ func _start(a: EnemyAttack, from_rally: bool = false) -> void:
 				_spawn_telegraph(Telegraph.for_attack(a, spot, Vector3.FORWARD, damage_multiplier), haste)
 		EnemyAttack.Kind.MEGA:
 			_start_mega(a)
+
+
+## Golpe da Sucuri: segura o inimigo no lugar por alguns segundos (chefe: bem menos).
+## Não interrompe um ataque já avisado no chão.
+func constrict(seconds: float) -> void:
+	if state == State.DEAD or _constrict_immune > 0.0:
+		return
+	if is_boss:
+		seconds *= 0.3
+	_constrict_left = seconds
+	_constrict_immune = seconds + 2.0
+	Fx.float_text(get_parent(), global_position + Vector3(0, 2.0 * data.body_scale, 0), "apertado", Color("9fd86b"))
 
 
 ## Chamado por outro do bando: ataca junto, com um tiquinho de atraso para não sair igual.

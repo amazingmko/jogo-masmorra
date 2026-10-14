@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/item_data.gd" id="1_f7sq5"]
+
+[resource]
+script = ExtResource("1_f7sq5")
+id = &"cajado_raiz"
+display_name = "Cajado de Raiz"
+description = "Raiz viva que chama os espíritos da mata. A Druida luta com ele em forma de bicho."
+kind = 1
+max_stack = 1
+stats = {
+"attack_range": 1.9,
+"attack_speed": 2.0,
+"damage": 60
+}
+weapon_type = &"cajado_raiz"
+primary_stat = 1

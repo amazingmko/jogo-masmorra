@@ -9,6 +9,8 @@ signal buff_chosen(buff: BuffData)
 
 var joystick: TouchJoystick
 var attack_button: TouchButton
+## Só aparece para a Druida: troca de forma.
+var form_button: TouchButton
 var minimap: Minimap
 
 var _health_bar: ProgressBar
@@ -58,6 +60,7 @@ func bind_player(player: Player) -> void:
 	_player = player
 	player.health.changed.connect(_on_health_changed)
 	player.hero_changed.connect(_on_hero_changed)
+	player.form_changed.connect(func(_name: String) -> void: _on_hero_changed(player.hero))
 	_on_health_changed(player.health.health, player.health.max_health, player.health.armor, player.health.max_armor)
 	if player.hero:
 		_on_hero_changed(player.hero)
@@ -207,9 +210,15 @@ func _on_hero_changed(hero: HeroData) -> void:
 		GameEnums.HeroClass.TANK: "Tank",
 		GameEnums.HeroClass.RANGER: "Ranger",
 		GameEnums.HeroClass.MAGE: "Mago",
+		GameEnums.HeroClass.DRUID: "Druida",
 	}
-	_hero_label.text = "%s (%s) · nv %d" % [hero.display_name, class_names.get(hero.hero_class, "?"),
-		GameState.level_of(hero.id)]
+	var form_text := ""
+	if _player and _player.form_name() != "":
+		form_text = " · forma: %s" % _player.form_name()
+	_hero_label.text = "%s (%s) · nv %d%s" % [hero.display_name, class_names.get(hero.hero_class, "?"),
+		GameState.level_of(hero.id), form_text]
+	if form_button:
+		form_button.visible = hero.hero_class == GameEnums.HeroClass.DRUID
 
 
 # ---------- montagem ----------
@@ -240,7 +249,7 @@ func _build_status() -> void:
 	add_child(_wave_label)
 
 	_help_label = _make_label(14)
-	_help_label.text = "PC: WASD anda · Espaço ataca\nR nova run · G salva"
+	_help_label.text = "PC: WASD anda · Espaço ataca · Q troca de forma (Druida)\nR nova run · G salva"
 	_help_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_help_label.modulate.a = 0.7
 	_help_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
@@ -268,6 +277,22 @@ func _build_controls() -> void:
 	attack_button.offset_right = -60
 	attack_button.offset_bottom = -60
 	add_child(attack_button)
+
+	form_button = TouchButton.new()
+	form_button.text = "FORMA"
+	form_button.color = Color("6fdc7b")
+	form_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	form_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	form_button.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	form_button.offset_left = -330
+	form_button.offset_top = -150
+	form_button.offset_right = -230
+	form_button.offset_bottom = -50
+	form_button.visible = false
+	form_button.pressed_changed.connect(func(pressed: bool) -> void:
+		if pressed and _player:
+			_player.touch_form = true)
+	add_child(form_button)
 
 
 func _build_toasts() -> void:

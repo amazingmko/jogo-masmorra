@@ -47,6 +47,7 @@ func _setup_input_map() -> void:
 		"move_up": [KEY_W, KEY_UP],
 		"move_down": [KEY_S, KEY_DOWN],
 		"attack": [KEY_SPACE, KEY_J],
+		"form": [KEY_Q, KEY_K],
 	}
 	for action in actions:
 		var events := []
@@ -127,7 +128,9 @@ func _make_items() -> void:
 		{"damage": 50, "attack_speed": 3.0, "attack_range": 11.0, "projectile_speed": 20.0})
 	_weapon("cajado_aprendiz", "Cajado de Aprendiz", "Canaliza magia básica.", "cajado", P.INTELLECT,
 		{"damage": 90, "attack_speed": 1.5, "attack_range": 10.0, "projectile_speed": 13.0})
-	_equipment_ids = ["espada_ferro", "arco_simples", "cajado_aprendiz"]
+	_weapon("cajado_raiz", "Cajado de Raiz", "Raiz viva que chama os espíritos da mata. A Druida luta com ele em forma de bicho.",
+		"cajado_raiz", P.AGILITY, {"damage": 60, "attack_speed": 2.0, "attack_range": 1.9})
+	_equipment_ids = ["espada_ferro", "arco_simples", "cajado_aprendiz", "cajado_raiz"]
 
 	var A := GameEnums.ArmorType
 	var pieces := {
@@ -171,6 +174,8 @@ func _make_heroes() -> void:
 	var P := GameEnums.PrimaryStat
 	_hero("icamiaba", "Icamiaba", "Guerreira da lenda das Icamiabas. Aguenta pancada e protege. Força, placa.", H.TANK, E.NEUTRAL, P.STRENGTH, "espada", 120, 50, 120, 4.5, "espada_ferro")
 	_hero("mateira", "Mateira", "Caçadora da mata, rápida, ataca de longe. Agilidade, couro.", H.RANGER, E.NATURE, P.AGILITY, "arco", 90, 30, 180, 5.5, "arco_simples")
+	_hero("druida", "Druida da Mata", "Guardiã da mata que vira bicho: Onça (golpes rápidos), Sucuri (aperta e prende, aguenta mais) e Boto (jatos d'água de longe, cura sem parar). Agilidade, couro.",
+		H.DRUID, E.NATURE, P.AGILITY, "cajado_raiz", 110, 35, 160, 5.2, "cajado_raiz")
 	_hero("encantado", "Encantado do Rio", "Magia das águas encantadas. Frágil, mas poderoso. Inteligência, tecido.", H.MAGE, E.WATER, P.INTELLECT, "cajado", 80, 20, 220, 5.0, "cajado_aprendiz")
 
 
@@ -212,6 +217,7 @@ const CRAFT_SOURCES := {
 	"espada_ferro": ["ferreiro", "minerio_ferro", "madeira_lei"],
 	"arco_simples": ["curtidor", "madeira_lei", "couro_jacare"],
 	"cajado_aprendiz": ["tecela", "madeira_lei", "fibra_tucum"],
+	"cajado_raiz": ["curtidor", "madeira_lei", "latex_seringueira"],
 	"placa": ["ferreiro", "minerio_ferro", "madeira_lei"],
 	"couro": ["curtidor", "couro_jacare", "latex_seringueira"],
 	"tecido": ["tecela", "fibra_tucum", "latex_seringueira"],
