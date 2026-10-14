@@ -22,3 +22,12 @@ documento "Guia de arte 3D com IA".
 Como o Claude prepara: reduz os triângulos mantendo o mapeamento da textura (o rosto não deforma),
 reduz a textura para 1024 px, coloca 1,7 m de altura com os pés no chão. Na Tripo, **não usar a
 retopologia**: exportar o modelo original em GLB.
+
+## Animações (Tripo)
+
+1. No Tripo: Rig → Humanoide, predefinição Mixamo → Auto Rig, usando o modelo **já reduzido** do jogo (`game/art/herois/<heroi>.glb`), não o original de milhões de faces.
+2. Animar: Idle, Walk, Run, Slash, Hit to body e Fall. Exportar em GLB com as animações.
+3. Salvar em `arte/bruto/<heroi>_animado.glb`, commit e push.
+4. Preparar para o jogo (altura, sem deslocamento, nomes, corte do golpe):
+   `node tools/prep_anim.mjs arte/bruto/<heroi>_animado.glb game/art/herois/<heroi>.glb`
+   Conferir as poses com `tests/shot_anims.gd`.

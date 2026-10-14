@@ -2,12 +2,10 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bfjh85xj1cwng"
-path.s3tc="res://.godot/imported/icamiaba_0.png-e9caccfea5d28f7cfe7285bd33b1776a.s3tc.ctex"
-path.etc2="res://.godot/imported/icamiaba_0.png-e9caccfea5d28f7cfe7285bd33b1776a.etc2.ctex"
+uid="uid://dtvqjagqlkimg"
+path="res://.godot/imported/icamiaba_icamiaba_animado_glb_basecolor.png-012d63233dcf1c2691edfe74598389ca.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc", "etc2_astc"],
-"vram_texture": true
+"vram_texture": false
 }
 generator_parameters={
 "md5": "3570e9957fed225d2ff77dec7c59b538"
@@ -15,12 +13,12 @@ generator_parameters={
 
 [deps]
 
-source_file="res://game/art/herois/icamiaba_0.png"
-dest_files=["res://.godot/imported/icamiaba_0.png-e9caccfea5d28f7cfe7285bd33b1776a.s3tc.ctex", "res://.godot/imported/icamiaba_0.png-e9caccfea5d28f7cfe7285bd33b1776a.etc2.ctex"]
+source_file="res://game/art/herois/icamiaba_icamiaba_animado_glb_basecolor.png"
+dest_files=["res://.godot/imported/icamiaba_icamiaba_animado_glb_basecolor.png-012d63233dcf1c2691edfe74598389ca.ctex"]
 
 [params]
 
-compress/mode=2
+compress/mode=0
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -42,4 +40,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=0
+detect_3d/compress_to=1
