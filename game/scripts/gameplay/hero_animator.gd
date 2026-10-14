@@ -1,0 +1,195 @@
+class_name HeroAnimator
+extends Node
+## Anima o modelo 3D de um herói em camadas, com um AnimationTree montado por código:
+##  - pernas: parada / caminhada / corrida, conforme a velocidade;
+##  - tronco: golpes (em sequência, como combo) e "tomar dano" por cima das pernas,
+##    assim o herói não desliza quando ataca ou apanha andando;
+##  - morte: o corpo inteiro.
+## Nomes esperados no GLB (ver tools/prep_anim.mjs): idle, walk, run, ataque1..N, dano, morte.
+## Parado, os golpes usam o corpo inteiro (passo de ataque); andando, só o tronco.
+
+const BLEND := 0.15
+const RUN_SPEED := 3.4    # m/s em que a corrida do modelo casa com o chão
+const WALK_SPEED := 0.95
+const COMBO_RESET := 1.1  # segundos sem atacar e o combo volta ao primeiro golpe
+## Partes do esqueleto (Mixamo) que pertencem ao tronco.
+const UPPER := ["Spine", "Neck", "Head", "Shoulder", "Arm", "Hand"]
+
+var _anim: AnimationPlayer
+var _tree: AnimationTree
+var _act: AnimationNodeOneShot
+var _attacks: Array[String] = []
+var _combo := 0
+var _since_attack := 99.0
+var _loco := ""
+var _dead := false
+
+
+## Prepara o modelo. Devolve false se ele não tiver animações (o herói usa o balanço simples).
+func setup(model: Node) -> bool:
+	var found := model.find_children("*", "AnimationPlayer", true, false)
+	if found.is_empty():
+		return false
+	_anim = found[0]
+	if not _anim.has_animation("idle"):
+		return false
+	for anim_name in ["idle", "walk", "run"]:
+		if _anim.has_animation(anim_name):
+			_anim.get_animation(anim_name).loop_mode = Animation.LOOP_LINEAR
+	var i := 1
+	while _anim.has_animation("ataque%d" % i):
+		_attacks.append("ataque%d" % i)
+		i += 1
+	if _attacks.is_empty() and _anim.has_animation("ataque"):
+		_attacks.append("ataque")
+	_build_tree(model)
+	return true
+
+
+func _build_tree(model: Node) -> void:
+	var bt := AnimationNodeBlendTree.new()
+	# pernas
+	var loco := AnimationNodeTransition.new()
+	loco.xfade_time = BLEND
+	var x := 0
+	for anim_name in ["idle", "walk", "run"]:
+		var clip: String = anim_name if _anim.has_animation(anim_name) else "idle"
+		loco.add_input(anim_name)
+		var node := AnimationNodeAnimation.new()
+		node.animation = clip
+		bt.add_node(anim_name, node, Vector2(x, 0))
+		var ts := AnimationNodeTimeScale.new()
+		bt.add_node(anim_name + "_ts", ts, Vector2(x + 200, 0))
+		bt.connect_node(anim_name + "_ts", 0, anim_name)
+		x += 50
+	bt.add_node("loco", loco, Vector2(500, 0))
+	for k in 3:
+		bt.connect_node("loco", k, ["idle", "walk", "run"][k] + "_ts")
+	# golpes e dano (uma animação por vez, escolhida pela transição)
+	var acts := AnimationNodeTransition.new()
+	acts.xfade_time = 0.0
+	var act_names := _attacks.duplicate()
+	if _anim.has_animation("dano"):
+		act_names.append("dano")
+	if act_names.is_empty():
+		act_names.append("idle")
+	for k in act_names.size():
+		acts.add_input(act_names[k])
+		var node := AnimationNodeAnimation.new()
+		node.animation = act_names[k]
+		bt.add_node("a_" + act_names[k], node, Vector2(k * 50, 300))
+	bt.add_node("acts", acts, Vector2(500, 300))
+	for k in act_names.size():
+		bt.connect_node("acts", k, "a_" + act_names[k])
+	bt.add_node("act_ts", AnimationNodeTimeScale.new(), Vector2(700, 300))
+	bt.connect_node("act_ts", 0, "acts")
+	_act = AnimationNodeOneShot.new()
+	_act.fadein_time = 0.08
+	_act.fadeout_time = 0.18
+	_act.filter_enabled = false
+	for path in _upper_paths():
+		_act.set_filter_path(path, true)
+	bt.add_node("act", _act, Vector2(900, 100))
+	bt.connect_node("act", 0, "loco")
+	bt.connect_node("act", 1, "act_ts")
+	# vida / morte
+	var life := AnimationNodeTransition.new()
+	life.xfade_time = 0.12
+	life.add_input("vivo")
+	life.add_input("morto")
+	var death := AnimationNodeAnimation.new()
+	death.animation = "morte" if _anim.has_animation("morte") else "idle"
+	bt.add_node("morte", death, Vector2(900, 400))
+	bt.add_node("life", life, Vector2(1100, 200))
+	bt.connect_node("life", 0, "act")
+	bt.connect_node("life", 1, "morte")
+	bt.connect_node("output", 0, "life")
+
+	_tree = AnimationTree.new()
+	_tree.name = "AnimationTree"
+	model.add_child(_tree)
+	_tree.anim_player = _tree.get_path_to(_anim)
+	_tree.tree_root = bt
+	_tree.active = true
+	_set_loco("idle", 1.0)
+
+
+## Caminhos das trilhas do tronco, tirados da própria animação (servem a qualquer esqueleto Mixamo).
+func _upper_paths() -> Array[NodePath]:
+	var out: Array[NodePath] = []
+	var anim := _anim.get_animation("idle")
+	for t in anim.get_track_count():
+		var path := anim.track_get_path(t)
+		var bone := path.get_concatenated_subnames()
+		for part in UPPER:
+			if part in bone:
+				out.append(NodePath(str(path)))
+				break
+	return out
+
+
+func _set_loco(state: String, speed: float) -> void:
+	_tree.set("parameters/%s_ts/scale" % state, speed)
+	if state != _loco:
+		_loco = state
+		_tree.set("parameters/loco/transition_request", state)
+
+
+## Chamado todo quadro com a velocidade no chão.
+func update(delta: float, ground_speed: float, move_speed: float) -> void:
+	if _tree == null or _dead:
+		return
+	_since_attack += delta
+	if ground_speed > move_speed * 0.45:
+		_set_loco("run", clampf(ground_speed / RUN_SPEED, 0.7, 1.8))
+	elif ground_speed > 0.15:
+		_set_loco("walk", clampf(ground_speed / WALK_SPEED, 0.8, 2.0))
+	else:
+		_set_loco("idle", 1.0)
+
+
+func _fire(anim_name: String, duration: float, moving: bool) -> void:
+	var length := _anim.get_animation(anim_name).length
+	_act.filter_enabled = moving
+	_tree.set("parameters/acts/transition_request", anim_name)
+	_tree.set("parameters/act_ts/scale", length / maxf(duration, 0.1))
+	_tree.set("parameters/act/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
+
+
+## Um golpe: avança no combo (golpe 1, 2, 3...) e volta ao início se ficar um tempo sem atacar.
+func attack(duration: float, moving: bool) -> void:
+	if _tree == null or _dead or _attacks.is_empty():
+		return
+	if _since_attack > COMBO_RESET:
+		_combo = 0
+	_since_attack = 0.0
+	_fire(_attacks[_combo % _attacks.size()], duration, moving)
+	_combo += 1
+
+
+func is_acting() -> bool:
+	return _tree != null and bool(_tree.get("parameters/act/active"))
+
+
+## Tomar dano: só o tronco reage (nunca trava as pernas) e não interrompe um golpe.
+func hurt() -> void:
+	if _tree == null or _dead or not _anim.has_animation("dano") or is_acting():
+		return
+	_fire("dano", 0.5, true)
+
+
+func die() -> void:
+	if _tree == null:
+		return
+	_dead = true
+	_tree.set("parameters/act/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_ABORT)
+	_tree.set("parameters/life/transition_request", "morto")
+
+
+func revive() -> void:
+	if _tree == null:
+		return
+	_dead = false
+	_combo = 0
+	_tree.set("parameters/life/transition_request", "vivo")
+	_set_loco("idle", 1.0)
