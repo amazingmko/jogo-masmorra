@@ -14,11 +14,12 @@ var _materials := {}
 
 func _init() -> void:
 	_materials = {
-		"floor": _mat(Color("3b3350")),
-		"floor_boss": _mat(Color("33274a")),
-		"wall": _mat(Color("5c5470")),
-		"pillar": _mat(Color("7a6f94")),
-		"corridor": _mat(Color("342d47")),
+		# Terra Firme: chão de terra escura, paredes de mata fechada, pilares como troncos.
+		"floor": _mat(Color("3d3a2c")),
+		"floor_boss": _mat(Color("2e3324")),
+		"wall": _mat(Color("2f4a2c")),
+		"pillar": _mat(Color("5c4331")),
+		"corridor": _mat(Color("35321f")),
 		"barrier": _mat(Color("b8434a")),
 	}
 

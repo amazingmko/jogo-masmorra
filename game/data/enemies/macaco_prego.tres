@@ -1,0 +1,76 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/enemy_attack.gd" id="1_wukia"]
+[ext_resource type="Script" path="res://game/scripts/resources/enemy_data.gd" id="2_h1mm1"]
+
+[sub_resource type="Resource" id="Resource_wukia"]
+script = ExtResource("1_wukia")
+id = &"pedrada"
+display_name = "Pedrada"
+kind = 2
+range_min = 2.5
+range_max = 12.0
+windup = 0.5
+recover = 0.4
+speed = 15.0
+color = Color(0.9098039, 0.8784314, 0.8117647, 1)
+
+[sub_resource type="Resource" id="Resource_h1mm1"]
+script = ExtResource("1_wukia")
+id = &"ourico"
+display_name = "Ouriço de Castanha"
+kind = 4
+weight = 7
+range_min = 2.0
+range_max = 11.0
+cooldown = 5.0
+windup = 0.9
+recover = 0.5
+damage = 16
+radius = 1.4
+count = 2
+color = Color(0.6901961, 0.47843137, 0.27058825, 1)
+
+[sub_resource type="Resource" id="Resource_w6lmj"]
+script = ExtResource("1_wukia")
+id = &"tapa"
+display_name = "Tapa"
+weight = 6
+range_max = 1.6
+cooldown = 3.0
+windup = 0.4
+recover = 0.3
+damage = 7
+radius = 1.6
+
+[sub_resource type="Resource" id="Resource_uf1s4"]
+script = ExtResource("1_wukia")
+id = &"chuva_ourico"
+display_name = "Chuva de Ouriços"
+kind = 4
+weight = 6
+range_min = 2.0
+range_max = 12.0
+cooldown = 8.0
+min_threat = 0.4
+windup = 1.0
+damage = 14
+radius = 1.4
+count = 4
+color = Color(0.6901961, 0.47843137, 0.27058825, 1)
+
+[resource]
+script = ExtResource("2_h1mm1")
+id = &"macaco_prego"
+display_name = "Macaco-Prego"
+element = 3
+color = Color(0.5411765, 0.39215687, 0.2509804, 1)
+body_scale = 0.8
+max_health = 140
+damage = 10
+move_speed = 3.2
+movement = 3
+preferred_distance = 7.0
+eye_count = 2
+attacks = Array[ExtResource("1_wukia")]([SubResource("Resource_wukia"), SubResource("Resource_h1mm1"), SubResource("Resource_w6lmj"), SubResource("Resource_uf1s4")])
+drop_table_id = &"mata_comum"

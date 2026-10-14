@@ -14,7 +14,8 @@ enum Kind {
 	SUMMON,      ## chama ajudantes
 	MEGA,        ## mega magia: a sala inteira, menos as zonas seguras
 }
-enum Effect { NONE, POISON, ROOT, SLOW }
+## FEAR (medo): não anda nem ataca por um instante.
+enum Effect { NONE, POISON, ROOT, SLOW, FEAR }
 
 @export var id: StringName
 @export var display_name: String = ""
@@ -64,6 +65,12 @@ enum Effect { NONE, POISON, ROOT, SLOW }
 @export var effect_power: int = 0
 ## Ajudante que aparece (SUMMON).
 @export var summon_id: StringName
+
+@export_group("Comportamento")
+## Bando: ao usar este ataque, os iguais por perto (neste raio) atacam junto. 0 = sozinho.
+@export var rally_radius: float = 0.0
+## Se acertar, o atacante recupera esta fração da própria vida máxima.
+@export_range(0.0, 1.0) var heal_percent_max_health: float = 0.0
 
 
 ## Magias e disparos: os inimigos usam enquanto recuam, e o chefe usa mais quanto menos vida tem.

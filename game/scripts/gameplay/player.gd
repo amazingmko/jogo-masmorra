@@ -138,7 +138,9 @@ func receive_attack(amount: int, effect: int, effect_duration: float, effect_pow
 func _on_status_changed() -> void:
 	_roots.visible = status.is_rooted()
 	var tint := _base_color
-	if status.has(EnemyAttack.Effect.POISON):
+	if status.is_afraid():
+		tint = _base_color.lerp(Color("ffd34d"), 0.55)
+	elif status.has(EnemyAttack.Effect.POISON):
 		tint = _base_color.lerp(Color("6fdc7b"), 0.5)
 	elif status.has(EnemyAttack.Effect.SLOW):
 		tint = _base_color.lerp(Color("4db8ff"), 0.4)
@@ -162,7 +164,7 @@ func _physics_process(delta: float) -> void:
 	_update_marker()
 
 	_attack_cooldown -= delta
-	var attacking := controls_enabled and combat_enabled and (touch_attack or Input.is_action_pressed("attack"))
+	var attacking := controls_enabled and combat_enabled and status.can_attack() and (touch_attack or Input.is_action_pressed("attack"))
 	if attacking:
 		if _target:
 			var to_target := _target.global_position - global_position

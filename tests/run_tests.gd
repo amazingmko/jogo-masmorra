@@ -57,7 +57,7 @@ func _test_elements() -> void:
 
 
 func _test_drops(catalog: ItemCatalog) -> void:
-	var table := catalog.get_drop_table(&"esqueleto")
+	var table := catalog.get_drop_table(&"mata_comum")
 	# Mesma semente -> mesmo resultado (importante para reproduzir bugs).
 	var a := RandomNumberGenerator.new()
 	var b := RandomNumberGenerator.new()
@@ -81,7 +81,7 @@ func _test_drops(catalog: ItemCatalog) -> void:
 	check(absf(float(empty) / n - expected) < 0.02, "taxa de drop vazio ~%.2f (obtido %.3f)" % [expected, float(empty) / n])
 
 	# Chefe sorteia 3 vezes e nunca vem vazio.
-	var boss := catalog.get_drop_table(&"chefe_rei_ossudo")
+	var boss := catalog.get_drop_table(&"chefe_mapinguari")
 	var never_empty := true
 	for i in 200:
 		if boss.roll(rng).is_empty():
@@ -213,7 +213,7 @@ func _test_difficulty_and_energy(catalog: ItemCatalog) -> void:
 	check(Difficulty.lock_reason(3, 1, 30.0) != "", "Mítico pede vencer o Heroico")
 
 	# Recompensa: dificuldade multiplica reagentes; sem energia, cai uma fração e nada Épico+.
-	var boss := catalog.get_drop_table(&"chefe_rei_ossudo")
+	var boss := catalog.get_drop_table(&"chefe_mapinguari")
 	var totals := [0, 0, 0]
 	var pelos := [0, 0, 0]
 	var muiraquitas := [0, 0, 0]
@@ -423,14 +423,14 @@ func _test_items_and_stats(catalog: ItemCatalog) -> void:
 	var only_reagents := true
 	var boss_qty := 0
 	var mob_qty := 0
-	for table_id in [&"esqueleto", &"rato_gigante", &"bau", &"chefe_rei_ossudo"]:
+	for table_id in [&"mata_comum", &"mata_bichos", &"bau", &"chefe_mapinguari"]:
 		for i in 200:
 			for d in LootRoller.roll(catalog.get_drop_table(table_id), catalog, rng, {"ilvl": 8, "profile": "boss", "hero": guardian}):
 				if not d.instance.is_empty() or d.item.is_equipment():
 					only_reagents = false
-				if table_id == &"chefe_rei_ossudo":
+				if table_id == &"chefe_mapinguari":
 					boss_qty += int(d.qty)
-				elif table_id == &"esqueleto":
+				elif table_id == &"mata_comum":
 					mob_qty += int(d.qty)
 	check(only_reagents, "masmorra só deixa reagentes (equipamento só por crafting)")
 	check(boss_qty > mob_qty * 8, "chefe deixa muito mais reagentes que um inimigo (%d vs %d)" % [boss_qty, mob_qty])
@@ -526,7 +526,7 @@ func _test_telegraphs_and_status(catalog: ItemCatalog) -> void:
 	hp.free()
 	st.free()
 
-	var boss := catalog.get_enemy(&"rei_ossudo")
+	var boss := catalog.get_enemy(&"mapinguari")
 	var kinds := {}
 	var has_phase := false
 	for a in boss.attacks:
@@ -542,3 +542,40 @@ func _test_telegraphs_and_status(catalog: ItemCatalog) -> void:
 				ranged += 1
 				break
 	check(ranged >= 2, "há inimigos que atacam de longe (%d)" % ranged)
+
+	# Terra Firme: habilidades tiradas do comportamento dos bichos e da lenda.
+	var queixada := catalog.get_enemy(&"queixada")
+	var rally := false
+	for a in queixada.attacks:
+		if a.kind == EnemyAttack.Kind.CHARGE and a.rally_radius > 0.0:
+			rally = true
+	check(rally and queixada.group_max > 1, "queixadas andam em bando e investem juntas")
+	var ant_poison := false
+	for a in catalog.get_enemy(&"formiga_fogo").attacks:
+		if a.effect == EnemyAttack.Effect.POISON:
+			ant_poison = true
+	check(ant_poison, "formiga envenena")
+	var web := false
+	for a in catalog.get_enemy(&"aranha_caranguejeira").attacks:
+		if a.effect == EnemyAttack.Effect.ROOT:
+			web = true
+	check(web, "aranha solta teia que prende")
+	check(catalog.get_enemy(&"jararaca").ambush_range > 0.0 and catalog.get_enemy(&"onca_pintada").stalker,
+		"jararaca fica de tocaia e a onça se camufla")
+	var map := catalog.get_enemy(&"mapinguari")
+	var fear := false
+	var feeds := false
+	var five := false
+	for a in map.attacks:
+		fear = fear or a.effect == EnemyAttack.Effect.FEAR
+		feeds = feeds or a.heal_percent_max_health > 0.0
+		five = five or (a.kind == EnemyAttack.Kind.FAN and a.count == 5)
+	check(map.eye_count == 5 and map.belly_mouth, "Mapinguari tem cinco olhos e boca na barriga")
+	check(fear and feeds and five, "Mapinguari: grito que dá medo, bocarra que cura e olhar dos cinco olhos")
+
+	var st2 := StatusEffects.new()
+	st2.apply(EnemyAttack.Effect.FEAR, 1.0)
+	check(st2.move_factor() == 0.0 and not st2.can_attack(), "medo: não anda nem ataca")
+	st2.tick(1.1)
+	check(st2.can_attack() and st2.move_factor() == 1.0, "o medo passa")
+	st2.free()

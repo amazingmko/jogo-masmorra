@@ -1,0 +1,71 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/enemy_attack.gd" id="1_le7uu"]
+[ext_resource type="Script" path="res://game/scripts/resources/enemy_data.gd" id="2_mikuc"]
+
+[sub_resource type="Resource" id="Resource_le7uu"]
+script = ExtResource("1_le7uu")
+id = &"bote_cobra"
+display_name = "Bote"
+kind = 1
+range_min = 1.5
+range_max = 5.0
+cooldown = 3.5
+windup = 0.35
+damage = 16
+radius = 0.9
+length = 4.0
+speed = 18.0
+color = Color(0.54509807, 0.8784314, 0.41960785, 1)
+effect = 1
+effect_duration = 4.0
+effect_power = 8
+
+[sub_resource type="Resource" id="Resource_mikuc"]
+script = ExtResource("1_le7uu")
+id = &"picada_cobra"
+display_name = "Picada"
+weight = 6
+range_max = 1.5
+cooldown = 1.8
+windup = 0.35
+recover = 0.4
+damage = 8
+radius = 1.4
+color = Color(0.54509807, 0.8784314, 0.41960785, 1)
+effect = 1
+effect_duration = 3.0
+effect_power = 6
+
+[sub_resource type="Resource" id="Resource_ynrdr"]
+script = ExtResource("1_le7uu")
+id = &"veneno_forte"
+display_name = "Veneno Hemorrágico"
+weight = 5
+range_max = 1.6
+cooldown = 6.0
+min_threat = 0.5
+windup = 0.45
+recover = 0.5
+color = Color(0.54509807, 0.8784314, 0.41960785, 1)
+effect = 1
+effect_duration = 4.0
+effect_power = 14
+
+[resource]
+script = ExtResource("2_mikuc")
+id = &"jararaca"
+display_name = "Jararaca"
+element = 3
+color = Color(0.41960785, 0.41568628, 0.22745098, 1)
+body_scale = 0.7
+max_health = 150
+damage = 16
+move_speed = 3.4
+preferred_distance = 1.4
+ambush_range = 4.5
+quadruped = true
+eye_count = 2
+attacks = Array[ExtResource("1_le7uu")]([SubResource("Resource_le7uu"), SubResource("Resource_mikuc"), SubResource("Resource_ynrdr")])
+drop_table_id = &"mata_comum"
+xp_reward = 4

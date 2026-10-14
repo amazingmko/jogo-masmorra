@@ -287,12 +287,12 @@ func _make_drop_tables() -> void:
 	_table("equipamento", 1, 0, equip)
 
 	# Inimigos, baús e chefe deixam só reagentes. O chefe deixa bem mais, e os troféus dele.
-	_table("esqueleto", 1, 30, [
+	_table("mata_comum", 1, 30, [
 		_entry("minerio_ferro", 35, 1, 2),
 		_entry("madeira_lei", 35, 1, 2),
 		_entry("latex_seringueira", 20, 1, 2),
 	])
-	_table("rato_gigante", 1, 40, [
+	_table("mata_bichos", 1, 40, [
 		_entry("couro_jacare", 40, 1, 2),
 		_entry("fibra_tucum", 35, 1, 2),
 		_entry("latex_seringueira", 20, 1, 2),
@@ -309,7 +309,7 @@ func _make_drop_tables() -> void:
 		_entry("oleo_andiroba", 8, 1, 2),
 		_entry("semente_guarana", 5, 1, 1),
 	])
-	_table("chefe_rei_ossudo", 6, 0, [
+	_table("chefe_mapinguari", 6, 0, [
 		_entry("minerio_ferro", 20, 3, 5),
 		_entry("madeira_lei", 20, 3, 5),
 		_entry("couro_jacare", 20, 3, 5),
@@ -350,7 +350,7 @@ func _make_buffs() -> void:
 
 func _enemy(id: String, name: String, element: int, color: Color, body_scale: float,
 		hp: int, speed: float, movement: int, preferred: float, drop_table: String, xp: int,
-		attacks: Array[EnemyAttack], boss := false) -> void:
+		attacks: Array[EnemyAttack], boss := false, extra: Dictionary = {}) -> void:
 	var e := EnemyData.new()
 	e.id = StringName(id)
 	e.display_name = name
@@ -365,6 +365,8 @@ func _enemy(id: String, name: String, element: int, color: Color, body_scale: fl
 	e.xp_reward = xp
 	e.attacks = attacks
 	e.is_boss = boss
+	for key in extra:
+		e.set(key, extra[key])
 	# Valores do golpe simples (só usados se a lista de ataques ficar vazia).
 	e.damage = attacks[0].damage if not attacks.is_empty() else 10
 	_save(e, "res://game/data/enemies/%s.tres" % id)
@@ -388,6 +390,7 @@ func _atk(id: String, name: String, kind: int, rmin: float, rmax: float, windup:
 	return a
 
 
+## Terra Firme: bichos da mata com habilidades do comportamento real, e o Mapinguari da lenda.
 func _make_enemies() -> void:
 	var E := GameEnums.Element
 	var K := EnemyAttack.Kind
@@ -397,66 +400,95 @@ func _make_enemies() -> void:
 	var ORANGE := Color("ff8a3d")
 	var POISON := Color("8be06b")
 	var ROOT := Color("b483e8")
-	var BONE := Color("f2ecff")
+	var WEB := Color("e8e0cf")
+	var FEAR := Color("ffd34d")
+	var NUT := Color("b07a45")
 
-	_enemy("esqueleto", "Esqueleto", E.NEUTRAL, Color("cfc8b8"), 1.0, 240, 2.8, M.CHASE, 1.3, "esqueleto", 3, [
-		_atk("golpe", "Golpe", K.MELEE, 0, 2.0, 0.55, 1.6, 15, RED, {"radius": 2.0, "cone_half_angle": 60.0, "recover": 0.5, "weight": 10}),
-		_atk("estocada", "Estocada", K.CHARGE, 3.0, 6.5, 0.6, 5.0, 18, ORANGE, {"length": 5.0, "radius": 1.2, "speed": 14.0, "recover": 0.6, "weight": 6}),
-		_atk("lanca_osso", "Lança de Osso", K.PROJECTILE, 3.0, 10.0, 0.6, 5.0, 12, BONE,
-			{"speed": 13.0, "recover": 0.4, "weight": 6, "min_threat": 0.3}),
-	])
-	_enemy("rato_gigante", "Rato Gigante", E.NATURE, Color("8a6a4f"), 0.7, 120, 4.4, M.SKITTER, 1.0, "rato_gigante", 2, [
-		_atk("mordida", "Mordida", K.MELEE, 0, 1.6, 0.35, 1.2, 10, RED, {"radius": 1.4, "recover": 0.4}),
-		_atk("salto", "Salto", K.CHARGE, 2.5, 6.0, 0.45, 4.0, 12, ORANGE, {"length": 5.0, "radius": 1.0, "speed": 16.0, "recover": 0.5, "weight": 7}),
-		_atk("praga", "Praga", K.GROUND_AOE, 2.0, 8.0, 0.8, 6.0, 5, POISON,
-			{"radius": 1.4, "recover": 0.4, "linger": 3.0, "effect": F.POISON, "effect_duration": 3.0, "effect_power": 4, "weight": 5, "min_threat": 0.45}),
-	])
-	_enemy("esqueleto_arqueiro", "Esqueleto Arqueiro", E.NEUTRAL, Color("e3dccb"), 0.95, 160, 2.9, M.KITE, 7.5, "esqueleto", 3, [
-		_atk("flecha", "Flecha", K.PROJECTILE, 2.5, 13.0, 0.5, 2.0, 10, BONE, {"speed": 15.0, "recover": 0.4, "weight": 10}),
-		_atk("saraivada", "Saraivada", K.FAN, 3.0, 12.0, 0.8, 5.0, 10, ORANGE, {"speed": 13.0, "count": 3, "spread_deg": 22.0, "recover": 0.6, "weight": 6}),
-		_atk("chute", "Chute", K.MELEE, 0, 1.8, 0.4, 3.0, 8, RED, {"radius": 1.8, "recover": 0.3, "weight": 8}),
-		_atk("flecha_gelida", "Flecha Gélida", K.PROJECTILE, 2.5, 13.0, 0.6, 6.0, 9, Color("4db8ff"),
-			{"speed": 14.0, "recover": 0.4, "effect": F.SLOW, "effect_duration": 2.0, "effect_power": 35, "weight": 6, "min_threat": 0.35}),
-	])
-	_enemy("aranha_cripta", "Aranha da Cripta", E.NATURE, Color("4f6b3a"), 0.8, 150, 4.0, M.SKITTER, 1.2, "rato_gigante", 3, [
+	# Queixada: anda em bando e investe junto; quando um parte, os outros vão atrás.
+	_enemy("queixada", "Queixada", E.NEUTRAL, Color("4a403a"), 0.85, 170, 3.0, M.CHASE, 1.3, "mata_comum", 3, [
+		_atk("dentada", "Dentada", K.MELEE, 0, 1.8, 0.45, 1.6, 12, RED, {"radius": 1.7, "cone_half_angle": 55.0, "recover": 0.5, "weight": 8}),
+		_atk("investida_bando", "Investida do Bando", K.CHARGE, 3.0, 8.0, 0.7, 6.0, 26, ORANGE,
+			{"length": 6.5, "radius": 1.2, "speed": 15.0, "recover": 0.6, "weight": 8, "rally_radius": 7.0}),
+		_atk("estouro", "Estouro da Manada", K.CHARGE, 4.0, 11.0, 0.8, 9.0, 30, ORANGE,
+			{"length": 9.0, "radius": 1.3, "speed": 17.0, "recover": 0.8, "weight": 5, "rally_radius": 10.0, "min_threat": 0.5}),
+	], false, {"group_min": 2, "group_max": 3, "quadruped": true, "eye_count": 2})
+
+	# Formiga-de-fogo: pequena, rápida, em grupo; a ferroada envenena e chama as outras (feromônio).
+	_enemy("formiga_fogo", "Formiga-de-Fogo", E.FIRE, Color("b8432a"), 0.55, 60, 4.6, M.SKITTER, 0.9, "mata_bichos", 1, [
+		_atk("ferroada", "Ferroada", K.MELEE, 0, 1.3, 0.3, 1.1, 6, POISON,
+			{"radius": 1.2, "recover": 0.3, "effect": F.POISON, "effect_duration": 3.0, "effect_power": 5}),
+		_atk("formigueiro", "Ataque do Formigueiro", K.CHARGE, 1.5, 4.5, 0.4, 5.0, 6, POISON,
+			{"length": 3.5, "radius": 0.9, "speed": 14.0, "recover": 0.4, "weight": 6, "rally_radius": 6.0,
+			"effect": F.POISON, "effect_duration": 3.0, "effect_power": 5, "min_threat": 0.4}),
+	], false, {"group_min": 3, "group_max": 4, "quadruped": true, "eye_count": 2})
+
+	# Macaco-prego: fica longe e arremessa coisas (usa pedras como ferramenta) e derruba ouriços de castanha.
+	_enemy("macaco_prego", "Macaco-Prego", E.NATURE, Color("8a6440"), 0.8, 140, 3.2, M.KITE, 7.0, "mata_comum", 3, [
+		_atk("pedrada", "Pedrada", K.PROJECTILE, 2.5, 12.0, 0.5, 2.0, 10, WEB, {"speed": 15.0, "recover": 0.4, "weight": 10}),
+		_atk("ourico", "Ouriço de Castanha", K.GROUND_AOE, 2.0, 11.0, 0.9, 5.0, 16, NUT,
+			{"radius": 1.4, "count": 2, "recover": 0.5, "weight": 7}),
+		_atk("tapa", "Tapa", K.MELEE, 0, 1.6, 0.4, 3.0, 7, RED, {"radius": 1.6, "recover": 0.3, "weight": 6}),
+		_atk("chuva_ourico", "Chuva de Ouriços", K.GROUND_AOE, 2.0, 12.0, 1.0, 8.0, 14, NUT,
+			{"radius": 1.4, "count": 4, "recover": 0.6, "weight": 6, "min_threat": 0.4}),
+	], false, {"eye_count": 2})
+
+	# Aranha-caranguejeira: picada venenosa, teia que prende e os pelos urticantes que ela solta (deixam lento).
+	_enemy("aranha_caranguejeira", "Aranha-Caranguejeira", E.NATURE, Color("3a2a22"), 0.9, 160, 3.6, M.SKITTER, 1.3, "mata_bichos", 3, [
 		_atk("picada", "Picada Venenosa", K.MELEE, 0, 1.7, 0.4, 1.4, 8, POISON,
-			{"radius": 1.5, "recover": 0.4, "effect": F.POISON, "effect_duration": 4.0, "effect_power": 6}),
-		_atk("cuspe", "Cuspe Ácido", K.GROUND_AOE, 2.0, 9.0, 0.9, 5.0, 6, POISON,
-			{"radius": 1.7, "recover": 0.5, "linger": 4.0, "effect": F.POISON, "effect_duration": 3.0, "effect_power": 6, "weight": 8}),
-		_atk("teia", "Teia", K.PROJECTILE, 2.5, 10.0, 0.6, 7.0, 4, BONE,
-			{"speed": 11.0, "recover": 0.4, "effect": F.ROOT, "effect_duration": 1.0, "weight": 5, "min_threat": 0.5}),
-	])
-	_enemy("xama_ossos", "Xamã de Ossos", E.NEUTRAL, Color("8e7cc3"), 1.0, 180, 2.5, M.KITE, 8.0, "esqueleto", 5, [
-		_atk("raio", "Raio Sombrio", K.PROJECTILE, 2.5, 13.0, 0.55, 2.4, 11, ROOT, {"speed": 12.0, "recover": 0.4, "weight": 10}),
-		_atk("raizes", "Raízes de Osso", K.PROJECTILE, 2.5, 12.0, 0.7, 4.5, 8, ROOT,
-			{"speed": 10.0, "recover": 0.5, "effect": F.ROOT, "effect_duration": 1.2, "weight": 8}),
-		_atk("nuvem", "Nuvem Tóxica", K.GROUND_AOE, 2.0, 12.0, 1.1, 6.0, 8, POISON,
-			{"radius": 2.2, "recover": 0.6, "linger": 4.0, "effect": F.POISON, "effect_duration": 3.0, "effect_power": 6, "weight": 7}),
-		_atk("chuva_ossos", "Chuva de Ossos", K.GROUND_AOE, 2.0, 12.0, 1.0, 7.0, 12, BONE,
-			{"count": 3, "radius": 1.5, "recover": 0.6, "weight": 6, "min_threat": 0.6}),
-	])
-	_enemy("esqueleto_bruto", "Esqueleto Bruto", E.NEUTRAL, Color("9e8f7a"), 1.5, 700, 2.2, M.CHASE, 1.8, "esqueleto", 8, [
-		_atk("esmagar", "Esmagar", K.MELEE, 0, 2.8, 0.9, 3.0, 30, RED, {"radius": 2.8, "recover": 0.9}),
-		_atk("investida", "Investida", K.CHARGE, 3.0, 8.0, 0.8, 6.0, 30, ORANGE, {"length": 7.0, "radius": 1.8, "speed": 15.0, "recover": 1.0, "weight": 7}),
-		_atk("tremor", "Tremor", K.NOVA, 0, 6.0, 0.9, 7.0, 14, BONE,
-			{"count": 8, "speed": 8.0, "recover": 0.7, "weight": 5, "min_threat": 0.55}),
-	])
-	_enemy("rei_ossudo", "Rei Ossudo", E.NEUTRAL, Color("d6b25e"), 2.1, 4500, 2.8, M.STRAFE, 2.8, "chefe_rei_ossudo", 60, [
-		_atk("varredura", "Varredura", K.MELEE, 0, 3.8, 0.7, 2.5, 30, RED,
+			{"radius": 1.5, "recover": 0.4, "effect": F.POISON, "effect_duration": 3.0, "effect_power": 6}),
+		_atk("teia", "Teia", K.PROJECTILE, 2.5, 10.0, 0.6, 5.0, 4, WEB,
+			{"speed": 11.0, "recover": 0.4, "effect": F.ROOT, "effect_duration": 1.2, "weight": 8}),
+		_atk("pelos", "Pelos Urticantes", K.FAN, 2.0, 8.0, 0.6, 6.0, 5, Color("d8c39a"),
+			{"speed": 12.0, "count": 5, "spread_deg": 30.0, "recover": 0.4, "effect": F.SLOW, "effect_duration": 2.5, "effect_power": 40, "weight": 6}),
+		_atk("armadilha_teia", "Armadilha de Teia", K.GROUND_AOE, 2.0, 9.0, 0.9, 8.0, 2, WEB,
+			{"radius": 1.3, "count": 2, "linger": 5.0, "recover": 0.5, "effect": F.ROOT, "effect_duration": 1.0, "weight": 5, "min_threat": 0.5}),
+	], false, {"quadruped": true, "eye_count": 6})
+
+	# Jararaca: fica de tocaia, quase invisível, e dá o bote quando o herói chega perto.
+	_enemy("jararaca", "Jararaca", E.NATURE, Color("6b6a3a"), 0.7, 150, 3.4, M.CHASE, 1.4, "mata_comum", 4, [
+		_atk("bote_cobra", "Bote", K.CHARGE, 1.5, 5.0, 0.35, 3.5, 16, POISON,
+			{"length": 4.0, "radius": 0.9, "speed": 18.0, "recover": 0.6, "weight": 10, "effect": F.POISON, "effect_duration": 4.0, "effect_power": 8}),
+		_atk("picada_cobra", "Picada", K.MELEE, 0, 1.5, 0.35, 1.8, 8, POISON,
+			{"radius": 1.4, "recover": 0.4, "weight": 6, "effect": F.POISON, "effect_duration": 3.0, "effect_power": 6}),
+		_atk("veneno_forte", "Veneno Hemorrágico", K.MELEE, 0, 1.6, 0.45, 6.0, 10, POISON,
+			{"radius": 1.5, "recover": 0.5, "weight": 5, "effect": F.POISON, "effect_duration": 4.0, "effect_power": 14, "min_threat": 0.5}),
+	], false, {"quadruped": true, "eye_count": 2, "ambush_range": 4.5})
+
+	# Onça-pintada: caça de emboscada, camuflada; bote longo, mordida no crânio e o esturro que assusta.
+	_enemy("onca_pintada", "Onça-Pintada", E.NEUTRAL, Color("c99a3a"), 1.25, 650, 3.4, M.STRAFE, 2.5, "mata_comum", 8, [
+		_atk("bote_onca", "Bote", K.CHARGE, 3.0, 9.0, 0.6, 5.0, 32, ORANGE,
+			{"length": 8.0, "radius": 1.4, "speed": 18.0, "recover": 0.8, "weight": 9}),
+		_atk("patada", "Patada", K.MELEE, 0, 2.0, 0.4, 1.8, 18, RED,
+			{"radius": 2.0, "cone_half_angle": 70.0, "recover": 0.4, "weight": 10}),
+		_atk("mordida_cranio", "Mordida no Crânio", K.MELEE, 0, 2.2, 0.75, 4.0, 38, RED,
+			{"radius": 2.2, "cone_half_angle": 35.0, "recover": 0.7, "weight": 6}),
+		_atk("esturro", "Esturro", K.MELEE, 0, 4.5, 0.8, 10.0, 6, FEAR,
+			{"radius": 4.5, "recover": 0.5, "weight": 5, "effect": F.FEAR, "effect_duration": 1.0, "min_threat": 0.55}),
+	], false, {"quadruped": true, "eye_count": 2, "stalker": true, "spotted": true})
+
+	# Mapinguari: gigante peludo de cinco olhos na testa e boca na barriga; fedor e grito que assusta caçadores.
+	_enemy("mapinguari", "Mapinguari", E.NATURE, Color("5a3a2a"), 2.3, 5000, 2.7, M.STRAFE, 3.0, "chefe_mapinguari", 60, [
+		_atk("garras", "Garras", K.MELEE, 0, 3.8, 0.7, 2.5, 30, RED,
 			{"radius": 3.8, "cone_half_angle": 70.0, "recover": 0.6, "weight": 10}),
-		_atk("investida_real", "Investida Real", K.CHARGE, 3.0, 12.0, 0.8, 6.0, 35, ORANGE,
+		_atk("bocarra", "Bocarra do Ventre", K.MELEE, 0, 3.0, 0.9, 7.0, 40, Color("c0392b"),
+			{"radius": 3.0, "cone_half_angle": 45.0, "recover": 0.8, "weight": 7, "heal_percent_max_health": 0.03}),
+		_atk("investida_mapinguari", "Investida Devastadora", K.CHARGE, 3.0, 12.0, 0.8, 6.0, 35, ORANGE,
 			{"length": 10.0, "radius": 2.2, "speed": 16.0, "recover": 0.9, "weight": 8}),
-		_atk("lancas_rei", "Lanças do Rei", K.FAN, 3.0, 16.0, 0.7, 5.0, 18, BONE,
-			{"count": 5, "spread_deg": 30.0, "speed": 13.0, "below_health": 0.75, "recover": 0.4, "weight": 7}),
-		_atk("chamado", "Chamado dos Mortos", K.SUMMON, 0, 30.0, 1.0, 14.0, 0, ROOT,
-			{"count": 2, "summon_id": &"esqueleto", "below_health": 0.85, "recover": 0.5, "weight": 6}),
-		_atk("onda_ossos", "Onda de Ossos", K.NOVA, 0, 30.0, 0.9, 7.0, 15, BONE,
-			{"count": 12, "speed": 9.0, "below_health": 0.6, "recover": 0.6, "weight": 8}),
-		_atk("espinhos", "Espinhos da Cripta", K.GROUND_AOE, 0, 30.0, 1.0, 6.0, 25, RED,
-			{"count": 5, "radius": 1.6, "below_health": 0.6, "recover": 0.5, "weight": 8}),
-		_atk("juizo", "Juízo do Rei", K.MEGA, 0, 40.0, 3.5, 22.0, 40, Color("ff5a36"),
-			{"radius": 10.5, "count": 2, "damage_percent_of_target": 0.6, "below_health": 0.45, "recover": 1.2, "weight": 30}),
-	], true)
+		_atk("cinco_olhos", "Olhar dos Cinco Olhos", K.FAN, 3.0, 16.0, 0.7, 5.0, 16, Color("ffb347"),
+			{"count": 5, "spread_deg": 28.0, "speed": 14.0, "recover": 0.4, "below_health": 0.85, "weight": 8}),
+		_atk("estouro_queixadas", "Estouro de Queixadas", K.SUMMON, 0, 30.0, 1.0, 16.0, 0, ORANGE,
+			{"count": 3, "summon_id": &"queixada", "below_health": 0.75, "recover": 0.5, "weight": 6}),
+		_atk("fedor", "Fedor do Mapinguari", K.GROUND_AOE, 0, 30.0, 1.0, 8.0, 8, POISON,
+			{"count": 3, "radius": 2.2, "linger": 5.0, "below_health": 0.7, "recover": 0.5, "weight": 6,
+			"effect": F.POISON, "effect_duration": 3.0, "effect_power": 10}),
+		_atk("grito", "Grito Estrondoso", K.MELEE, 0, 7.0, 1.0, 12.0, 15, FEAR,
+			{"radius": 7.0, "below_health": 0.6, "recover": 0.6, "weight": 8, "effect": F.FEAR, "effect_duration": 1.3}),
+		_atk("arvores", "Árvores Derrubadas", K.GROUND_AOE, 0, 30.0, 1.0, 6.0, 25, NUT,
+			{"count": 5, "radius": 1.7, "below_health": 0.6, "recover": 0.5, "weight": 8}),
+		_atk("bafo", "Bafo do Mapinguari", K.MEGA, 0, 40.0, 3.5, 22.0, 40, Color("c9b23a"),
+			{"radius": 10.5, "count": 2, "damage_percent_of_target": 0.6, "below_health": 0.45, "recover": 1.2, "weight": 30,
+			"effect": F.POISON, "effect_duration": 4.0, "effect_power": 12}),
+	], true, {"eye_count": 5, "belly_mouth": true})
 
 
 # ---------- cenas ----------

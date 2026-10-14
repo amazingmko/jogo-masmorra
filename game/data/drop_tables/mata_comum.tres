@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="DropTable" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/drop_entry.gd" id="1_qgf8m"]
+[ext_resource type="Script" path="res://game/scripts/resources/drop_table.gd" id="2_pj6q7"]
+
+[sub_resource type="Resource" id="Resource_qgf8m"]
+script = ExtResource("1_qgf8m")
+item_id = &"minerio_ferro"
+weight = 35
+max_qty = 2
+
+[sub_resource type="Resource" id="Resource_pj6q7"]
+script = ExtResource("1_qgf8m")
+item_id = &"madeira_lei"
+weight = 35
+max_qty = 2
+
+[sub_resource type="Resource" id="Resource_vbcj6"]
+script = ExtResource("1_qgf8m")
+item_id = &"latex_seringueira"
+weight = 20
+max_qty = 2
+
+[resource]
+script = ExtResource("2_pj6q7")
+id = &"mata_comum"
+nothing_weight = 30
+entries = Array[ExtResource("1_qgf8m")]([SubResource("Resource_qgf8m"), SubResource("Resource_pj6q7"), SubResource("Resource_vbcj6")])

@@ -1,0 +1,61 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/enemy_attack.gd" id="1_dhugh"]
+[ext_resource type="Script" path="res://game/scripts/resources/enemy_data.gd" id="2_f7l0d"]
+
+[sub_resource type="Resource" id="Resource_dhugh"]
+script = ExtResource("1_dhugh")
+id = &"ferroada"
+display_name = "Ferroada"
+range_max = 1.3
+cooldown = 1.1
+windup = 0.3
+recover = 0.3
+damage = 6
+radius = 1.2
+color = Color(0.54509807, 0.8784314, 0.41960785, 1)
+effect = 1
+effect_duration = 3.0
+effect_power = 5
+
+[sub_resource type="Resource" id="Resource_f7l0d"]
+script = ExtResource("1_dhugh")
+id = &"formigueiro"
+display_name = "Ataque do Formigueiro"
+kind = 1
+weight = 6
+range_min = 1.5
+range_max = 4.5
+cooldown = 5.0
+min_threat = 0.4
+windup = 0.4
+recover = 0.4
+damage = 6
+radius = 0.9
+length = 3.5
+speed = 14.0
+color = Color(0.54509807, 0.8784314, 0.41960785, 1)
+effect = 1
+effect_duration = 3.0
+effect_power = 5
+rally_radius = 6.0
+
+[resource]
+script = ExtResource("2_f7l0d")
+id = &"formiga_fogo"
+display_name = "Formiga-de-Fogo"
+element = 1
+color = Color(0.72156864, 0.2627451, 0.16470589, 1)
+body_scale = 0.55
+max_health = 60
+damage = 6
+move_speed = 4.6
+movement = 2
+preferred_distance = 0.9
+group_min = 3
+group_max = 4
+quadruped = true
+eye_count = 2
+attacks = Array[ExtResource("1_dhugh")]([SubResource("Resource_dhugh"), SubResource("Resource_f7l0d")])
+drop_table_id = &"mata_bichos"
+xp_reward = 1

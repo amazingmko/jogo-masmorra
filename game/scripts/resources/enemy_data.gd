@@ -22,6 +22,22 @@ enum Movement { CHASE, STRAFE, SKITTER, KITE }
 ## Distância que o inimigo tenta manter do herói.
 @export var preferred_distance: float = 1.2
 @export var is_boss: bool = false
+## Aparece em grupo: quantos iguais nascem juntos (ex.: bando de queixadas).
+@export_range(1, 8) var group_min: int = 1
+@export_range(1, 8) var group_max: int = 1
+## Camuflado: quase invisível de longe; aparece ao chegar perto ou ao atacar (ex.: onça).
+@export var stalker: bool = false
+## Tocaia: fica parado até o herói chegar a esta distância ou atacar (0 = sempre ativo).
+@export var ambush_range: float = 0.0
+
+@export_group("Visual provisório")
+## Corpo deitado (bicho de quatro patas, cobra, formiga) em vez de em pé.
+@export var quadruped: bool = false
+@export_range(1, 7) var eye_count: int = 1
+## Pintas no corpo (onça).
+@export var spotted: bool = false
+## Boca na barriga (Mapinguari).
+@export var belly_mouth: bool = false
 
 @export_group("Ataques")
 ## Lista de ataques (ver EnemyAttack). Vazia = um golpe simples com os valores abaixo.

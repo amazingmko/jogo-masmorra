@@ -1,6 +1,6 @@
 # Temática amazônica (aprovada em 13/10/2026)
 
-**No jogo (fase 4b):** heróis Icamiaba, Mateira e Encantado do Rio · profissões Ferreiro, Curtidor, Tecelã e Erveira · reagentes amazônicos. **Próximo:** Mapinguari no lugar do Rei Ossudo e bichos da Terra Firme no lugar dos esqueletos; depois a Druida da Mata.
+**No jogo:** heróis Icamiaba, Mateira e Encantado do Rio · profissões Ferreiro, Curtidor, Tecelã e Erveira · reagentes amazônicos · **Terra Firme** com queixada, formiga-de-fogo, macaco-prego, aranha-caranguejeira, jararaca, onça-pintada e o **Mapinguari** (habilidades no README). **Próximo:** Druida da Mata.
 
 ## A ideia em uma frase
 
@@ -42,12 +42,25 @@ Fantasia épica de MMORPG (escala heroica, classes com papéis claros, chefes de
 
 | área | ambiente | inimigos | chefe | mega magia do chefe |
 | --- | --- | --- | --- | --- |
-| 1. **Terra Firme** | mata fechada, raízes gigantes, ruínas cobertas de musgo | bando de queixadas (investida em grupo), aranha-caranguejeira, formigas gigantes, macaco ladrão | **Mapinguari**: gigante peludo de um olho só, com a boca na barriga | **Bafo do Mapinguari**: nuvem que cobre a sala, só os ocos das árvores protegem |
+| 1. **Terra Firme** | mata fechada, raízes gigantes, ruínas cobertas de musgo | bando de queixadas (investida em grupo), aranha-caranguejeira, formigas gigantes, macaco ladrão | **Mapinguari**: gigante peludo de cinco olhos na testa, com a boca na barriga, fedor e grito que assusta caçadores | **Bafo do Mapinguari**: nuvem que cobre a sala, só os ocos das árvores protegem |
 | 2. **Igapó** | floresta alagada, troncos, água escura | piranhas (em poças), jacaré-açu, sucuri, poraquê | **Cobra Grande (Boiúna)**: olhos que brilham como faróis | **Pororoca**: onda que varre a sala, só os pontos altos são seguros |
 | 3. **O Encante** | cidade encantada no fundo do rio | botos encantados, servos da Iara, peixes-espírito | **Iara**: o canto puxa o herói para ela | **Canto da Iara**: quem não estiver nas pedras de silêncio é puxado e preso |
 | 4. **Bosque de Anhangá** | mata sagrada à noite, névoa | espíritos de animais, sombras de caçadores | **Anhangá**: veado branco de olhos de fogo, protetor dos bichos | a definir |
 
 O **Curupira** pode ser um personagem especial: protetor da mata que aparece como guia ou como um desafio secreto para quem "caça demais", em vez de um chefe comum.
+
+## Mapinguari: o que já está no jogo e ideias para depois
+
+No jogo: cinco olhos (Olhar dos Cinco Olhos, 5 disparos), boca na barriga (Bocarra do Ventre, que cura quando acerta), fedor (nuvens venenosas e o Bafo, a mega magia), grito estrondoso (medo: não anda nem ataca), força bruta (Investida, Árvores Derrubadas) e os bichos fugindo dele (Estouro de Queixadas).
+
+Ideias da lenda para próximas versões:
+
+| ideia | da lenda | como funcionaria |
+| --- | --- | --- |
+| **Couro que bala não fura** (recomendada) | em várias versões, só morre se atingido no umbigo/barriga | toma metade do dano, exceto logo depois da Bocarra, quando a barriga fica exposta e toma o dobro: premia quem desvia e contra-ataca na hora certa |
+| **Pé de pilão** | as pegadas redondas, como um pilão, deixadas na mata | antes da Investida, aparecem pegadas no chão mostrando o caminho |
+| **Grito que responde** | responde ao grito dos caçadores e atrai quem se perde | o grito ecoa de um ponto falso da sala e um aviso no chão aparece no lugar errado por um instante |
+| **A mata escurece** | anda à noite e nos dias de guarda | nas fases finais a sala escurece e só a área perto do herói fica clara |
 
 ## Base (hub)
 

@@ -1,0 +1,79 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/enemy_attack.gd" id="1_2rge2"]
+[ext_resource type="Script" path="res://game/scripts/resources/enemy_data.gd" id="2_uwklt"]
+
+[sub_resource type="Resource" id="Resource_2rge2"]
+script = ExtResource("1_2rge2")
+id = &"bote_onca"
+display_name = "Bote"
+kind = 1
+weight = 9
+range_min = 3.0
+range_max = 9.0
+cooldown = 5.0
+recover = 0.8
+damage = 32
+radius = 1.4
+length = 8.0
+speed = 18.0
+color = Color(1, 0.5411765, 0.23921569, 1)
+
+[sub_resource type="Resource" id="Resource_uwklt"]
+script = ExtResource("1_2rge2")
+id = &"patada"
+display_name = "Patada"
+cooldown = 1.8
+windup = 0.4
+recover = 0.4
+damage = 18
+radius = 2.0
+cone_half_angle = 70.0
+
+[sub_resource type="Resource" id="Resource_3or5a"]
+script = ExtResource("1_2rge2")
+id = &"mordida_cranio"
+display_name = "Mordida no Crânio"
+weight = 6
+range_max = 2.2
+cooldown = 4.0
+windup = 0.75
+recover = 0.7
+damage = 38
+radius = 2.2
+cone_half_angle = 35.0
+
+[sub_resource type="Resource" id="Resource_imskp"]
+script = ExtResource("1_2rge2")
+id = &"esturro"
+display_name = "Esturro"
+weight = 5
+range_max = 4.5
+cooldown = 10.0
+min_threat = 0.55
+windup = 0.8
+recover = 0.5
+damage = 6
+radius = 4.5
+color = Color(1, 0.827451, 0.3019608, 1)
+effect = 4
+effect_duration = 1.0
+
+[resource]
+script = ExtResource("2_uwklt")
+id = &"onca_pintada"
+display_name = "Onça-Pintada"
+color = Color(0.7882353, 0.6039216, 0.22745098, 1)
+body_scale = 1.25
+max_health = 650
+damage = 32
+move_speed = 3.4
+movement = 1
+preferred_distance = 2.5
+stalker = true
+quadruped = true
+eye_count = 2
+spotted = true
+attacks = Array[ExtResource("1_2rge2")]([SubResource("Resource_2rge2"), SubResource("Resource_uwklt"), SubResource("Resource_3or5a"), SubResource("Resource_imskp")])
+drop_table_id = &"mata_comum"
+xp_reward = 8

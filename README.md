@@ -59,7 +59,7 @@ Em dificuldades maiores os inimigos também ficam mais agressivos. O nível de i
 
 ### A run
 
-5 andares gerados aleatoriamente. Nas salas de combate as portas fecham até o último inimigo cair. Baús (amarelo no minimapa) dão reagentes, a fonte (verde) cura, o portal azul leva ao próximo andar depois de escolher 1 entre 3 bênçãos. No 5º andar, o Rei Ossudo (vira o Mapinguari na próxima etapa), que deixa muitos reagentes e o Pelo de Mapinguari. XP e reagentes ficam com o herói, mesmo perdendo.
+A **Terra Firme**: 5 andares de mata fechada gerados aleatoriamente. Nas salas de combate as portas fecham até o último inimigo cair. Baús (amarelo no minimapa) dão reagentes, a fonte (verde) cura, o portal azul leva ao próximo andar depois de escolher 1 entre 3 bênçãos. No 5º andar, o Mapinguari, que deixa muitos reagentes e o Pelo de Mapinguari. XP e reagentes ficam com o herói, mesmo perdendo.
 
 ### Inimigos
 
@@ -69,15 +69,23 @@ Os inimigos alternam entre **pressionar** (partem para cima e emendam uma sequê
 
 Cada sala tem um **perigo** de 0 a 1, que sobe com o andar e com a distância da entrada. Quanto maior, mais longas as sequências, mais esquivas e recuos e mais magias: alguns ataques só aparecem em salas perigosas (campo "Min Threat" no Inspector). O **chefe** fica mais rápido, ataca mais seguido e solta mais magias quanto menos vida tem.
 
-| inimigo | aparece | estilo |
+### Terra Firme: os bichos e o Mapinguari
+
+Cada habilidade vem do comportamento real do bicho ou da lenda.
+
+| inimigo | aparece | comportamento real → habilidade |
 | --- | --- | --- |
-| Esqueleto | andar 1+ | avança em arcos e arrancadas; golpe, estocada · salas perigosas: lança de osso |
-| Rato Gigante | andar 1+ | manobras curtas e nervosas, fintas; mordida e salto · salas perigosas: praga venenosa |
-| Esqueleto Arqueiro | andar 1+ | mantém distância; flecha e leque de 3 · salas perigosas: flecha gélida (lentidão) |
-| Aranha da Cripta | andar 2+ | picada **venenosa** e cuspe que deixa poça · salas perigosas: teia que prende |
-| Xamã de Ossos | andar 3+ | **raízes** que prendem, raio e nuvem tóxica · salas perigosas: chuva de ossos |
-| Esqueleto Bruto | andar 3+ | esmagar em área e investida longa · salas perigosas: tremor |
-| **Rei Ossudo** (chefe) | andar 5 | varredura e investida → abaixo de 85%: invoca esqueletos → abaixo de 75%: lanças em leque → abaixo de 60%: onda de ossos e espinhos → abaixo de 45%: **Juízo do Rei** (a sala inteira; só as luzes verdes são seguras) → abaixo de 30%: **enfurecido** |
+| **Queixada** | andar 1+ | anda em bando (2–3) → **Investida do Bando**: quando um investe, os outros por perto investem junto; dentada · salas perigosas: **Estouro da Manada** |
+| **Formiga-de-Fogo** | andar 1+ | pequena, em grupo (3–4), ferroada dolorida → **Ferroada** que **envenena** · salas perigosas: **Ataque do Formigueiro** (chama as outras) |
+| **Macaco-Prego** | andar 1+ | usa pedras como ferramenta e derruba castanhas → **Pedrada** de longe e **Ouriço de Castanha** caindo do alto |
+| **Aranha-Caranguejeira** | andar 2+ | picada, solta seda e os pelos que irritam a pele → **Teia** que **prende**, **Pelos Urticantes** (leque que deixa **lento**) · salas perigosas: **Armadilha de Teia** no chão |
+| **Jararaca** | andar 2+ | caça de tocaia → fica **parada e apagada** até você chegar perto e dá o **Bote** venenoso |
+| **Onça-Pintada** | andar 3+ | caçadora de emboscada, mordida mais forte dos felinos → **camuflada** (quase invisível de longe), **Bote** longo, **Mordida no Crânio** · salas perigosas: **Esturro** que dá **medo** |
+| **Mapinguari** (chefe) | andar 5 | cinco olhos, boca na barriga, fedor e grito que assusta caçadores → veja abaixo |
+
+**Mapinguari, por fases:** Garras, **Bocarra do Ventre** (se acertar, ele **recupera vida**) e **Investida Devastadora** → abaixo de 85%: **Olhar dos Cinco Olhos** (5 disparos em leque, um por olho) → abaixo de 75%: **Estouro de Queixadas** (o bando chega correndo) → abaixo de 70%: **Fedor do Mapinguari** (nuvens venenosas que ficam no chão) → abaixo de 60%: **Grito Estrondoso** (área grande em volta dele: quem estiver dentro fica **com medo**, sem andar nem atacar) e **Árvores Derrubadas** → abaixo de 45%: **Bafo do Mapinguari** (a sala inteira; só as zonas verdes são seguras; envenena) → abaixo de 30%: **enfurecido**.
+
+**Medo** (efeito novo): o herói não anda nem ataca por um instante. Aparece como "Com medo" na tela.
 
 | ação | PC | celular / mouse |
 | --- | --- | --- |
@@ -110,6 +118,8 @@ Para criar um item novo: no painel **FileSystem** do Godot, abra `game/data/item
 godot --headless --path . --script res://tests/run_tests.gd
 # fluxo base -> masmorra -> base:
 godot --headless --path . --script res://tests/flow_hub.gd
+# foto de todos os inimigos lado a lado (precisa de tela):
+godot --path . --script res://tests/shot_bestiary.gd -- shot=/caminho/foto.png
 # robô jogando uma run inteira (pega erros e dá noção de dificuldade):
 godot --headless --fixed-fps 60 --path . --script res://tests/sim_run.gd -- hero=icamiaba seed=123
 # só o chefe (pula para o 5º andar com as outras salas limpas):

@@ -1,0 +1,88 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/enemy_attack.gd" id="1_xe3ao"]
+[ext_resource type="Script" path="res://game/scripts/resources/enemy_data.gd" id="2_874ms"]
+
+[sub_resource type="Resource" id="Resource_xe3ao"]
+script = ExtResource("1_xe3ao")
+id = &"picada"
+display_name = "Picada Venenosa"
+range_max = 1.7
+cooldown = 1.4
+windup = 0.4
+recover = 0.4
+damage = 8
+color = Color(0.54509807, 0.8784314, 0.41960785, 1)
+effect = 1
+effect_duration = 3.0
+effect_power = 6
+
+[sub_resource type="Resource" id="Resource_874ms"]
+script = ExtResource("1_xe3ao")
+id = &"teia"
+display_name = "Teia"
+kind = 2
+weight = 8
+range_min = 2.5
+range_max = 10.0
+cooldown = 5.0
+recover = 0.4
+damage = 4
+speed = 11.0
+color = Color(0.9098039, 0.8784314, 0.8117647, 1)
+effect = 2
+effect_duration = 1.2
+
+[sub_resource type="Resource" id="Resource_ts0j1"]
+script = ExtResource("1_xe3ao")
+id = &"pelos"
+display_name = "Pelos Urticantes"
+kind = 3
+weight = 6
+range_min = 2.0
+range_max = 8.0
+cooldown = 6.0
+recover = 0.4
+damage = 5
+count = 5
+color = Color(0.84705883, 0.7647059, 0.6039216, 1)
+effect = 3
+effect_duration = 2.5
+effect_power = 40
+
+[sub_resource type="Resource" id="Resource_gfeje"]
+script = ExtResource("1_xe3ao")
+id = &"armadilha_teia"
+display_name = "Armadilha de Teia"
+kind = 4
+weight = 5
+range_min = 2.0
+range_max = 9.0
+cooldown = 8.0
+min_threat = 0.5
+windup = 0.9
+recover = 0.5
+damage = 2
+radius = 1.3
+count = 2
+linger = 5.0
+color = Color(0.9098039, 0.8784314, 0.8117647, 1)
+effect = 2
+effect_duration = 1.0
+
+[resource]
+script = ExtResource("2_874ms")
+id = &"aranha_caranguejeira"
+display_name = "Aranha-Caranguejeira"
+element = 3
+color = Color(0.22745098, 0.16470589, 0.13333334, 1)
+body_scale = 0.9
+max_health = 160
+damage = 8
+move_speed = 3.6
+movement = 2
+preferred_distance = 1.3
+quadruped = true
+eye_count = 6
+attacks = Array[ExtResource("1_xe3ao")]([SubResource("Resource_xe3ao"), SubResource("Resource_874ms"), SubResource("Resource_ts0j1"), SubResource("Resource_gfeje")])
+drop_table_id = &"mata_bichos"

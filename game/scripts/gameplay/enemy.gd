@@ -67,12 +67,16 @@ var _dodge_left := 0.0
 var _dodge_dir := Vector3.ZERO
 var _seen_shots := {}
 var _recent_damage := 0
+# Tocaia (cobra parada até o herói chegar perto) e camuflagem (onça quase invisível de longe).
+var _awake := true
+var _alpha := 1.0
 var _recent_timer := 0.0
 var _own_telegraphs: Array[Telegraph] = []
 
 var _player: Player
 var _body: Node3D
 var _material: StandardMaterial3D
+var _eye_material: StandardMaterial3D
 var _knockback := Vector3.ZERO
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 var _rng := RandomNumberGenerator.new()
@@ -116,6 +120,7 @@ func _ready() -> void:
 	_caution = _rng.randf_range(0.2, 0.8)
 	_dodge_cd = _rng.randf_range(0.5, 2.0)
 	_combo_left = _new_combo()
+	_awake = data.ambush_range <= 0.0
 
 
 func _physics_process(delta: float) -> void:
@@ -139,7 +144,12 @@ func _physics_process(delta: float) -> void:
 
 	match state:
 		State.MOVE:
-			if _dodge_left > 0.0:
+			if not _awake:
+				# De tocaia: parado, esperando o herói chegar perto.
+				_set_horizontal(Vector3.ZERO)
+				if player_alive and dist <= data.ambush_range:
+					_wake()
+			elif _dodge_left > 0.0:
 				# Esquiva: deslize rápido para o lado, sem decidir nada no meio.
 				_dodge_left -= delta
 				_set_horizontal(_dodge_dir * _move_speed() * 3.0)
@@ -181,6 +191,7 @@ func _physics_process(delta: float) -> void:
 				_maneuver_left = 0.0  # sai do ataque já com uma manobra nova
 				_after_attack()
 
+	_update_camouflage(delta, dist if player_alive else 99.0)
 	if state != State.CHARGING:
 		velocity += _knockback
 	_knockback = _knockback.move_toward(Vector3.ZERO, 30.0 * delta)
@@ -193,6 +204,8 @@ func take_hit(amount: int, crit: bool, from_direction: Vector3) -> void:
 	if health.untouchable:
 		Fx.damage_number(get_parent(), global_position + Vector3(0, 2.2 * data.body_scale, 0), 0, false, Color("8b5cf6"))
 		return
+	if not _awake:
+		_wake()
 	if _try_evade(from_direction):
 		return
 	health.take_damage(amount)
@@ -565,7 +578,14 @@ func _try_attack(dist: float) -> void:
 	_start(options[-1])
 
 
-func _start(a: EnemyAttack) -> void:
+## from_rally: entrou no ataque chamado por outro do bando (não chama mais ninguém).
+func _start(a: EnemyAttack, from_rally: bool = false) -> void:
+	if a.rally_radius > 0.0 and not from_rally:
+		for other in get_tree().get_nodes_in_group("enemies"):
+			if other == self or not (other is Enemy) or other.data.id != data.id:
+				continue
+			if other.state == State.MOVE and other._awake and other.global_position.distance_to(global_position) <= a.rally_radius:
+				other._join_rally(a)
 	_attack = a
 	_hunger = 0.0
 	state = State.WINDUP
@@ -583,9 +603,14 @@ func _start(a: EnemyAttack) -> void:
 	_aim_dir = _aim_dir.normalized() if _aim_dir.length() > 0.01 else Vector3.FORWARD
 
 	_glow(true)
+	if is_boss and a.effect == EnemyAttack.Effect.FEAR:
+		announced.emit(self, "%s: %s! Saia de perto!" % [data.display_name, a.display_name])
 	match a.kind:
 		EnemyAttack.Kind.MELEE:
-			_spawn_telegraph(Telegraph.for_attack(a, global_position, _aim_dir, damage_multiplier), haste)
+			var melee := Telegraph.for_attack(a, global_position, _aim_dir, damage_multiplier)
+			if a.heal_percent_max_health > 0.0:
+				melee.resolved.connect(_on_feeding_hit.bind(a))
+			_spawn_telegraph(melee, haste)
 		EnemyAttack.Kind.CHARGE:
 			var t := Telegraph.for_attack(a, global_position, _aim_dir, damage_multiplier)
 			t.visual_only = true
@@ -614,6 +639,54 @@ func _start(a: EnemyAttack) -> void:
 				_spawn_telegraph(Telegraph.for_attack(a, spot, Vector3.FORWARD, damage_multiplier), haste)
 		EnemyAttack.Kind.MEGA:
 			_start_mega(a)
+
+
+## Chamado por outro do bando: ataca junto, com um tiquinho de atraso para não sair igual.
+func _join_rally(a: EnemyAttack) -> void:
+	var mine: EnemyAttack = null
+	for own in _attacks:
+		if own.id == a.id:
+			mine = own
+	if mine == null:
+		return
+	var delay := _rng.randf_range(0.05, 0.35)
+	state = State.RECOVER
+	_attack = mine
+	_timer = delay + 1.0  # o temporizador abaixo é quem dispara
+	get_tree().create_timer(delay, false).timeout.connect(func() -> void:
+		if state == State.RECOVER and _attack == mine and is_instance_valid(_player):
+			_start(mine, true))
+
+
+## Mordida que alimenta: recupera vida quando acerta (boca na barriga do Mapinguari).
+func _on_feeding_hit(hit: bool, a: EnemyAttack) -> void:
+	if not hit or state == State.DEAD:
+		return
+	var amount := int(round(health.max_health * a.heal_percent_max_health))
+	health.heal(amount)
+	Fx.float_text(get_parent(), global_position + Vector3(0, 2.4 * data.body_scale, 0), "+%d" % amount, Color("6fdc7b"))
+
+
+func _wake() -> void:
+	_awake = true
+	_decision = _rng.randf_range(0.05, 0.25)
+
+
+## Onça: quase invisível de longe; aparece perto, ao atacar ou ao apanhar.
+## Cobra de tocaia: meio apagada até acordar.
+func _update_camouflage(delta: float, dist: float) -> void:
+	if not data.stalker and data.ambush_range <= 0.0:
+		return
+	var target := 1.0
+	if data.stalker and state == State.MOVE and dist > 4.5 and _recent_timer <= 0.0:
+		target = 0.15
+	elif not _awake:
+		target = 0.5
+	_alpha = move_toward(_alpha, target, delta * 2.5)
+	for mat: StandardMaterial3D in [_material, _eye_material]:
+		var c := mat.albedo_color
+		c.a = _alpha if mat == _material else maxf(_alpha, 0.6)
+		mat.albedo_color = c
 
 
 func _start_mega(a: EnemyAttack) -> void:
@@ -647,7 +720,7 @@ func _start_mega(a: EnemyAttack) -> void:
 		zones.append(p)
 	t.safe_zones = zones
 	_spawn_telegraph(t, 1.0)
-	announced.emit(self, "%s: %s! Corra para a luz verde!" % [data.display_name, a.display_name])
+	announced.emit(self, "%s: %s! Corra para a zona segura verde!" % [data.display_name, a.display_name])
 
 
 func _execute() -> void:
@@ -673,6 +746,7 @@ func _execute() -> void:
 				_fire(a, Vector3(sin(angle), 0, cos(angle)))
 		EnemyAttack.Kind.SUMMON:
 			summon_requested.emit(self, a.summon_id, a.count, global_position)
+			announced.emit(self, "%s: %s!" % [data.display_name, a.display_name])
 		EnemyAttack.Kind.MEGA:
 			health.untouchable = false
 	_enter_recover()
@@ -784,42 +858,89 @@ func _build_visuals() -> void:
 
 	_body = Node3D.new()
 	add_child(_body)
-	var mesh := MeshInstance3D.new()
-	var capsule := CapsuleMesh.new()
-	capsule.radius = 0.4 * s
-	capsule.height = 1.4 * s
-	mesh.mesh = capsule
-	mesh.position.y = 0.7 * s
 	_material = StandardMaterial3D.new()
 	_material.albedo_color = data.color
 	_material.roughness = 0.9
+	if data.stalker or data.ambush_range > 0.0:
+		_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	var mesh := MeshInstance3D.new()
+	var capsule := CapsuleMesh.new()
 	mesh.material_override = _material
 	_body.add_child(mesh)
 
-	var eyes := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(0.4, 0.12, 0.2) * s
-	eyes.mesh = box
-	eyes.position = Vector3(0, 1.05 * s, 0.35 * s)
-	var eye_mat := StandardMaterial3D.new()
-	eye_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	eye_mat.albedo_color = Color("ffe08a") if not is_boss else Color("ff4d4d")
-	eyes.material_override = eye_mat
-	_body.add_child(eyes)
+	# Onde ficam os olhos: na frente da cabeça (em pé) ou na ponta do corpo (deitado).
+	var eye_y := 1.05 * s
+	var eye_z := 0.36 * s
+	if data.quadruped:
+		capsule.radius = 0.32 * s
+		capsule.height = 1.5 * s
+		mesh.rotation_degrees.x = 90.0
+		mesh.position = Vector3(0, 0.35 * s, 0)
+		eye_y = 0.48 * s
+		eye_z = 0.72 * s
+	else:
+		capsule.radius = 0.4 * s
+		capsule.height = 1.4 * s
+		mesh.position.y = 0.7 * s
+	mesh.mesh = capsule
 
-	if is_boss:
-		# Coroa simples para o chefe ser reconhecível.
-		var crown := MeshInstance3D.new()
-		var c := CylinderMesh.new()
-		c.top_radius = 0.38 * s
-		c.bottom_radius = 0.3 * s
-		c.height = 0.25 * s
-		crown.mesh = c
-		crown.position = Vector3(0, 1.55 * s, 0)
-		var crown_mat := StandardMaterial3D.new()
-		crown_mat.albedo_color = Color("e8c26a")
-		crown_mat.emission_enabled = true
-		crown_mat.emission = Color("e8c26a")
-		crown_mat.emission_energy_multiplier = 0.5
-		crown.material_override = crown_mat
-		_body.add_child(crown)
+	_eye_material = StandardMaterial3D.new()
+	_eye_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_eye_material.albedo_color = Color("ffe08a") if not is_boss else Color("ff4d4d")
+	if data.stalker or data.ambush_range > 0.0:
+		_eye_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	var n := data.eye_count
+	for i in n:
+		var eye := MeshInstance3D.new()
+		var sphere := SphereMesh.new()
+		sphere.radius = 0.07 * s if n > 2 else 0.09 * s
+		sphere.height = sphere.radius * 2.0
+		eye.mesh = sphere
+		# Em arco na testa: o do meio mais alto.
+		var t := 0.0 if n == 1 else lerpf(-1.0, 1.0, float(i) / (n - 1))
+		var body_r := (0.32 if data.quadruped else 0.4) * s
+		var spread := minf(0.11 * s * (n - 1), body_r * 0.75) * 0.5
+		eye.position = Vector3(t * spread, eye_y + (1.0 - absf(t)) * 0.06 * s, eye_z - absf(t) * 0.05 * s)
+		eye.material_override = _eye_material
+		_body.add_child(eye)
+
+	if data.spotted:
+		# Rosetas da onça.
+		var spot_mat := StandardMaterial3D.new()
+		spot_mat.albedo_color = Color("2a1d12")
+		var spot_rng := RandomNumberGenerator.new()
+		spot_rng.seed = 77
+		for i in 14:
+			var sp := MeshInstance3D.new()
+			var sm := SphereMesh.new()
+			sm.radius = 0.07 * s
+			sm.height = 0.05 * s
+			sp.mesh = sm
+			var z := spot_rng.randf_range(-0.6, 0.5) * s
+			var ang := spot_rng.randf_range(-1.2, 1.2)
+			sp.position = Vector3(sin(ang) * 0.31 * s, 0.35 * s + cos(ang) * 0.31 * s, z)
+			sp.material_override = spot_mat
+			_body.add_child(sp)
+
+	if data.belly_mouth:
+		# Boca na barriga, com dentes.
+		var mouth := MeshInstance3D.new()
+		var mb := BoxMesh.new()
+		mb.size = Vector3(0.42, 0.22, 0.08) * s
+		mouth.mesh = mb
+		mouth.position = Vector3(0, 0.62 * s, 0.38 * s)
+		var mouth_mat := StandardMaterial3D.new()
+		mouth_mat.albedo_color = Color("5a0f12")
+		mouth.material_override = mouth_mat
+		_body.add_child(mouth)
+		var tooth_mat := StandardMaterial3D.new()
+		tooth_mat.albedo_color = Color("f2ecdc")
+		for i in 5:
+			for row in [1.0, -1.0]:
+				var tooth := MeshInstance3D.new()
+				var tb := BoxMesh.new()
+				tb.size = Vector3(0.05, 0.06, 0.05) * s
+				tooth.mesh = tb
+				tooth.position = Vector3(lerpf(-0.16, 0.16, i / 4.0) * s, (0.62 + row * 0.08) * s, 0.42 * s)
+				tooth.material_override = tooth_mat
+				_body.add_child(tooth)

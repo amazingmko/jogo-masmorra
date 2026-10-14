@@ -117,8 +117,8 @@ func _fill_portal() -> void:
 	if energy <= 0:
 		_use_energy = false
 
-	_modal_body.add_child(_label("Masmorra das Criptas", 24, GOLD))
-	_modal_body.add_child(_label("5 andares gerados aleatoriamente; no último, o chefe. A masmorra deixa só reagentes: todo equipamento é fabricado na oficina. XP e reagentes ficam com o herói, mesmo perdendo.", 17, TEXT, true))
+	_modal_body.add_child(_label("Terra Firme", 24, GOLD))
+	_modal_body.add_child(_label("Mata fechada com 5 áreas geradas aleatoriamente; na última, o Mapinguari. A masmorra deixa só reagentes: todo equipamento é fabricado na oficina. XP e reagentes ficam com o herói, mesmo perdendo.", 17, TEXT, true))
 	_modal_body.add_child(_label("Herói: %s, nível %d · nível de item médio %s" % [hero.display_name,
 		GameState.level_of(hero.id), _num(GameState.average_ilvl(hero.id))], 17, MUTED))
 

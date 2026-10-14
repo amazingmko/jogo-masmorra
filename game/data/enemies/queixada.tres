@@ -1,0 +1,70 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/enemy_attack.gd" id="1_dfyii"]
+[ext_resource type="Script" path="res://game/scripts/resources/enemy_data.gd" id="2_g6xt8"]
+
+[sub_resource type="Resource" id="Resource_dfyii"]
+script = ExtResource("1_dfyii")
+id = &"dentada"
+display_name = "Dentada"
+weight = 8
+range_max = 1.8
+cooldown = 1.6
+windup = 0.45
+recover = 0.5
+damage = 12
+radius = 1.7
+cone_half_angle = 55.0
+
+[sub_resource type="Resource" id="Resource_g6xt8"]
+script = ExtResource("1_dfyii")
+id = &"investida_bando"
+display_name = "Investida do Bando"
+kind = 1
+weight = 8
+range_min = 3.0
+range_max = 8.0
+cooldown = 6.0
+windup = 0.7
+damage = 26
+radius = 1.2
+length = 6.5
+speed = 15.0
+color = Color(1, 0.5411765, 0.23921569, 1)
+rally_radius = 7.0
+
+[sub_resource type="Resource" id="Resource_2ag7l"]
+script = ExtResource("1_dfyii")
+id = &"estouro"
+display_name = "Estouro da Manada"
+kind = 1
+weight = 5
+range_min = 4.0
+range_max = 11.0
+cooldown = 9.0
+min_threat = 0.5
+windup = 0.8
+recover = 0.8
+damage = 30
+radius = 1.3
+length = 9.0
+speed = 17.0
+color = Color(1, 0.5411765, 0.23921569, 1)
+rally_radius = 10.0
+
+[resource]
+script = ExtResource("2_g6xt8")
+id = &"queixada"
+display_name = "Queixada"
+color = Color(0.2901961, 0.2509804, 0.22745098, 1)
+body_scale = 0.85
+max_health = 170
+damage = 12
+move_speed = 3.0
+preferred_distance = 1.3
+group_min = 2
+group_max = 3
+quadruped = true
+eye_count = 2
+attacks = Array[ExtResource("1_dfyii")]([SubResource("Resource_dfyii"), SubResource("Resource_g6xt8"), SubResource("Resource_2ag7l")])
+drop_table_id = &"mata_comum"

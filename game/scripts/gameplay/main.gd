@@ -10,15 +10,16 @@ extends Node3D
 
 const FLOORS := 5
 const ROOMS_PER_FLOOR := [6, 7, 8, 8, 8]
-const BOSS_ID := &"rei_ossudo"
-## Inimigos que podem aparecer a partir de cada andar (peso = chance relativa).
+const BOSS_ID := &"mapinguari"
+## Terra Firme: bichos que podem aparecer a partir de cada andar (peso = chance relativa).
+## Queixadas e formigas nascem em grupo (EnemyData.group_min/max).
 const ENEMY_POOL := [
-	{"id": &"esqueleto", "from_floor": 1, "weight": 5},
-	{"id": &"rato_gigante", "from_floor": 1, "weight": 4},
-	{"id": &"esqueleto_arqueiro", "from_floor": 1, "weight": 3},
-	{"id": &"aranha_cripta", "from_floor": 2, "weight": 3},
-	{"id": &"xama_ossos", "from_floor": 3, "weight": 2},
-	{"id": &"esqueleto_bruto", "from_floor": 3, "weight": 2},
+	{"id": &"queixada", "from_floor": 1, "weight": 5},
+	{"id": &"formiga_fogo", "from_floor": 1, "weight": 4},
+	{"id": &"macaco_prego", "from_floor": 1, "weight": 3},
+	{"id": &"aranha_caranguejeira", "from_floor": 2, "weight": 3},
+	{"id": &"jararaca", "from_floor": 2, "weight": 2},
+	{"id": &"onca_pintada", "from_floor": 3, "weight": 2},
 ]
 ## Quanto o dano e a vida dos inimigos crescem por andar.
 const DAMAGE_PER_FLOOR := 0.10
@@ -154,12 +155,27 @@ func _on_room_entered(room: DungeonRoom) -> void:
 		var boss := _spawn(BOSS_ID, room)
 		if boss:
 			_hud.show_boss(boss)
-		_hud.show_toast("O Rei Ossudo acordou!", Color("e05555"))
+			_hud.show_toast("O %s acordou! Que fedor..." % boss.data.display_name, Color("e05555"))
 	else:
-		# 3–4 inimigos no 1º andar, até 5–6 no 5º: a dificuldade vem mais da variedade que do número.
-		var count := 3 + floor_number / 2 + _rng.randi_range(0, 1)
-		for i in count:
-			_spawn(_pick_enemy(), room)
+		# 3–4 "vagas" no 1º andar, até 5–6 no 5º. Um grupo ocupa vagas conforme a vida somada
+		# (4 formigas valem 1 vaga; 3 queixadas valem 3).
+		var budget := 3 + floor_number / 2 + _rng.randi_range(0, 1)
+		while budget > 0:
+			var data := ItemDB.get_enemy(_pick_enemy())
+			var size := _rng.randi_range(data.group_min, maxi(data.group_min, data.group_max))
+			var cost := 1 if size == 1 else maxi(int(round(size * data.max_health / 200.0)), 1)
+			if cost > budget and size > 1:
+				size = maxi(1, size - (cost - budget))
+				cost = mini(cost, budget)
+			var first := room.random_point(_rng, _player.global_position, 5.0)
+			for i in size:
+				var spot := first
+				if i > 0:
+					spot = first + Vector3(_rng.randf_range(-1.6, 1.6), 0, _rng.randf_range(-1.6, 1.6))
+					if not room.contains(spot):
+						spot = first
+				_spawn(data.id, room, spot)
+			budget -= cost
 
 
 func _pick_enemy() -> StringName:
@@ -226,7 +242,7 @@ func _on_summon_requested(enemy: Enemy, summon_id: StringName, count: int, at: V
 		if not room.contains(spot):
 			spot = room.random_point(_rng, _player.global_position, 3.0)
 		_spawn(summon_id, room, spot + Vector3(0, 0.1, 0), true)
-	_hud.show_toast("%s chamou reforços!" % enemy.data.display_name, Color("e05555"))
+	pass  # o próprio inimigo anuncia o ataque (signal announced)
 
 
 func _on_enemy_died(enemy: Enemy) -> void:
@@ -254,7 +270,7 @@ func _on_enemy_died(enemy: Enemy) -> void:
 		get_tree().create_timer(2.0).timeout.connect(func() -> void:
 			if run == _run_id and not _run_over:
 				_finish(true))
-		_hud.show_toast("O Rei Ossudo caiu! Recolha o loot.", Color("ffa53d"))
+		_hud.show_toast("O %s caiu! Recolha os reagentes." % ItemDB.get_enemy(BOSS_ID).display_name, Color("ffa53d"))
 	else:
 		_hud.show_toast("Sala limpa!", Color("6fdc7b"))
 

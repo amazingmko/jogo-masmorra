@@ -1,6 +1,7 @@
 class_name StatusEffects
 extends Node
-## Efeitos negativos no herói: veneno (dano por segundo), raízes (não anda) e lentidão.
+## Efeitos negativos no herói: veneno (dano por segundo), raízes (não anda), lentidão e medo
+## (não anda nem ataca).
 ## Fica como filho do herói e usa o componente Health dele.
 
 signal changed
@@ -9,11 +10,13 @@ const NAMES := {
 	EnemyAttack.Effect.POISON: "Envenenado",
 	EnemyAttack.Effect.ROOT: "Preso",
 	EnemyAttack.Effect.SLOW: "Lento",
+	EnemyAttack.Effect.FEAR: "Com medo",
 }
 const COLORS := {
 	EnemyAttack.Effect.POISON: Color("8be06b"),
 	EnemyAttack.Effect.ROOT: Color("b483e8"),
 	EnemyAttack.Effect.SLOW: Color("4db8ff"),
+	EnemyAttack.Effect.FEAR: Color("ffd34d"),
 }
 const POISON_TICK := 0.5
 
@@ -47,9 +50,17 @@ func is_rooted() -> bool:
 	return _effects.has(EnemyAttack.Effect.ROOT)
 
 
+func is_afraid() -> bool:
+	return _effects.has(EnemyAttack.Effect.FEAR)
+
+
+func can_attack() -> bool:
+	return not is_afraid()
+
+
 ## Multiplicador da velocidade de movimento (1 = normal).
 func move_factor() -> float:
-	if is_rooted():
+	if is_rooted() or is_afraid():
 		return 0.0
 	if _effects.has(EnemyAttack.Effect.SLOW):
 		return clampf(1.0 - _effects[EnemyAttack.Effect.SLOW].power / 100.0, 0.2, 1.0)
