@@ -21,6 +21,10 @@ extends Resource
 @export var move_speed: float = 5.0
 @export_range(0.0, 1.0) var crit_chance: float = 0.05
 
+@export_group("Visual")
+## Modelo 3D do herói (.glb). Vazio = cápsula provisória. Deve olhar para +Z, pés em y = 0, ~1,7 m.
+@export var model: PackedScene
+
 @export_group("Equipamento inicial")
 @export var starting_weapon_id: StringName
 

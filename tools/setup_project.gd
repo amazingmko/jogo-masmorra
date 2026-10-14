@@ -165,6 +165,10 @@ func _hero(id: String, name: String, desc: String, cls: int, element: int, prima
 	h.max_energy = energy
 	h.move_speed = speed
 	h.starting_weapon_id = StringName(weapon)
+	# Modelo 3D, quando já existe (arte gerada com IA, preparada em game/art/herois/).
+	var model_path := "res://game/art/herois/%s.glb" % id
+	if ResourceLoader.exists(model_path):
+		h.model = load(model_path)
 	_save(h, "res://game/data/heroes/%s.tres" % id)
 
 

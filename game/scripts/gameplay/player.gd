@@ -65,6 +65,12 @@ var _base_color := Color("e8c26a")
 var _material: StandardMaterial3D
 var _marker: MeshInstance3D
 var _roots: Node3D
+## Modelo 3D do herói (quando existe) e a animação simples enquanto não há esqueleto.
+var _model: Node3D
+var _model_meshes: Array[MeshInstance3D] = []
+var _flash_material: StandardMaterial3D
+var _anim_t := 0.0
+var _lunge := 0.0
 
 ## Veneno, raízes e lentidão (ver StatusEffects).
 var status := StatusEffects.new()
@@ -102,6 +108,7 @@ func set_hero(new_hero: HeroData) -> void:
 	form = Form.ONCA if is_shapeshifter() else Form.NONE
 	refresh_stats(true)
 	_base_color = CLASS_COLORS.get(new_hero.hero_class, Color.WHITE)
+	_apply_model(new_hero)
 	_apply_form_visual()
 	hero_changed.emit(new_hero)
 
@@ -218,6 +225,7 @@ func _physics_process(delta: float) -> void:
 	if controls_enabled:
 		var target_angle := atan2(_facing.x, _facing.z)
 		_body.rotation.y = lerp_angle(_body.rotation.y, target_angle, turn_speed * delta)
+	_animate_model(delta)
 	move_and_slide()
 
 
@@ -235,6 +243,7 @@ func _find_target() -> Node3D:
 
 
 func _attack() -> void:
+	_lunge = 1.0
 	if weapon_stats.is_ranged():
 		var projectile := Projectile.create(_facing, weapon_stats, hero.element, crit_chance, _rng)
 		get_parent().add_child(projectile)
@@ -262,6 +271,7 @@ func _melee_swing() -> void:
 
 func _on_damaged(amount: int) -> void:
 	Fx.flash(_material, _base_color, Color("ff4d4d"))
+	_flash_model()
 	Fx.damage_number(get_parent(), global_position + Vector3(0, 2.0, 0), amount, false, Color("ff6b6b"))
 
 
@@ -371,6 +381,8 @@ func _apply_form_stats() -> void:
 func _apply_form_visual() -> void:
 	if _mesh == null:
 		return
+	if _model:
+		return  # com modelo 3D, a cápsula fica escondida
 	_mesh.rotation_degrees = Vector3.ZERO
 	_mesh.scale = Vector3.ONE
 	if form == Form.NONE:
@@ -385,3 +397,57 @@ func _apply_form_visual() -> void:
 		Form.SUCURI:
 			_mesh.rotation_degrees.x = 88.0
 			_mesh.scale = Vector3(0.65, 1.6, 0.55)
+
+
+# ---------- modelo 3D ----------
+
+## Troca a cápsula pelo modelo do herói, se ele tiver um (HeroData.model).
+func _apply_model(new_hero: HeroData) -> void:
+	if _model:
+		_model.queue_free()
+		_model = null
+	_model_meshes.clear()
+	_mesh.visible = new_hero.model == null
+	if _body.has_node("Facing"):
+		_body.get_node("Facing").visible = new_hero.model == null
+	if new_hero.model == null:
+		return
+	_model = new_hero.model.instantiate()
+	_body.add_child(_model)
+	_collect_meshes(_model)
+	_flash_material = StandardMaterial3D.new()
+	_flash_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_flash_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_flash_material.albedo_color = Color(1, 0.25, 0.25, 0.55)
+
+
+func _collect_meshes(node: Node) -> void:
+	if node is MeshInstance3D:
+		_model_meshes.append(node)
+	for child in node.get_children():
+		_collect_meshes(child)
+
+
+## Enquanto não há animações: balança ao andar, inclina para a frente e dá um bote no ataque.
+func _animate_model(delta: float) -> void:
+	if _model == null or health.is_dead:
+		return
+	var moving := clampf(Vector2(velocity.x, velocity.z).length() / maxf(move_speed, 0.1), 0.0, 1.0)
+	_anim_t += delta * (6.0 + 6.0 * moving)
+	_lunge = move_toward(_lunge, 0.0, delta * 6.0)
+	var bob := absf(sin(_anim_t)) * 0.07 * moving
+	var breathe := sin(_anim_t * 0.35) * 0.012 * (1.0 - moving)
+	_model.position = Vector3(0, bob, _lunge * 0.25)
+	_model.rotation = Vector3(0.12 * moving + 0.2 * _lunge, 0, sin(_anim_t) * 0.06 * moving)
+	_model.scale = Vector3.ONE * (1.0 + breathe)
+
+
+func _flash_model() -> void:
+	if _model_meshes.is_empty():
+		return
+	for m in _model_meshes:
+		m.material_overlay = _flash_material
+	get_tree().create_timer(0.1).timeout.connect(func() -> void:
+		for m in _model_meshes:
+			if is_instance_valid(m):
+				m.material_overlay = null)

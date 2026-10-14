@@ -12,3 +12,13 @@ o Claude limpa cada modelo e coloca a versão final do jogo em `game/`.
 
 Nomes em minúsculas, sem acento e sem espaço (use `_`). O passo a passo completo está no
 documento "Guia de arte 3D com IA".
+
+## Já no jogo
+
+| personagem | modelo final | triângulos | textura |
+| --- | --- | --- | --- |
+| Icamiaba | `game/art/herois/icamiaba.glb` (gerado na Tripo em multivisões) | 8.000 | 1024 px |
+
+Como o Claude prepara: reduz os triângulos mantendo o mapeamento da textura (o rosto não deforma),
+reduz a textura para 1024 px, coloca 1,7 m de altura com os pés no chão. Na Tripo, **não usar a
+retopologia**: exportar o modelo original em GLB.

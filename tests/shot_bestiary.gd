@@ -6,12 +6,15 @@ extends SceneTree
 var _main: Node
 var _f := 0
 var _shot := ""
+var _hero := ""
 
 
 func _initialize() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("shot="):
 			_shot = arg.trim_prefix("shot=")
+		elif arg.begins_with("hero="):
+			_hero = arg.trim_prefix("hero=")
 
 
 func _process(_d: float) -> bool:
@@ -30,6 +33,8 @@ func _process(_d: float) -> bool:
 		var boss = _main._spawn(&"mapinguari", room, c + Vector3(0, 0.1, -0.8))
 		boss.process_mode = Node.PROCESS_MODE_DISABLED
 		var player = _main.get_node("Player")
+		if _hero != "":
+			player.set_hero(root.get_node("ItemDB").get_hero(StringName(_hero)))
 		player.global_position = c + Vector3(0, 0.1, 6.0)
 		player.process_mode = Node.PROCESS_MODE_DISABLED
 		_main.get_node("Camera").snap()
