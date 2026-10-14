@@ -12,8 +12,9 @@ const arm = root.listNodes().find(n => n.getName() === 'Armature');
 arm.setScale([HEIGHT, HEIGHT, HEIGHT]);
 const hips = root.listNodes().find(n => n.getName() === 'mixamorig:Hips');
 const rest = hips.getTranslation();
-const RENAME = { idle: 'idle', walk: 'walk', run: 'run', hit_to_body_01: 'dano', fall: 'morte', slash: 'ataque' };
-const TRIM = { ataque: [0.35, 1.55] };
+// O 'slash' e o 'chop' do Tripo são iguais (dois golpes seguidos): cada um vira um golpe do combo.
+const RENAME = { idle: 'idle', walk: 'walk', run: 'run', hit_to_body_01: 'dano', fall: 'morte', slash: 'ataque1', chop: 'ataque2' };
+const TRIM = { ataque1: [0.3, 1.6], ataque2: [1.6, 2.75] };
 for (const anim of root.listAnimations()) {
   const old = anim.getName();
   if (!(old in RENAME)) { anim.dispose(); continue; }

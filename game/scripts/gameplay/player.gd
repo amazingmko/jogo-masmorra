@@ -73,14 +73,8 @@ var _anim_t := 0.0
 var _lunge := 0.0
 var _moving := 0.0
 var _fill_light: OmniLight3D
-const MODEL_GLOW := 0.32
-## Animações do modelo (vindas do Tripo, já preparadas por tools/prep_anim.mjs).
-var _anim: AnimationPlayer
-var _action_left := 0.0  # tempo restante de uma animação de ação (ataque, dano)
-const ANIM_BLEND := 0.15
-const RUN_SPEED := 3.4   # m/s em que a corrida do modelo casa com o chão
-const WALK_SPEED := 0.95
-const LOOPED := ["idle", "walk", "run"]
+## Animações do modelo em camadas (pernas, tronco, morte). Null se o modelo não tiver animações.
+var _animator: HeroAnimator
 
 ## Veneno, raízes e lentidão (ver StatusEffects).
 var status := StatusEffects.new()
@@ -168,10 +162,8 @@ func revive(at: Vector3) -> void:
 	health.reset()
 	status.clear()
 	controls_enabled = true
-	_action_left = 0.0
-	if _anim:
-		_anim.play("idle", 0.0)
-		_anim.speed_scale = 1.0
+	if _animator:
+		_animator.revive()
 
 
 ## Chamado por avisos no chão e disparos inimigos.
@@ -259,7 +251,8 @@ func _find_target() -> Node3D:
 
 func _attack() -> void:
 	_lunge = 1.0
-	_play_action("ataque", clampf(weapon_stats.cooldown() * 0.9, 0.35, 0.75))
+	if _animator:
+		_animator.attack(clampf(weapon_stats.cooldown() * 0.95, 0.4, 0.9), _ground_speed() > 0.15)
 	if weapon_stats.is_ranged():
 		var projectile := Projectile.create(_facing, weapon_stats, hero.element, crit_chance, _rng)
 		get_parent().add_child(projectile)
@@ -288,8 +281,8 @@ func _melee_swing() -> void:
 func _on_damaged(amount: int) -> void:
 	Fx.flash(_material, _base_color, Color("ff4d4d"))
 	_flash_model()
-	if _action_left <= 0.0 and not health.is_dead:
-		_play_action("dano", 0.45)  # não interrompe um golpe
+	if _animator and not health.is_dead:
+		_animator.hurt()
 	Fx.damage_number(get_parent(), global_position + Vector3(0, 2.0, 0), amount, false, Color("ff6b6b"))
 
 
@@ -297,9 +290,8 @@ func _on_died() -> void:
 	controls_enabled = false
 	_target = null
 	_update_marker()
-	if _anim and _anim.has_animation("morte"):
-		_action_left = 0.0
-		_play("morte", 1.3, 0.1)  # cai e fica no último quadro
+	if _animator:
+		_animator.die()  # cai e fica no chão
 	else:
 		var tween := create_tween()
 		tween.tween_property(_body, "rotation:x", deg_to_rad(-90), 0.3)
@@ -428,8 +420,9 @@ func _apply_model(new_hero: HeroData) -> void:
 	if _model:
 		_model.queue_free()
 		_model = null
-	_anim = null
-	_action_left = 0.0
+	if _animator:
+		_animator.queue_free()
+		_animator = null
 	_model_meshes.clear()
 	_mesh.visible = new_hero.model == null
 	if _body.has_node("Facing"):
@@ -450,34 +443,16 @@ func _apply_model(new_hero: HeroData) -> void:
 		_fill_light.shadow_enabled = false
 		add_child(_fill_light)
 	_collect_meshes(_model)
-	_brighten_model()
-	_setup_anim()
+	var animator := HeroAnimator.new()
+	add_child(animator)
+	if animator.setup(_model):
+		_animator = animator
+	else:
+		animator.queue_free()
 	_flash_material = StandardMaterial3D.new()
 	_flash_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_flash_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_flash_material.albedo_color = Color(1, 0.25, 0.25, 0.55)
-
-
-## Brilho próprio fraco com a própria textura: as cores pintadas aparecem de qualquer ângulo,
-## inclusive de costas para o sol (estilo dos jogos de celular).
-func _brighten_model() -> void:
-	for mi in _model_meshes:
-		var mesh := mi.mesh
-		if mesh == null:
-			continue
-		for i in mesh.get_surface_count():
-			var src := mi.get_active_material(i) as BaseMaterial3D
-			if src == null:
-				continue
-			var mat := src.duplicate() as BaseMaterial3D
-			mat.emission_enabled = true
-			mat.emission = Color.WHITE
-			mat.emission_texture = src.albedo_texture
-			mat.emission_energy_multiplier = MODEL_GLOW
-			mat.emission_operator = BaseMaterial3D.EMISSION_OP_ADD
-			mat.roughness = maxf(src.roughness, 0.85)
-			mat.metallic = 0.0
-			mi.set_surface_override_material(i, mat)
 
 
 func _collect_meshes(node: Node) -> void:
@@ -487,60 +462,15 @@ func _collect_meshes(node: Node) -> void:
 		_collect_meshes(child)
 
 
-func _setup_anim() -> void:
-	var found := _model.find_children("*", "AnimationPlayer", true, false)
-	if found.is_empty():
-		return
-	_anim = found[0]
-	for anim_name in LOOPED:
-		if _anim.has_animation(anim_name):
-			_anim.get_animation(anim_name).loop_mode = Animation.LOOP_LINEAR
-	_play("idle")
-
-
-## Toca uma animação (se o modelo tiver) com transição suave.
-func _play(anim_name: String, speed := 1.0, blend := ANIM_BLEND) -> void:
-	if _anim == null or not _anim.has_animation(anim_name):
-		return
-	if _anim.current_animation == anim_name and _action_left <= 0.0:
-		_anim.speed_scale = speed
-		return
-	_anim.play(anim_name, blend)
-	_anim.speed_scale = speed
-
-
-## Animação de ação por cima da locomoção (ataque, dano). duration: quanto deve durar na tela.
-func _play_action(anim_name: String, duration: float) -> void:
-	if _anim == null or not _anim.has_animation(anim_name):
-		return
-	var length := _anim.get_animation(anim_name).length
-	_anim.play(anim_name, 0.08)
-	_anim.seek(0.0, true)
-	_anim.speed_scale = length / maxf(duration, 0.1)
-	_action_left = duration
+func _ground_speed() -> float:
+	return Vector2(velocity.x, velocity.z).length()
 
 
 func _process(delta: float) -> void:
-	if _anim:
-		_update_anim(delta)
+	if _animator:
+		_animator.update(delta, _ground_speed(), move_speed)
 	else:
 		_animate_model(delta)
-
-
-## Parada, caminhada ou corrida conforme a velocidade; a corrida acelera junto com o herói.
-func _update_anim(delta: float) -> void:
-	if health.is_dead:
-		return
-	if _action_left > 0.0:
-		_action_left -= delta
-		return
-	var speed := Vector2(velocity.x, velocity.z).length()
-	if speed > move_speed * 0.45:
-		_play("run", clampf(speed / RUN_SPEED, 0.7, 1.8))
-	elif speed > 0.15:
-		_play("walk", clampf(speed / WALK_SPEED, 0.8, 2.0))
-	else:
-		_play("idle")
 
 
 ## Enquanto não há animações: balança ao andar, inclina para a frente e dá um bote no ataque.
