@@ -58,6 +58,8 @@ func _setup_input_map() -> void:
 		ProjectSettings.set_setting("input/" + action, {"deadzone": 0.2, "events": events})
 	# No PC, o mouse faz as vezes do dedo (para testar o joystick de toque).
 	ProjectSettings.set_setting("input_devices/pointing/emulate_touch_from_mouse", true)
+	# Movimento suave em telas de 90/120/144 Hz (a física roda a 60 por segundo).
+	ProjectSettings.set_setting("physics/common/physics_interpolation", true)
 	var layer_names := ["mundo", "jogador", "inimigos", "coletaveis"]
 	for i in layer_names.size():
 		ProjectSettings.set_setting("layer_names/3d_physics/layer_%d" % (i + 1), layer_names[i])

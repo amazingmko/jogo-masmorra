@@ -11,6 +11,8 @@ var _target: Node3D
 
 
 func _ready() -> void:
+	# A câmera anda no ritmo da tela; o alvo, no da física (suavizado). Ela lê a posição suavizada.
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	_target = get_node_or_null(target_path)
 	if _target:
 		global_position = _target.global_position + offset
@@ -20,11 +22,12 @@ func _ready() -> void:
 ## Pula direto para o alvo (ao trocar de andar), sem deslizar pela masmorra.
 func snap() -> void:
 	if _target:
+		_target.reset_physics_interpolation()
 		global_position = _target.global_position + offset
 
 
 func _process(delta: float) -> void:
 	if _target == null:
 		return
-	var desired := _target.global_position + offset
+	var desired := _target.get_global_transform_interpolated().origin + offset
 	global_position = global_position.lerp(desired, clampf(follow_speed * delta, 0.0, 1.0))

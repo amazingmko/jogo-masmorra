@@ -64,6 +64,8 @@ var _stats := {}
 
 
 func _ready() -> void:
+	# Suavização da física só no herói e nos inimigos (o resto é estático ou rápido demais para notar).
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	add_to_group("loot_listeners")
 	_hud.bind_player(_player)
 	_hud.restart_requested.connect(_back_to_hub)
@@ -132,6 +134,7 @@ func _next_floor() -> void:
 	var start := builder.rooms[layout.start_index]
 	_player.global_position = start.center() + Vector3(0, 0.1, 0)
 	_player.velocity = Vector3.ZERO
+	_player.reset_physics_interpolation()
 	_camera.snap()
 	_hud.minimap.show_layout(layout)
 	_hud.set_wave("Andar %d/%d · %s%s" % [floor_number, FLOORS, Difficulty.name_of(difficulty),
@@ -337,6 +340,7 @@ func _spawn(enemy_id: StringName, room: DungeonRoom, at: Vector3 = Vector3.INF, 
 	room.alive += 1
 	add_child(enemy)
 	enemy.global_position = at if at != Vector3.INF else room.random_point(_rng, _player.global_position, 5.0)
+	enemy.reset_physics_interpolation()
 	enemy.died.connect(_on_enemy_died)
 	enemy.summon_requested.connect(_on_summon_requested)
 	enemy.announced.connect(func(_e: Enemy, text: String) -> void: _hud.show_toast(text, Color("ffa53d")))

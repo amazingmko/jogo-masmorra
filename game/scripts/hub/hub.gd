@@ -13,8 +13,10 @@ const DUNGEON_SCENE := "res://game/scenes/main.tscn"
 
 func _ready() -> void:
 	get_tree().paused = false
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	_player.combat_enabled = false
 	_player.global_position = Vector3(0, 0.1, -1)
+	_player.reset_physics_interpolation()
 	# Câmera um pouco mais alta que na masmorra, para ver a praça inteira.
 	_camera.offset = Vector3(0, 15.0, 10.5)
 	_camera.snap()

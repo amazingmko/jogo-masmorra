@@ -36,6 +36,8 @@ func _process(_d: float) -> bool:
 		if _hero != "":
 			player.set_hero(root.get_node("ItemDB").get_hero(StringName(_hero)))
 		player.global_position = c + Vector3(0, 0.1, 6.0)
+		if "costas" in OS.get_cmdline_user_args():
+			player.get_node("Body").rotation.y = PI  # de costas para a câmera
 		player.process_mode = Node.PROCESS_MODE_DISABLED
 		_main.get_node("Camera").snap()
 	if _f == 20:
