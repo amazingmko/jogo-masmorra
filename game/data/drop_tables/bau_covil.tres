@@ -1,0 +1,59 @@
+[gd_resource type="Resource" script_class="DropTable" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/drop_entry.gd" id="1_8xh1q"]
+[ext_resource type="Script" path="res://game/scripts/resources/drop_table.gd" id="2_g07qp"]
+
+[sub_resource type="Resource" id="Resource_dbnya"]
+script = ExtResource("1_8xh1q")
+item_id = &"minerio_ferro"
+weight = 18
+min_qty = 3
+max_qty = 5
+
+[sub_resource type="Resource" id="Resource_tclsa"]
+script = ExtResource("1_8xh1q")
+item_id = &"madeira_lei"
+weight = 18
+min_qty = 3
+max_qty = 5
+
+[sub_resource type="Resource" id="Resource_3m36a"]
+script = ExtResource("1_8xh1q")
+item_id = &"couro_jacare"
+weight = 18
+min_qty = 3
+max_qty = 5
+
+[sub_resource type="Resource" id="Resource_clex0"]
+script = ExtResource("1_8xh1q")
+item_id = &"fibra_tucum"
+weight = 18
+min_qty = 3
+max_qty = 5
+
+[sub_resource type="Resource" id="Resource_bd17f"]
+script = ExtResource("1_8xh1q")
+item_id = &"latex_seringueira"
+weight = 14
+min_qty = 2
+max_qty = 4
+
+[sub_resource type="Resource" id="Resource_beqea"]
+script = ExtResource("1_8xh1q")
+item_id = &"pena_arara"
+weight = 14
+min_qty = 2
+max_qty = 3
+
+[sub_resource type="Resource" id="Resource_0m08l"]
+script = ExtResource("1_8xh1q")
+item_id = &"semente_guarana"
+weight = 6
+max_qty = 2
+
+[resource]
+script = ExtResource("2_g07qp")
+id = &"bau_covil"
+rolls = 6
+entries = Array[ExtResource("1_8xh1q")]([SubResource("Resource_dbnya"), SubResource("Resource_tclsa"), SubResource("Resource_3m36a"), SubResource("Resource_clex0"), SubResource("Resource_bd17f"), SubResource("Resource_beqea"), SubResource("Resource_0m08l")])
+extra_tables = Array[StringName]([&"trofeus_chefe"])

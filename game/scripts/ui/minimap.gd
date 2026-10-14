@@ -13,6 +13,8 @@ const TYPE_COLORS := {
 	DungeonLayout.RoomType.BOSS: Color("e05555"),
 }
 
+const DEN_COLOR := Color("ff3b3b")
+
 var _layout: DungeonLayout
 var _visited := {}
 var _current := -1
@@ -61,9 +63,11 @@ func _draw() -> void:
 	for i in known:
 		var pos := mid + Vector2(_layout.rooms[i].cell - origin) * step
 		var rect := Rect2(pos - Vector2.ONE * CELL_PX * 0.5, Vector2.ONE * CELL_PX)
+		var den: bool = _layout.rooms[i].get("den", false)
 		if _visited.has(i):
-			draw_rect(rect, TYPE_COLORS.get(_layout.rooms[i].type, Color.WHITE))
+			draw_rect(rect, DEN_COLOR if den else TYPE_COLORS.get(_layout.rooms[i].type, Color.WHITE))
 		else:
-			draw_rect(rect, Color(1, 1, 1, 0.5), false, 2.0)
+			# O covil aparece em vermelho mesmo antes de entrar: é escolha do jogador encarar.
+			draw_rect(rect, DEN_COLOR if den else Color(1, 1, 1, 0.5), false, 3.0 if den else 2.0)
 		if i == _current:
 			draw_rect(rect.grow(3.0), Color.WHITE, false, 2.0)

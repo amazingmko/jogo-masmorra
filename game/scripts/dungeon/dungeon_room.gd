@@ -28,6 +28,8 @@ var pillars: Array[Vector3] = []
 var _door_dirs: Array[Vector2i] = []
 var _barriers: Array[StaticBody3D] = []
 var _materials: Dictionary
+## Covil Furioso: sala rara, só com furiosos, com um baú grande no fim.
+var is_den := false
 
 
 ## dirs: direções (da grade) que têm porta. materials: cores compartilhadas do DungeonBuilder.
@@ -39,6 +41,7 @@ func setup(room_index: int, info: Dictionary, dirs: Array[Vector2i], mats: Dicti
 	_door_dirs = dirs
 	_materials = mats
 	name = "Sala%d" % room_index
+	is_den = bool(info.get("den", false))
 	cleared = type != DungeonLayout.RoomType.COMBAT and type != DungeonLayout.RoomType.BOSS
 	if type == DungeonLayout.RoomType.COMBAT or type == DungeonLayout.RoomType.BOSS:
 		for spot in PILLAR_SPOTS:
@@ -48,6 +51,8 @@ func setup(room_index: int, info: Dictionary, dirs: Array[Vector2i], mats: Dicti
 
 func _ready() -> void:
 	var floor_mat: StandardMaterial3D = _materials.floor_boss if type == DungeonLayout.RoomType.BOSS else _materials.floor
+	if is_den:
+		floor_mat = _materials.floor_den
 	DungeonBuilder.box(self, Vector3(SIZE + WALL_T * 2.0, 0.5, SIZE + WALL_T * 2.0), Vector3(0, -0.25, 0), floor_mat)
 	for dir in DungeonLayout.DIRS:
 		_build_side(dir)

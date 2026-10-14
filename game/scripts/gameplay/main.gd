@@ -34,11 +34,18 @@ const ELITE_DAMAGE := 1.5
 const ELITE_XP := 3
 ## Segundos entre o fim de uma onda e a chegada da próxima (com aviso no chão).
 const WAVE_DELAY := 1.4
+## Covil Furioso: chance por andar (+ por andar e por dificuldade) e quantas ondas, todas de furiosos.
+const DEN_CHANCE := 0.03
+const DEN_CHANCE_PER_FLOOR := 0.01
+const DEN_CHANCE_PER_DIFFICULTY := 0.02
+const DEN_WAVES := 2
 
 var run_seed := 0
 ## Dificuldade da run (GameState.run_difficulty, escolhida no portal) e se a energia foi gasta.
 var difficulty := 0
 var full_rewards := true
+## Só para testes: garante um Covil Furioso em cada andar.
+var force_den := false
 var floor_number := 0
 var layout: DungeonLayout
 var builder: DungeonBuilder
@@ -112,6 +119,7 @@ func _next_floor() -> void:
 	_clear_floor()
 	layout = DungeonLayout.new()
 	layout.generate(_rng, ROOMS_PER_FLOOR[floor_number - 1], floor_number == FLOORS)
+	_maybe_place_den()
 	builder = DungeonBuilder.new()
 	builder.build(layout, _dungeon, _rng)
 	for room in builder.rooms:
@@ -157,7 +165,14 @@ func _on_room_entered(room: DungeonRoom) -> void:
 	if room.cleared or _alive > 0 or room.wave_pending:
 		return
 	room.close_doors()
-	if room.type == DungeonLayout.RoomType.BOSS:
+	if room.is_den:
+		# Covil Furioso: tudo furioso, duas ondas, baú grande no fim.
+		room.wave_number = 1
+		room.waves_left = DEN_WAVES - 1
+		room.wave_total = DEN_WAVES
+		_hud.show_toast("COVIL FURIOSO! Só furiosos aqui. Vença e leve o baú grande.", Color("ff3b3b"))
+		_spawn_wave(room, 3 + floor_number / 2, [])
+	elif room.type == DungeonLayout.RoomType.BOSS:
 		var boss := _spawn(BOSS_ID, room)
 		if boss:
 			_hud.show_boss(boss)
@@ -169,6 +184,47 @@ func _on_room_entered(room: DungeonRoom) -> void:
 		room.waves_left = _roll_extra_waves()
 		room.wave_total = 1 + room.waves_left
 		_spawn_wave(room, 3 + floor_number / 2 + _rng.randi_range(0, 1), [])
+
+
+## Talvez transforme uma sala de combate fora do caminho principal num Covil Furioso.
+## Devolve o índice da sala (ou -1). Prefere becos sem saída, para ser uma escolha do jogador.
+func _maybe_place_den() -> int:
+	var chance := DEN_CHANCE + DEN_CHANCE_PER_FLOOR * floor_number + DEN_CHANCE_PER_DIFFICULTY * difficulty
+	if force_den or _rng.randf() < chance:
+		var main_path := layout.path(layout.start_index, layout.goal_index)
+		var options: Array[int] = []
+		var dead_ends: Array[int] = []
+		for i in layout.room_count():
+			if layout.rooms[i].type != DungeonLayout.RoomType.COMBAT or main_path.has(i):
+				continue
+			options.append(i)
+			if layout.rooms[i].links.size() == 1:
+				dead_ends.append(i)
+		var pool := dead_ends if not dead_ends.is_empty() else options
+		if pool.is_empty():
+			return -1
+		var pick: int = pool[_rng.randi_range(0, pool.size() - 1)]
+		layout.rooms[pick]["den"] = true
+		var run := _run_id
+		get_tree().create_timer(1.5, false).timeout.connect(func() -> void:
+			if run == _run_id:
+				_hud.show_toast("Há um Covil Furioso neste andar (vermelho no mapa). Arrisca?", Color("ff3b3b")))
+		return pick
+	return -1
+
+
+## Baú grande do covil: aparece no meio da sala quando o último furioso cai.
+func _spawn_den_chest(room: DungeonRoom) -> void:
+	var chest := RoomProp.create(RoomProp.Kind.CHEST)
+	chest.set_meta("table", "bau_covil")
+	chest.scale = Vector3.ONE * 1.5
+	_dungeon.add_child(chest)
+	chest.global_position = room.center()
+	chest.activated.connect(_on_prop_activated)
+	builder.props[room.index] = chest
+	_give_xp(XP_ROOM_CLEAR * 5)
+	_hud.show_toast("Covil vencido! Abra o baú grande.", Color("e8c26a"))
+	_stats.dens = int(_stats.get("dens", 0)) + 1
 
 
 ## Quantas ondas extras a sala vai ter (0 = só a primeira).
@@ -189,6 +245,8 @@ func _elite_chance(wave: int) -> float:
 ## (4 formigas valem 1 vaga; 3 queixadas valem 3). spots: pontos já avisados no chão.
 func _spawn_wave(room: DungeonRoom, budget: int, spots: Array) -> void:
 	var elite_left := 1 if _rng.randf() < _elite_chance(room.wave_number) else 0
+	if room.is_den:
+		elite_left = 999
 	if difficulty == 3 and room.wave_number > 1 and _rng.randf() < 0.3:
 		elite_left += 1
 	var spot_i := 0
@@ -207,7 +265,7 @@ func _spawn_wave(room: DungeonRoom, budget: int, spots: Array) -> void:
 				spot = first + Vector3(_rng.randf_range(-1.6, 1.6), 0, _rng.randf_range(-1.6, 1.6))
 				if not room.contains(spot):
 					spot = first
-			var elite := elite_left > 0 and i == 0
+			var elite := elite_left > 0 and (i == 0 or room.is_den)
 			if elite:
 				elite_left -= 1
 			_spawn(data.id, room, spot, false, elite)
@@ -338,6 +396,9 @@ func _on_enemy_died(enemy: Enemy) -> void:
 		_start_next_wave(room)
 		return
 	room.cleared = true
+	if room.is_den:
+		# Fora do sinal de física em que o último inimigo morreu (Godot não deixa criar áreas ali).
+		_spawn_den_chest.call_deferred(room)
 	room.open_doors()
 	_give_xp(XP_ROOM_CLEAR)
 	if room.type == DungeonLayout.RoomType.BOSS:
@@ -354,7 +415,7 @@ func _on_enemy_died(enemy: Enemy) -> void:
 func _on_prop_activated(prop: RoomProp) -> void:
 	match prop.kind:
 		RoomProp.Kind.CHEST:
-			var table := ItemDB.get_drop_table(&"bau")
+			var table := ItemDB.get_drop_table(StringName(prop.get_meta("table", "bau")))
 			for drop in LootRoller.roll(table, ItemDB.catalog, _rng, _loot_context("chest")):
 				var pickup := LootPickup.create(drop.item, drop.qty, drop.instance)
 				add_child(pickup)

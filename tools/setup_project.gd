@@ -323,6 +323,16 @@ func _make_drop_tables() -> void:
 		_entry("latex_seringueira", 10, 2, 3),
 		_entry("pena_arara", 10, 2, 3),
 	], [&"trofeus_chefe"])
+	# Baú grande do Covil Furioso: perto do que o chefe deixa, com Pelo de Mapinguari garantido.
+	_table("bau_covil", 6, 0, [
+		_entry("minerio_ferro", 18, 3, 5),
+		_entry("madeira_lei", 18, 3, 5),
+		_entry("couro_jacare", 18, 3, 5),
+		_entry("fibra_tucum", 18, 3, 5),
+		_entry("latex_seringueira", 14, 2, 4),
+		_entry("pena_arara", 14, 2, 3),
+		_entry("semente_guarana", 6, 1, 2),
+	], [&"trofeus_chefe"])
 	# Troféus: sempre sorteados junto com o chefe. A Muiraquitã só no Mítico.
 	var muiraquita := _entry("muiraquita", 10, 1, 1)
 	muiraquita.min_difficulty = 3

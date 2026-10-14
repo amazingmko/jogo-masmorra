@@ -89,6 +89,14 @@ Ao matar todos os bichos de uma sala, **podem chegar mais ondas** (de 1 a 4), av
 
 **Furioso (elite):** maior, avermelhado, com um anel vermelho e o nome em cima. Tem 2,5× a vida, 1,5× o dano, é mais rápido e agressivo, e deixa o dobro de reagentes e o triplo de XP. Os números ficam no começo de `game/scripts/gameplay/main.gd`.
 
+### Covil Furioso (sala rara)
+
+Às vezes um andar tem um **Covil Furioso**: uma sala fora do caminho principal (de preferência um beco sem saída), marcada em **vermelho** no minimapa e com o chão avermelhado. Um aviso aparece quando o andar começa. Entrar é escolha sua; lá dentro as portas fecham.
+
+- **Tudo furioso**, em 2 ondas.
+- Vencendo: um **baú grande** no meio da sala (reagentes de chefe + **Pelo de Mapinguari**; no Mítico, chance de Muiraquitã) e 5× a XP de uma sala.
+- Chance por andar: 4% no 1º andar até 8% no 5º, +2% por dificuldade (cerca de 1 run em 4 no Normal tem um).
+
 ### Inimigos
 
 Todo ataque inimigo mostra um **aviso no chão** antes de acontecer (o preenchimento cresce até o impacto): saia da área para desviar. Cada inimigo tem vários ataques, editáveis em `game/data/enemies/` (lista "Ataques" no Inspector).
@@ -151,6 +159,8 @@ godot --headless --path . --script res://tests/run_tests.gd
 godot --headless --path . --script res://tests/flow_hub.gd
 # foto de todos os inimigos lado a lado (precisa de tela):
 godot --path . --script res://tests/shot_bestiary.gd -- shot=/caminho/foto.png
+# robô indo a um Covil Furioso em todo andar:
+godot --headless --fixed-fps 60 --path . --script res://tests/sim_run.gd -- hero=mateira seed=44 den
 # robô jogando uma run inteira (pega erros e dá noção de dificuldade):
 godot --headless --fixed-fps 60 --path . --script res://tests/sim_run.gd -- hero=icamiaba seed=123
 # só o chefe (pula para o 5º andar com as outras salas limpas):

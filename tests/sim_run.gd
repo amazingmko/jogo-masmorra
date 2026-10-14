@@ -60,7 +60,11 @@ func _process(_delta: float) -> bool:
 	var hud = _main.get_node("HUD")
 	if _frames == 2:
 		player.set_hero(root.get_node("ItemDB").get_hero(_hero))
-		if _seed > 0:
+		if "den" in OS.get_cmdline_user_args():
+			# Covil Furioso em todo andar, e o robô vai até ele primeiro.
+			_main.force_den = true
+			_main.new_run(_seed if _seed > 0 else 1)
+		elif _seed > 0:
 			_main.new_run(_seed)
 		if _start_floor > 1:
 			_main.debug_jump_to_floor(_start_floor)
@@ -143,6 +147,7 @@ func _process(_delta: float) -> bool:
 					_main.builder.props.keys().filter(func(k): return _main.builder.props[k].kind == 0 and not _main.builder.props[k].used))
 				for r in _main.builder.rooms:
 					print("      sala %d tipo %d limpa %s vivos %d centro %s" % [r.index, r.type, r.cleared, r.alive, r.center()])
+		print("  covis vencidos: %d" % int(_main._stats.get("dens", 0)))
 		print("  furiosos derrotados: %d · reagentes: %s" % [int(_main._stats.get("elites", 0)), _main._stats.loot])
 		Input.action_release("attack")
 		quit(0 if _main._run_over else 1)
@@ -215,6 +220,10 @@ func _choose_target(player: Node3D) -> Vector3:
 	if layout == null or cur == null:
 		return Vector3.INF
 	var goal_index: int = layout.goal_index
+	if _main.force_den:
+		for r in builder.rooms:
+			if r.is_den and not r.cleared:
+				goal_index = r.index
 	for idx in builder.props:
 		var prop = builder.props[idx]
 		if prop.kind == 0 and not prop.used:  # baú
