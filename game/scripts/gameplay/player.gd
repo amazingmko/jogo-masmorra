@@ -71,6 +71,9 @@ var _model_meshes: Array[MeshInstance3D] = []
 var _flash_material: StandardMaterial3D
 var _anim_t := 0.0
 var _lunge := 0.0
+var _moving := 0.0
+var _fill_light: OmniLight3D
+const MODEL_GLOW := 0.32
 
 ## Veneno, raízes e lentidão (ver StatusEffects).
 var status := StatusEffects.new()
@@ -82,6 +85,7 @@ var status := StatusEffects.new()
 
 func _ready() -> void:
 	add_to_group("player")
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_ON
 	collision_layer = Layers.PLAYER
 	collision_mask = Layers.WORLD
 	_rng.randomize()
@@ -151,6 +155,7 @@ func _on_progress_changed(changed_hero: StringName) -> void:
 
 func revive(at: Vector3) -> void:
 	global_position = at
+	reset_physics_interpolation()
 	velocity = Vector3.ZERO
 	_body.rotation = Vector3.ZERO
 	health.reset()
@@ -225,7 +230,6 @@ func _physics_process(delta: float) -> void:
 	if controls_enabled:
 		var target_angle := atan2(_facing.x, _facing.z)
 		_body.rotation.y = lerp_angle(_body.rotation.y, target_angle, turn_speed * delta)
-	_animate_model(delta)
 	move_and_slide()
 
 
@@ -413,12 +417,46 @@ func _apply_model(new_hero: HeroData) -> void:
 	if new_hero.model == null:
 		return
 	_model = new_hero.model.instantiate()
+	# O balanço é feito no ritmo da tela (_process), fora da suavização da física.
+	_model.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	_body.add_child(_model)
+	if _fill_light == null:
+		# Luz suave do lado da câmera: o herói fica visível mesmo de costas para o sol.
+		_fill_light = OmniLight3D.new()
+		_fill_light.position = Vector3(0, 2.4, 2.0)
+		_fill_light.omni_range = 4.5
+		_fill_light.light_energy = 0.9
+		_fill_light.light_color = Color("fff1dc")
+		_fill_light.shadow_enabled = false
+		add_child(_fill_light)
 	_collect_meshes(_model)
+	_brighten_model()
 	_flash_material = StandardMaterial3D.new()
 	_flash_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_flash_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_flash_material.albedo_color = Color(1, 0.25, 0.25, 0.55)
+
+
+## Brilho próprio fraco com a própria textura: as cores pintadas aparecem de qualquer ângulo,
+## inclusive de costas para o sol (estilo dos jogos de celular).
+func _brighten_model() -> void:
+	for mi in _model_meshes:
+		var mesh := mi.mesh
+		if mesh == null:
+			continue
+		for i in mesh.get_surface_count():
+			var src := mi.get_active_material(i) as BaseMaterial3D
+			if src == null:
+				continue
+			var mat := src.duplicate() as BaseMaterial3D
+			mat.emission_enabled = true
+			mat.emission = Color.WHITE
+			mat.emission_texture = src.albedo_texture
+			mat.emission_energy_multiplier = MODEL_GLOW
+			mat.emission_operator = BaseMaterial3D.EMISSION_OP_ADD
+			mat.roughness = maxf(src.roughness, 0.85)
+			mat.metallic = 0.0
+			mi.set_surface_override_material(i, mat)
 
 
 func _collect_meshes(node: Node) -> void:
@@ -428,18 +466,25 @@ func _collect_meshes(node: Node) -> void:
 		_collect_meshes(child)
 
 
+func _process(delta: float) -> void:
+	_animate_model(delta)
+
+
 ## Enquanto não há animações: balança ao andar, inclina para a frente e dá um bote no ataque.
+## Tudo suave (sem cantos), para não parecer tremido.
 func _animate_model(delta: float) -> void:
 	if _model == null or health.is_dead:
 		return
-	var moving := clampf(Vector2(velocity.x, velocity.z).length() / maxf(move_speed, 0.1), 0.0, 1.0)
-	_anim_t += delta * (6.0 + 6.0 * moving)
-	_lunge = move_toward(_lunge, 0.0, delta * 6.0)
-	var bob := absf(sin(_anim_t)) * 0.07 * moving
-	var breathe := sin(_anim_t * 0.35) * 0.012 * (1.0 - moving)
-	_model.position = Vector3(0, bob, _lunge * 0.25)
-	_model.rotation = Vector3(0.12 * moving + 0.2 * _lunge, 0, sin(_anim_t) * 0.06 * moving)
-	_model.scale = Vector3.ONE * (1.0 + breathe)
+	var target := clampf(Vector2(velocity.x, velocity.z).length() / maxf(move_speed, 0.1), 0.0, 1.0)
+	_moving = lerpf(_moving, target, clampf(delta * 8.0, 0.0, 1.0))
+	_anim_t += delta * (2.0 + 7.0 * _moving)
+	_lunge = move_toward(_lunge, 0.0, delta * 5.0)
+	var step := (1.0 - cos(_anim_t * 2.0)) * 0.5  # 0..1, sobe e desce suave a cada passo
+	var bob := step * 0.035 * _moving
+	var breathe := sin(_anim_t * 0.5) * 0.01 * (1.0 - _moving)
+	_model.position = Vector3(0, bob, _lunge * 0.2)
+	_model.rotation = Vector3(0.08 * _moving + 0.18 * _lunge, 0, sin(_anim_t) * 0.025 * _moving)
+	_model.scale = Vector3(1.0, 1.0 + breathe, 1.0)
 
 
 func _flash_model() -> void:

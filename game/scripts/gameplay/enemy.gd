@@ -106,6 +106,7 @@ static func create(enemy_data: EnemyData, hp_multiplier: float = 1.0, dmg_multip
 
 func _ready() -> void:
 	add_to_group("enemies")
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_ON
 	collision_layer = Layers.ENEMIES
 	collision_mask = Layers.WORLD | Layers.ENEMIES
 	_rng.randomize()
