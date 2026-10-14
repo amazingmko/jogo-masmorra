@@ -1,6 +1,7 @@
 class_name ItemFactory
 extends RefCounted
-## Cria peças de equipamento únicas a partir de um molde (ItemData), com raridade e nível de item.
+## Cria peças de equipamento únicas a partir de um molde (ItemData), com raridade e atributos.
+## "ilvl" é uma faixa interna (por mundo), que o jogador não vê: a força visível vem da raridade.
 ## Uma peça é um dicionário salvo no inventário:
 ##   {"uid", "item_id", "ilvl", "rarity", "stats": {"strength": 12, "vigor": 8, "armor": 30, ...}}
 
@@ -64,7 +65,12 @@ static func roll_rarity(profile: String, rng: RandomNumberGenerator) -> int:
 static func display_name(instance: Dictionary, catalog: ItemCatalog) -> String:
 	var template := catalog.get_item(StringName(instance.get("item_id", "")))
 	var name := template.display_name if template else String(instance.get("item_id", "?"))
-	return "%s (nv %d)" % [name, int(instance.get("ilvl", 1))]
+	return name
+
+
+## Pontos de Poder de uma peça (pela raridade).
+static func gear_power(instance: Dictionary) -> int:
+	return GameEnums.RARITY_GEAR_POWER[clampi(int(instance.get("rarity", 0)), 0, 3)]
 
 
 ## Lista curta de atributos: "+12 Força · +8 Vigor · 30 Armadura".

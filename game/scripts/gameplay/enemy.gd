@@ -19,6 +19,8 @@ enum Tactic { PRESS, BACK_OFF }
 enum Maneuver { RUSH, FLANK, DASH, FEINT, SIDESTEP, CIRCLE, RETREAT }
 
 const ENRAGE_AT := 0.3
+## Dano extra no ponto fraco exposto (barriga do Mapinguari).
+const WEAK_SPOT_MULT := 2.0
 
 var data: EnemyData
 var health: Health
@@ -34,6 +36,8 @@ var home_room: Node3D
 ## Inimigos invocados não deixam loot nem XP.
 var is_summon := false
 var enraged := false
+## Furioso (elite): definido pela run antes de entrar na cena (vida e dano já multiplicados lá).
+var elite := false
 ## Perigo da sala (0 a 1), definido pela run antes de entrar na cena.
 var threat := 0.0
 var tactic: Tactic = Tactic.PRESS
@@ -70,6 +74,11 @@ var _recent_damage := 0
 # Tocaia (cobra parada até o herói chegar perto) e camuflagem (onça quase invisível de longe).
 var _awake := true
 var _alpha := 1.0
+## Cor base do corpo (o furioso é avermelhado).
+var _tint := Color.WHITE
+## Couro do Mapinguari: depois da Bocarra, a barriga fica exposta por alguns segundos.
+var _exposed_left := 0.0
+var _mouth_material: StandardMaterial3D
 var _recent_timer := 0.0
 var _own_telegraphs: Array[Telegraph] = []
 
@@ -97,7 +106,10 @@ func _ready() -> void:
 	collision_layer = Layers.ENEMIES
 	collision_mask = Layers.WORLD | Layers.ENEMIES
 	_rng.randomize()
+	_tint = data.color.lerp(Color("e0303a"), 0.35) if elite else data.color
 	_build_visuals()
+	if elite:
+		_add_elite_marks()
 	health = Health.new()
 	health.max_health = maxi(int(round(data.max_health * health_multiplier)), 1)
 	add_child(health)
@@ -131,6 +143,10 @@ func _physics_process(delta: float) -> void:
 	for a in _cooldowns:
 		_cooldowns[a] -= delta * haste
 	_dodge_cd -= delta
+	if _exposed_left > 0.0:
+		_exposed_left -= delta
+		if _exposed_left <= 0.0 and _mouth_material:
+			_mouth_material.emission_enabled = false
 	_recent_timer -= delta
 	if _recent_timer <= 0.0:
 		_recent_damage = 0
@@ -208,12 +224,20 @@ func take_hit(amount: int, crit: bool, from_direction: Vector3) -> void:
 		_wake()
 	if _try_evade(from_direction):
 		return
+	# Couro grosso (Mapinguari): toma menos dano, e o dobro com a barriga exposta.
+	var number_color := Color.WHITE
+	if _exposed_left > 0.0:
+		amount = int(round(amount * WEAK_SPOT_MULT))
+		number_color = Color("ff8a3d")
+	elif data.hide_damage_mult < 1.0:
+		amount = maxi(int(round(amount * data.hide_damage_mult)), 1)
+		number_color = Color("b9b2a3")
 	health.take_damage(amount)
 	_recent_damage += amount
 	_recent_timer = 1.2
 	_react_to_pain()
-	Fx.damage_number(get_parent(), global_position + Vector3(0, 1.7 * data.body_scale, 0), amount, crit)
-	Fx.flash(_material, data.color)
+	Fx.damage_number(get_parent(), global_position + Vector3(0, 1.7 * data.body_scale, 0), amount, crit, number_color)
+	Fx.flash(_material, _tint)
 	var push := from_direction
 	push.y = 0.0
 	if push.length() > 0.01 and state != State.CHARGING and not is_boss:
@@ -385,7 +409,8 @@ func _haste() -> float:
 
 
 func _move_speed() -> float:
-	return data.move_speed * _speed_jitter * (1.25 if enraged else 1.0) * (1.0 + 0.08 * threat + 0.45 * _rage())
+	return data.move_speed * _speed_jitter * (1.25 if enraged else 1.0) * (1.15 if elite else 1.0) \
+		* (1.0 + 0.08 * threat + 0.45 * _rage())
 
 
 ## Quantos ataques emenda antes de pensar em recuar.
@@ -726,6 +751,11 @@ func _start_mega(a: EnemyAttack) -> void:
 func _execute() -> void:
 	var a := _attack
 	_glow(false)
+	if a.exposes_weak_spot > 0.0:
+		_exposed_left = a.exposes_weak_spot
+		if _mouth_material:
+			_mouth_material.emission_enabled = true
+		Fx.float_text(get_parent(), global_position + Vector3(0, 2.6 * data.body_scale, 0), "BARRIGA EXPOSTA!", Color("ff8a3d"))
 	match a.kind:
 		EnemyAttack.Kind.CHARGE:
 			state = State.CHARGING
@@ -792,7 +822,8 @@ func _fallback_attack() -> EnemyAttack:
 func _on_health_changed(hp: int, max_hp: int, _a: int, _b: int) -> void:
 	if is_boss and not enraged and hp > 0 and float(hp) / max_hp <= ENRAGE_AT:
 		enraged = true
-		_material.albedo_color = data.color.lerp(Color("e05555"), 0.45)
+		_tint = data.color.lerp(Color("e05555"), 0.45)
+		_material.albedo_color = _tint
 		announced.emit(self, "%s está enfurecido!" % data.display_name)
 
 
@@ -817,11 +848,13 @@ func _drop_loot() -> void:
 	var table := ItemDB.get_drop_table(data.drop_table_id)
 	if table == null:
 		return
-	for drop in LootRoller.roll(table, ItemDB.catalog, _rng, loot_context):
-		var pickup := LootPickup.create(drop.item, drop.qty, drop.instance)
-		get_parent().add_child(pickup)
-		var offset := Vector3(_rng.randf_range(-0.8, 0.8), 0.0, _rng.randf_range(-0.8, 0.8))
-		pickup.global_position = global_position + offset + Vector3(0, 0.4, 0)
+	# Furioso deixa o dobro (sorteia a tabela duas vezes).
+	for i in (2 if elite else 1):
+		for drop in LootRoller.roll(table, ItemDB.catalog, _rng, loot_context):
+			var pickup := LootPickup.create(drop.item, drop.qty, drop.instance)
+			get_parent().add_child(pickup)
+			var offset := Vector3(_rng.randf_range(-0.8, 0.8), 0.0, _rng.randf_range(-0.8, 0.8))
+			pickup.global_position = global_position + offset + Vector3(0, 0.4, 0)
 
 
 # ---------- auxiliares ----------
@@ -859,7 +892,7 @@ func _build_visuals() -> void:
 	_body = Node3D.new()
 	add_child(_body)
 	_material = StandardMaterial3D.new()
-	_material.albedo_color = data.color
+	_material.albedo_color = _tint
 	_material.roughness = 0.9
 	if data.stalker or data.ambush_range > 0.0:
 		_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -929,9 +962,11 @@ func _build_visuals() -> void:
 		mb.size = Vector3(0.42, 0.22, 0.08) * s
 		mouth.mesh = mb
 		mouth.position = Vector3(0, 0.62 * s, 0.38 * s)
-		var mouth_mat := StandardMaterial3D.new()
-		mouth_mat.albedo_color = Color("5a0f12")
-		mouth.material_override = mouth_mat
+		_mouth_material = StandardMaterial3D.new()
+		_mouth_material.albedo_color = Color("5a0f12")
+		_mouth_material.emission = Color("ff6a2a")
+		_mouth_material.emission_energy_multiplier = 1.6
+		mouth.material_override = _mouth_material
 		_body.add_child(mouth)
 		var tooth_mat := StandardMaterial3D.new()
 		tooth_mat.albedo_color = Color("f2ecdc")
@@ -944,3 +979,30 @@ func _build_visuals() -> void:
 				tooth.position = Vector3(lerpf(-0.16, 0.16, i / 4.0) * s, (0.62 + row * 0.08) * s, 0.42 * s)
 				tooth.material_override = tooth_mat
 				_body.add_child(tooth)
+
+
+## Marcas do furioso: corpo maior, anel vermelho no chão e o nome em cima.
+func _add_elite_marks() -> void:
+	var s := data.body_scale
+	_body.scale = Vector3.ONE * 1.2
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.55 * s
+	torus.outer_radius = 0.7 * s
+	ring.mesh = torus
+	ring.position.y = 0.05
+	var ring_mat := StandardMaterial3D.new()
+	ring_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring_mat.albedo_color = Color("ff3b3b")
+	ring.material_override = ring_mat
+	add_child(ring)
+	var label := Label3D.new()
+	label.text = "Furioso"
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.font_size = 60
+	label.outline_size = 14
+	label.modulate = Color("ff6b6b")
+	label.pixel_size = 0.006
+	label.position.y = 2.0 * s + 0.3
+	add_child(label)

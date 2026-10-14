@@ -33,12 +33,14 @@ Nada de equipamento cai nas masmorras: **tudo é fabricado**. Cada profissão so
 
 Cada peça tem uma **cadeia de raridade**: a Rara pede a peça Comum, a Épica pede a Rara, a Lendária pede a Épica.
 
-| raridade | chance base | nível de profissão | nível de item | reagentes extras |
-| --- | --- | --- | --- | --- |
-| Comum | 90% | 1 | 5 | — |
-| Raro | 65% | 5 | 10 | 3× a Comum + Pena de Arara |
-| Épico | 40% | 20 | 16 | 6× + Pena + **Pelo de Mapinguari** (chefe) |
-| Lendário | 15% | 40 | 24 | 10× + Pena + Pelo + **Muiraquitã** (chefe no Mítico) |
+| raridade | chance base | nível de profissão | Poder da peça | atributos | reagentes extras |
+| --- | --- | --- | --- | --- | --- |
+| Comum | 90% | 1 | 10 | ×1 | — |
+| Raro | 65% | 5 | 20 | ×1,6 | 3× a Comum + Pena de Arara |
+| Épico | 40% | 20 | 35 | ×2,4 | 6× + Pena + **Pelo de Mapinguari** (chefe) |
+| Lendário | 15% | 40 | 55 | ×3,5 | 10× + Pena + Pelo + **Muiraquitã** (chefe no Mítico) |
+
+Os itens **não têm nível**: a força vem da raridade. O **Poder** do herói é a soma das 6 peças vestidas (um conjunto Comum = 60) e aparece na base, no baú e no portal.
 
 - A chance sobe +1% (Comum/Raro) ou +0,5% (Épico/Lendário) por nível de profissão acima do exigido, e **+10% por falha seguida** na mesma receita (zera ao acertar). Teto: 95%.
 - **Na falha:** perde metade dos reagentes, a peça-base volta e a profissão ganha 30% da XP.
@@ -49,17 +51,31 @@ Cada peça tem uma **cadeia de raridade**: a Rara pede a peça Comum, a Épica p
 | dificuldade | inimigos (vida / dano) | XP | reagentes | para liberar |
 | --- | --- | --- | --- | --- |
 | Normal | ×1 / ×1 | ×1 | ×1 | — |
-| Difícil | ×1,8 / ×1,5 | ×2 | ×1,5 | vencer o Normal + nível de item médio 8 |
-| Heroico | ×3,2 / ×2,2 | ×4 | ×2 | vencer o Difícil + nível de item médio 12 |
-| Mítico | ×5,6 / ×3,2 | ×8 | ×3 + Muiraquitã | vencer o Heroico + nível de item médio 16 |
+| Difícil | ×1,8 / ×1,5 | ×2 | ×1,5 | vencer o Normal + Poder 80 (conjunto Comum + 2 Raras) |
+| Heroico | ×3,2 / ×2,2 | ×4 | ×2 | vencer o Difícil + Poder 140 (4 Raras + 2 Épicas) |
+| Mítico | ×5,6 / ×3,2 | ×8 | ×3 + Muiraquitã | vencer o Heroico + Poder 200 (quase tudo Épico) |
 
-Em dificuldades maiores os inimigos também ficam mais agressivos. O nível de item médio é a média das 6 peças vestidas (slot vazio conta 0).
+Em dificuldades maiores os inimigos também ficam mais agressivos, com mais ondas e mais furiosos.
+
+**Mundos:** o 2º mundo (Igapó) ainda não existe, mas o portal já mostra o requisito: vencer a Terra Firme no Normal e ter Poder 90. A ideia é que a Terra Firme seja onde se fabrica o conjunto Comum, que é o que permite vencê-la, e que ninguém chegue ao mundo 2 sem equipamento para avançar lá.
 
 **Energia:** até 5, recarrega 1 por hora. Jogar é sempre liberado; gastar 1 energia faz a run render a recompensa completa. Sem energia, a run rende 35% dos reagentes e nenhum troféu do chefe (XP não muda). Os números ficam em `game/scripts/systems/difficulty.gd` e `crafting.gd`.
 
 ### A run
 
 A **Terra Firme**: 5 andares de mata fechada gerados aleatoriamente. Nas salas de combate as portas fecham até o último inimigo cair. Baús (amarelo no minimapa) dão reagentes, a fonte (verde) cura, o portal azul leva ao próximo andar depois de escolher 1 entre 3 bênçãos. No 5º andar, o Mapinguari, que deixa muitos reagentes e o Pelo de Mapinguari. XP e reagentes ficam com o herói, mesmo perdendo.
+
+### Ondas e furiosos
+
+Ao matar todos os bichos de uma sala, **podem chegar mais ondas** (de 1 a 4), avisadas por círculos laranja no chão onde vão aparecer. As portas só abrem quando a última onda cai.
+
+| | 1º andar, Normal | 5º andar, Normal | Mítico |
+| --- | --- | --- | --- |
+| chance de ter ondas extras | 35% | 67% | até 95% |
+| quantas | 1–2 | 1–4 | 1–4 |
+| chance de furioso por onda | 6% (+6% por onda) | 26% (+6% por onda) | bem maior, às vezes 2 |
+
+**Furioso (elite):** maior, avermelhado, com um anel vermelho e o nome em cima. Tem 2,5× a vida, 1,5× o dano, é mais rápido e agressivo, e deixa o dobro de reagentes e o triplo de XP. Os números ficam no começo de `game/scripts/gameplay/main.gd`.
 
 ### Inimigos
 
@@ -83,7 +99,9 @@ Cada habilidade vem do comportamento real do bicho ou da lenda.
 | **Onça-Pintada** | andar 3+ | caçadora de emboscada, mordida mais forte dos felinos → **camuflada** (quase invisível de longe), **Bote** longo, **Mordida no Crânio** · salas perigosas: **Esturro** que dá **medo** |
 | **Mapinguari** (chefe) | andar 5 | cinco olhos, boca na barriga, fedor e grito que assusta caçadores → veja abaixo |
 
-**Mapinguari, por fases:** Garras, **Bocarra do Ventre** (se acertar, ele **recupera vida**) e **Investida Devastadora** → abaixo de 85%: **Olhar dos Cinco Olhos** (5 disparos em leque, um por olho) → abaixo de 75%: **Estouro de Queixadas** (o bando chega correndo) → abaixo de 70%: **Fedor do Mapinguari** (nuvens venenosas que ficam no chão) → abaixo de 60%: **Grito Estrondoso** (área grande em volta dele: quem estiver dentro fica **com medo**, sem andar nem atacar) e **Árvores Derrubadas** → abaixo de 45%: **Bafo do Mapinguari** (a sala inteira; só as zonas verdes são seguras; envenena) → abaixo de 30%: **enfurecido**.
+**Couro que bala não fura:** o Mapinguari toma **metade do dano** (números em cinza). Depois da **Bocarra do Ventre**, a barriga brilha e fica **exposta por 3 segundos**: aí ele toma o **dobro** (números em laranja). Desviar da Bocarra e contra-atacar na hora é o jeito de vencê-lo.
+
+**Mapinguari, por fases:** Garras, **Bocarra do Ventre** (se acertar, ele **recupera vida**; acertando ou não, expõe a barriga) e **Investida Devastadora** → abaixo de 85%: **Olhar dos Cinco Olhos** (5 disparos em leque, um por olho) → abaixo de 75%: **Estouro de Queixadas** (o bando chega correndo) → abaixo de 70%: **Fedor do Mapinguari** (nuvens venenosas que ficam no chão) → abaixo de 60%: **Grito Estrondoso** (área grande em volta dele: quem estiver dentro fica **com medo**, sem andar nem atacar) e **Árvores Derrubadas** → abaixo de 45%: **Bafo do Mapinguari** (a sala inteira; só as zonas verdes são seguras; envenena) → abaixo de 30%: **enfurecido**.
 
 **Medo** (efeito novo): o herói não anda nem ataca por um instante. Aparece como "Com medo" na tela.
 

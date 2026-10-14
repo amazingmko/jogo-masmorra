@@ -467,11 +467,12 @@ func _make_enemies() -> void:
 	], false, {"quadruped": true, "eye_count": 2, "stalker": true, "spotted": true})
 
 	# Mapinguari: gigante peludo de cinco olhos na testa e boca na barriga; fedor e grito que assusta caçadores.
-	_enemy("mapinguari", "Mapinguari", E.NATURE, Color("5a3a2a"), 2.3, 5000, 2.7, M.STRAFE, 3.0, "chefe_mapinguari", 60, [
+	_enemy("mapinguari", "Mapinguari", E.NATURE, Color("5a3a2a"), 2.3, 3600, 2.7, M.STRAFE, 3.0, "chefe_mapinguari", 60, [
 		_atk("garras", "Garras", K.MELEE, 0, 3.8, 0.7, 2.5, 30, RED,
 			{"radius": 3.8, "cone_half_angle": 70.0, "recover": 0.6, "weight": 10}),
-		_atk("bocarra", "Bocarra do Ventre", K.MELEE, 0, 3.0, 0.9, 7.0, 40, Color("c0392b"),
-			{"radius": 3.0, "cone_half_angle": 45.0, "recover": 0.8, "weight": 7, "heal_percent_max_health": 0.03}),
+		_atk("bocarra", "Bocarra do Ventre", K.MELEE, 0, 3.0, 0.9, 6.0, 40, Color("c0392b"),
+			{"radius": 3.0, "cone_half_angle": 45.0, "recover": 0.8, "weight": 8, "heal_percent_max_health": 0.03,
+			"exposes_weak_spot": 3.0}),
 		_atk("investida_mapinguari", "Investida Devastadora", K.CHARGE, 3.0, 12.0, 0.8, 6.0, 35, ORANGE,
 			{"length": 10.0, "radius": 2.2, "speed": 16.0, "recover": 0.9, "weight": 8}),
 		_atk("cinco_olhos", "Olhar dos Cinco Olhos", K.FAN, 3.0, 16.0, 0.7, 5.0, 16, Color("ffb347"),
@@ -488,7 +489,7 @@ func _make_enemies() -> void:
 		_atk("bafo", "Bafo do Mapinguari", K.MEGA, 0, 40.0, 3.5, 22.0, 40, Color("c9b23a"),
 			{"radius": 10.5, "count": 2, "damage_percent_of_target": 0.6, "below_health": 0.45, "recover": 1.2, "weight": 30,
 			"effect": F.POISON, "effect_duration": 4.0, "effect_power": 12}),
-	], true, {"eye_count": 5, "belly_mouth": true})
+	], true, {"eye_count": 5, "belly_mouth": true, "hide_damage_mult": 0.5})
 
 
 # ---------- cenas ----------

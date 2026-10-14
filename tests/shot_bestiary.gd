@@ -1,5 +1,5 @@
 extends SceneTree
-## Foto do bestiário: todos os inimigos lado a lado na primeira sala, parados.
+## Foto do bestiário: todos os inimigos lado a lado na primeira sala, parados (a queixada, furiosa).
 ##   godot --path . --script res://tests/shot_bestiary.gd -- shot=/caminho/foto.png
 ## (Precisa de tela/xvfb, sem --headless.)
 
@@ -24,7 +24,8 @@ func _process(_d: float) -> bool:
 		var c: Vector3 = room.center()
 		var ids := [&"queixada", &"formiga_fogo", &"macaco_prego", &"aranha_caranguejeira", &"jararaca", &"onca_pintada"]
 		for i in ids.size():
-			var e = _main._spawn(ids[i], room, c + Vector3(-6.0 + i * 2.4, 0.1, 3.0))
+			# O primeiro aparece furioso, para mostrar o visual de elite.
+			var e = _main._spawn(ids[i], room, c + Vector3(-6.0 + i * 2.4, 0.1, 3.0), false, i == 0)
 			e.process_mode = Node.PROCESS_MODE_DISABLED
 		var boss = _main._spawn(&"mapinguari", room, c + Vector3(0, 0.1, -0.8))
 		boss.process_mode = Node.PROCESS_MODE_DISABLED

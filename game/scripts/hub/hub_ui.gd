@@ -119,8 +119,12 @@ func _fill_portal() -> void:
 
 	_modal_body.add_child(_label("Terra Firme", 24, GOLD))
 	_modal_body.add_child(_label("Mata fechada com 5 áreas geradas aleatoriamente; na última, o Mapinguari. A masmorra deixa só reagentes: todo equipamento é fabricado na oficina. XP e reagentes ficam com o herói, mesmo perdendo.", 17, TEXT, true))
-	_modal_body.add_child(_label("Herói: %s, nível %d · nível de item médio %s" % [hero.display_name,
-		GameState.level_of(hero.id), _num(GameState.average_ilvl(hero.id))], 17, MUTED))
+	_modal_body.add_child(_label("Herói: %s, nível %d · Poder %d" % [hero.display_name,
+		GameState.level_of(hero.id), GameState.power_of(hero.id)], 17, MUTED))
+	var world_lock := GameState.world_lock(1, hero.id)
+	_modal_body.add_child(_label("Mundo 2 — %s (em breve). %s" % [Difficulty.WORLDS[1].name,
+		"Requisitos cumpridos!" if world_lock == "" else world_lock + "."],
+		15, OK_COLOR if world_lock == "" else MUTED, true))
 
 	_modal_body.add_child(_label("Dificuldade", 20, GOLD))
 	var row := HBoxContainer.new()
@@ -140,8 +144,8 @@ func _fill_portal() -> void:
 			_refresh_open_panel())
 		row.add_child(b)
 	var lines := PackedStringArray()
-	lines.append("Inimigos: vida ×%s · dano ×%s · mais agressivos" % [_num(Difficulty.HEALTH_MULT[_difficulty]),
-		_num(Difficulty.DAMAGE_MULT[_difficulty])])
+	lines.append("Inimigos: vida ×%s · dano ×%s · mais agressivos, mais ondas e mais furiosos" % [
+		_num(Difficulty.HEALTH_MULT[_difficulty]), _num(Difficulty.DAMAGE_MULT[_difficulty])])
 	lines.append("Recompensa: XP ×%s · reagentes ×%s%s" % [_num(Difficulty.XP_MULT[_difficulty]),
 		_num(Difficulty.REWARD_MULT[_difficulty]), " · chance de Muiraquitã no chefe" if _difficulty == 3 else ""])
 	_modal_body.add_child(_label("\n".join(lines), 17, TEXT, true))
@@ -321,7 +325,7 @@ func _recipe_card(recipe: RecipeData) -> Control:
 	var chance := Crafting.success_chance(recipe, GameState.professions, streak)
 	var head := recipe.display_name
 	if item.is_equipment():
-		head = "[%s] %s · nível de item %d" % [GameEnums.rarity_name(r), item.display_name, Crafting.CRAFTED_ILVL[r]]
+		head = "[%s] %s · Poder %d" % [GameEnums.rarity_name(r), item.display_name, GameEnums.RARITY_GEAR_POWER[r]]
 	col.add_child(_label(head, 18, color, true))
 	var info := "Chance de sucesso %d%%" % int(round(chance * 100))
 	if streak > 0:
@@ -372,8 +376,8 @@ func _do_craft(recipe_id: StringName) -> void:
 		var name := recipe.display_name
 		var worn := false
 		if item.is_equipment():
-			name = "%s %s (nível de item %d)" % [item.display_name, GameEnums.rarity_name(int(recipe.result_rarity)),
-				Crafting.CRAFTED_ILVL[int(recipe.result_rarity)]]
+			name = "%s %s (Poder %d)" % [item.display_name, GameEnums.rarity_name(int(recipe.result_rarity)),
+				GameEnums.RARITY_GEAR_POWER[int(recipe.result_rarity)]]
 			worn = GameState.wearer_of(res.uid) != &""
 		_craft_msg = "Sucesso! %s%s. +%d XP" % [name, " — já vestida" if worn else "", res.xp]
 		_craft_msg_color = GameEnums.rarity_color(int(recipe.result_rarity)) if item.is_equipment() else OK_COLOR
@@ -450,7 +454,7 @@ func _fill_bag() -> void:
 	var st := _player.stats
 	left.add_child(_label("Atributos", 18, GOLD))
 	var lines := PackedStringArray([
-		"Vida %d · Escudo %d" % [st.max_health, st.max_shield],
+		"Poder %d · Vida %d · Escudo %d" % [GameState.power_of(hero.id), st.max_health, st.max_shield],
 		"%s %d · Vigor %d" % [GameEnums.PRIMARY_NAMES[hero.primary_stat], st.primary, st.vigor],
 		"Armadura %d (bloqueia %d%% do dano)" % [st.armor, int(round(st.damage_reduction * 100))],
 		"Dano da arma %d · Crítico %d%%" % [st.weapon.damage, int(round(st.crit_chance * 100))],
@@ -513,7 +517,7 @@ func _fill_equipment_list(list: VBoxContainer, hero: HeroData, equipped: Diction
 			return ua
 		if int(a.rarity) != int(b.rarity):
 			return int(a.rarity) > int(b.rarity)
-		return int(a.ilvl) > int(b.ilvl))
+		return String(a.item_id) < String(b.item_id))
 
 	for inst in pieces:
 		var template := ItemDB.get_item(StringName(inst.item_id))
@@ -574,7 +578,7 @@ func _refresh_top_bar() -> void:
 		return
 	var hero := _player.hero
 	var p := GameState.progress(hero.id)
-	_hero_label.text = "%s · nível %d · %s/%s" % [hero.display_name, p.level,
+	_hero_label.text = "%s · nível %d · Poder %d · %s/%s" % [hero.display_name, p.level, GameState.power_of(hero.id),
 		GameEnums.PRIMARY_NAMES[hero.primary_stat], GameEnums.ARMOR_NAMES[hero.armor_type()]]
 	_xp_bar.max_value = Progression.xp_to_next(p.level)
 	_xp_bar.value = p.xp

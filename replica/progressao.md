@@ -1,5 +1,7 @@
 # Progressão, equipamento e crafting
 
+> **Atualização (13/10/2026, à noite):** os itens **não têm mais nível** (decisão da autora). A força vem da raridade (atributos ×1 / ×1,6 / ×2,4 / ×3,5) e o **Poder** do herói (Comum 10, Rara 20, Épica 35, Lendária 55 por peça) substitui o "nível de item médio" nos requisitos: Difícil 80, Heroico 140, Mítico 200; mundo 2 (Igapó) pede vencer a Terra Firme no Normal + Poder 90. Internamente, cada mundo terá uma faixa própria de atributos (Mundo 1 = faixa 5), sem aparecer para o jogador. Também entraram **ondas extras** (1–4) e **furiosos** (elite) nas salas — números no README.
+
 Decisões da autora (12/10/2026) e números iniciais. Os números serão calibrados com a planilha de economia e com testes jogando.
 
 **Decidido:** energia de recompensa (opção B, seção 7) · regras de falha no crafting (seção 6) · Druida e Vampiro em couro/agilidade · pet de energia (seção 8).

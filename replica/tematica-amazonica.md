@@ -57,7 +57,7 @@ Ideias da lenda para próximas versões:
 
 | ideia | da lenda | como funcionaria |
 | --- | --- | --- |
-| **Couro que bala não fura** (recomendada) | em várias versões, só morre se atingido no umbigo/barriga | toma metade do dano, exceto logo depois da Bocarra, quando a barriga fica exposta e toma o dobro: premia quem desvia e contra-ataca na hora certa |
+| **Couro que bala não fura** (**feito**) | em várias versões, só morre se atingido no umbigo/barriga | toma metade do dano, exceto logo depois da Bocarra, quando a barriga fica exposta e toma o dobro: premia quem desvia e contra-ataca na hora certa |
 | **Pé de pilão** | as pegadas redondas, como um pilão, deixadas na mata | antes da Investida, aparecem pegadas no chão mostrando o caminho |
 | **Grito que responde** | responde ao grito dos caçadores e atrai quem se perde | o grito ecoa de um ponto falso da sala e um aviso no chão aparece no lugar errado por um instante |
 | **A mata escurece** | anda à noite e nos dias de guarda | nas fases finais a sala escurece e só a área perto do herói fica clara |

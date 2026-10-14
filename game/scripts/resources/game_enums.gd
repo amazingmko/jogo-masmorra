@@ -20,8 +20,12 @@ const DIFFICULTY_NAMES := ["Normal", "Difícil", "Heroico", "Mítico"]
 const DIFFICULTY_COLORS := [Color("d9d4e6"), Color("6fdc7b"), Color("4da3ff"), Color("ff6b6b")]
 const RARITY_NAMES := ["Comum", "Raro", "Épico", "Lendário"]
 const RARITY_COLORS := [Color("d9d4e6"), Color("4da3ff"), Color("c06bff"), Color("ffa53d")]
-## Quanto mais forte é um item de cada raridade (Comum = 100%).
-const RARITY_POWER := [1.0, 1.3, 1.7, 2.2]
+## Quanto mais forte é um item de cada raridade (Comum = 100%). Sem nível de item, a raridade
+## é o que separa uma peça da outra, por isso os saltos são grandes.
+const RARITY_POWER := [1.0, 1.6, 2.4, 3.5]
+## Pontos de Poder de cada peça vestida, por raridade. O Poder do herói é a soma das 6 peças
+## e libera dificuldades e mundos (ver Difficulty).
+const RARITY_GEAR_POWER := [10, 20, 35, 55]
 
 const PRIMARY_NAMES := ["Força", "Agilidade", "Inteligência"]
 const PRIMARY_KEYS := ["strength", "agility", "intellect"]

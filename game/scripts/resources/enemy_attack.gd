@@ -71,6 +71,8 @@ enum Effect { NONE, POISON, ROOT, SLOW, FEAR }
 @export var rally_radius: float = 0.0
 ## Se acertar, o atacante recupera esta fração da própria vida máxima.
 @export_range(0.0, 1.0) var heal_percent_max_health: float = 0.0
+## Depois deste ataque, o ponto fraco fica exposto por estes segundos (toma o dobro de dano).
+@export var exposes_weak_spot: float = 0.0
 
 
 ## Magias e disparos: os inimigos usam enquanto recuam, e o chefe usa mais quanto menos vida tem.

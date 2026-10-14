@@ -18,6 +18,11 @@ var cleared := false
 var visited := false
 ## Inimigos vivos que nasceram nesta sala.
 var alive := 0
+## Ondas extras que ainda vão chegar nesta sala, e a onda atual (1 = a primeira).
+var waves_left := 0
+var wave_number := 1
+var wave_total := 1
+var wave_pending := false
 var pillars: Array[Vector3] = []
 
 var _door_dirs: Array[Vector2i] = []

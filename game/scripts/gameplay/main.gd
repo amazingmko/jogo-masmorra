@@ -28,6 +28,12 @@ const HUB_SCENE := "res://game/scenes/hub.tscn"
 ## XP extra por sala limpa e por vencer o chefe.
 const XP_ROOM_CLEAR := 4
 const XP_RUN_VICTORY := 50
+## Furioso (elite): mais vida, mais dano, mais agressivo; deixa o dobro de reagentes e o triplo de XP.
+const ELITE_HEALTH := 2.5
+const ELITE_DAMAGE := 1.5
+const ELITE_XP := 3
+## Segundos entre o fim de uma onda e a chegada da próxima (com aviso no chão).
+const WAVE_DELAY := 1.4
 
 var run_seed := 0
 ## Dificuldade da run (GameState.run_difficulty, escolhida no portal) e se a energia foi gasta.
@@ -148,7 +154,7 @@ func _on_room_entered(room: DungeonRoom) -> void:
 	_current_room = room
 	room.visited = true
 	_hud.minimap.set_current(room.index)
-	if room.cleared or _alive > 0:
+	if room.cleared or _alive > 0 or room.wave_pending:
 		return
 	room.close_doors()
 	if room.type == DungeonLayout.RoomType.BOSS:
@@ -157,25 +163,83 @@ func _on_room_entered(room: DungeonRoom) -> void:
 			_hud.show_boss(boss)
 			_hud.show_toast("O %s acordou! Que fedor..." % boss.data.display_name, Color("e05555"))
 	else:
-		# 3–4 "vagas" no 1º andar, até 5–6 no 5º. Um grupo ocupa vagas conforme a vida somada
-		# (4 formigas valem 1 vaga; 3 queixadas valem 3).
-		var budget := 3 + floor_number / 2 + _rng.randi_range(0, 1)
-		while budget > 0:
-			var data := ItemDB.get_enemy(_pick_enemy())
-			var size := _rng.randi_range(data.group_min, maxi(data.group_min, data.group_max))
-			var cost := 1 if size == 1 else maxi(int(round(size * data.max_health / 200.0)), 1)
-			if cost > budget and size > 1:
-				size = maxi(1, size - (cost - budget))
-				cost = mini(cost, budget)
-			var first := room.random_point(_rng, _player.global_position, 5.0)
-			for i in size:
-				var spot := first
-				if i > 0:
-					spot = first + Vector3(_rng.randf_range(-1.6, 1.6), 0, _rng.randf_range(-1.6, 1.6))
-					if not room.contains(spot):
-						spot = first
-				_spawn(data.id, room, spot)
-			budget -= cost
+		# A luta da sala pode se estender: depois da 1ª onda, chegam de 1 a 4 ondas extras,
+		# com mais chance e mais ondas nos andares fundos e nas dificuldades altas.
+		room.wave_number = 1
+		room.waves_left = _roll_extra_waves()
+		room.wave_total = 1 + room.waves_left
+		_spawn_wave(room, 3 + floor_number / 2 + _rng.randi_range(0, 1), [])
+
+
+## Quantas ondas extras a sala vai ter (0 = só a primeira).
+func _roll_extra_waves() -> int:
+	var chance := clampf(0.35 + 0.08 * (floor_number - 1) + 0.12 * difficulty, 0.0, 0.95)
+	if _rng.randf() >= chance:
+		return 0
+	var most := 2 + mini(2, (floor_number - 1) / 2 + difficulty)
+	return _rng.randi_range(1, most)
+
+
+## Chance de um inimigo da onda vir furioso.
+func _elite_chance(wave: int) -> float:
+	return clampf(0.06 + 0.05 * (floor_number - 1) + 0.08 * difficulty + 0.06 * (wave - 1), 0.0, 0.8)
+
+
+## Põe uma onda na sala. budget = "vagas": um grupo ocupa vagas conforme a vida somada
+## (4 formigas valem 1 vaga; 3 queixadas valem 3). spots: pontos já avisados no chão.
+func _spawn_wave(room: DungeonRoom, budget: int, spots: Array) -> void:
+	var elite_left := 1 if _rng.randf() < _elite_chance(room.wave_number) else 0
+	if difficulty == 3 and room.wave_number > 1 and _rng.randf() < 0.3:
+		elite_left += 1
+	var spot_i := 0
+	while budget > 0:
+		var data := ItemDB.get_enemy(_pick_enemy())
+		var size := _rng.randi_range(data.group_min, maxi(data.group_min, data.group_max))
+		var cost := 1 if size == 1 else maxi(int(round(size * data.max_health / 200.0)), 1)
+		if cost > budget and size > 1:
+			size = maxi(1, size - (cost - budget))
+			cost = mini(cost, budget)
+		var first: Vector3 = spots[spot_i] if spot_i < spots.size() else room.random_point(_rng, _player.global_position, 5.0)
+		spot_i += 1
+		for i in size:
+			var spot := first
+			if i > 0:
+				spot = first + Vector3(_rng.randf_range(-1.6, 1.6), 0, _rng.randf_range(-1.6, 1.6))
+				if not room.contains(spot):
+					spot = first
+			var elite := elite_left > 0 and i == 0
+			if elite:
+				elite_left -= 1
+			_spawn(data.id, room, spot, false, elite)
+		budget -= cost
+
+
+## Fim de uma onda: avisa no chão onde os próximos vão aparecer e solta a onda depois de um instante.
+func _start_next_wave(room: DungeonRoom) -> void:
+	room.wave_pending = true
+	room.waves_left -= 1
+	room.wave_number += 1
+	# Ondas extras são um pouco menores que a primeira: 1–2 vagas no 1º andar, 3–4 no 5º.
+	var budget := 1 + floor_number / 2 + _rng.randi_range(0, 1)
+	var spots := []
+	for i in budget:
+		var p := room.random_point(_rng, _player.global_position, 4.0)
+		spots.append(p)
+		var mark := Telegraph.new()
+		mark.shape = Telegraph.Shape.CIRCLE
+		mark.radius = 1.1
+		mark.color = Color("ff8a3d")
+		mark.visual_only = true
+		mark.duration = WAVE_DELAY
+		mark.position = Vector3(p.x, 0.04, p.z)
+		add_child(mark)
+	_hud.show_toast("Mais bichos chegando! Onda %d de %d" % [room.wave_number, room.wave_total], Color("ff8a3d"))
+	var run := _run_id
+	get_tree().create_timer(WAVE_DELAY, false).timeout.connect(func() -> void:
+		if run != _run_id or _run_over or not is_instance_valid(room):
+			return
+		room.wave_pending = false
+		_spawn_wave(room, budget, spots))
 
 
 func _pick_enemy() -> StringName:
@@ -193,7 +257,8 @@ func _pick_enemy() -> StringName:
 	return options[0].id
 
 
-func _spawn(enemy_id: StringName, room: DungeonRoom, at: Vector3 = Vector3.INF, summoned: bool = false) -> Enemy:
+func _spawn(enemy_id: StringName, room: DungeonRoom, at: Vector3 = Vector3.INF, summoned: bool = false,
+		elite: bool = false) -> Enemy:
 	var data := ItemDB.get_enemy(enemy_id)
 	if data == null:
 		push_error("Inimigo inexistente: %s" % enemy_id)
@@ -204,6 +269,11 @@ func _spawn(enemy_id: StringName, room: DungeonRoom, at: Vector3 = Vector3.INF, 
 		(1.0 + DAMAGE_PER_FLOOR * level) * Difficulty.DAMAGE_MULT[difficulty])
 	enemy.is_summon = summoned
 	enemy.threat = room_threat(room, data.is_boss)
+	if elite and not data.is_boss:
+		enemy.elite = true
+		enemy.health_multiplier *= ELITE_HEALTH
+		enemy.damage_multiplier *= ELITE_DAMAGE
+		enemy.threat = minf(enemy.threat + 0.25, 1.0)
 	enemy.loot_context = _loot_context("boss" if enemy.is_boss else "normal")
 	enemy.home_room = room
 	room.alive += 1
@@ -249,7 +319,9 @@ func _on_enemy_died(enemy: Enemy) -> void:
 	_alive -= 1
 	if not enemy.is_summon:
 		_stats.kills += 1
-		_give_xp(enemy.data.xp_reward)
+		_give_xp(enemy.data.xp_reward * (ELITE_XP if enemy.elite else 1))
+		if enemy.elite:
+			_stats.elites = int(_stats.get("elites", 0)) + 1
 	if enemy.is_boss:
 		_hud.hide_boss()
 		# Com o chefe caído, os ajudantes dele se desfazem.
@@ -260,7 +332,10 @@ func _on_enemy_died(enemy: Enemy) -> void:
 	if room == null or not is_instance_valid(room):
 		return
 	room.alive -= 1
-	if room.alive > 0 or room.cleared:
+	if room.alive > 0 or room.cleared or room.wave_pending:
+		return
+	if room.waves_left > 0 and room.type != DungeonLayout.RoomType.BOSS:
+		_start_next_wave(room)
 		return
 	room.cleared = true
 	room.open_doors()
@@ -272,7 +347,8 @@ func _on_enemy_died(enemy: Enemy) -> void:
 				_finish(true))
 		_hud.show_toast("O %s caiu! Recolha os reagentes." % ItemDB.get_enemy(BOSS_ID).display_name, Color("ffa53d"))
 	else:
-		_hud.show_toast("Sala limpa!", Color("6fdc7b"))
+		_hud.show_toast("Sala limpa!" if room.wave_total <= 1 else "Sala limpa! %d ondas vencidas." % room.wave_total,
+			Color("6fdc7b"))
 
 
 func _on_prop_activated(prop: RoomProp) -> void:
@@ -380,8 +456,8 @@ func _finish(victory: bool) -> void:
 	var lines := PackedStringArray()
 	lines.append("%s%s" % [Difficulty.name_of(difficulty), "" if full_rewards else
 		" · sem energia: reagentes reduzidos e sem troféus do chefe"])
-	lines.append("Andar alcançado: %d/%d   ·   Inimigos derrotados: %d   ·   Tempo: %d:%02d" % [
-		floor_number, FLOORS, _stats.kills, seconds / 60, seconds % 60])
+	lines.append("Andar alcançado: %d/%d   ·   Inimigos derrotados: %d (furiosos: %d)   ·   Tempo: %d:%02d" % [
+		floor_number, FLOORS, _stats.kills, int(_stats.get("elites", 0)), seconds / 60, seconds % 60])
 	if not _stats.buffs.is_empty():
 		lines.append("Bênçãos: " + ", ".join(PackedStringArray(_stats.buffs)))
 	var loot_parts := PackedStringArray()

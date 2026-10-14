@@ -22,6 +22,8 @@ enum Movement { CHASE, STRAFE, SKITTER, KITE }
 ## Distância que o inimigo tenta manter do herói.
 @export var preferred_distance: float = 1.2
 @export var is_boss: bool = false
+## Couro grosso: multiplica o dano recebido (0,5 = toma metade). Ver EnemyAttack.exposes_weak_spot.
+@export_range(0.1, 1.0) var hide_damage_mult: float = 1.0
 ## Aparece em grupo: quantos iguais nascem juntos (ex.: bando de queixadas).
 @export_range(1, 8) var group_min: int = 1
 @export_range(1, 8) var group_max: int = 1

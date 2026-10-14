@@ -13,8 +13,9 @@ const LEVEL_BONUS := [0.01, 0.01, 0.005, 0.005]
 const STREAK_BONUS := 0.10
 const MAX_CHANCE := 0.95
 const FAIL_XP_FRACTION := 0.3
-## Nível de item da peça fabricada, por raridade.
-const CRAFTED_ILVL := [5, 10, 16, 24]
+## Faixa interna das peças do Mundo 1 (Terra Firme). Não aparece para o jogador: a força
+## vem da raridade. Um mundo novo pode usar uma faixa maior.
+const WORLD_TIER := 5
 
 
 static func success_chance(recipe: RecipeData, professions: ProfessionProgress, fail_streak: int = 0) -> float:
@@ -100,7 +101,7 @@ static func craft(recipe: RecipeData, inventory: Inventory, professions: Profess
 	if result_item.is_equipment():
 		var r := int(recipe.result_rarity)
 		for i in recipe.result_qty:
-			out.uid = inventory.add_equipment(ItemFactory.roll(result_item, CRAFTED_ILVL[r], r, rng))
+			out.uid = inventory.add_equipment(ItemFactory.roll(result_item, WORLD_TIER, r, rng))
 	else:
 		inventory.add(result_item, recipe.result_qty)
 	out.success = true

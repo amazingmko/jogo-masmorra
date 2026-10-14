@@ -185,17 +185,21 @@ func _regen_energy() -> void:
 
 # ---------- dificuldades ----------
 
-## Média do nível de item das 6 peças vestidas (slot vazio conta 0).
-func average_ilvl(hero_id: StringName) -> float:
+## Poder do herói: soma dos pontos das peças vestidas (Comum 10, Rara 20, Épica 35, Lendária 55).
+func power_of(hero_id: StringName) -> int:
 	var total := 0
 	for inst in equipped_items(hero_id).values():
-		total += int(inst.ilvl)
-	return total / float(GameEnums.SLOT_NAMES.size())
+		total += ItemFactory.gear_power(inst)
+	return total
 
 
 ## "" se o herói pode entrar nessa dificuldade; senão, o que falta.
 func difficulty_lock(d: int, hero_id: StringName) -> String:
-	return Difficulty.lock_reason(d, highest_cleared, average_ilvl(hero_id))
+	return Difficulty.lock_reason(d, highest_cleared, power_of(hero_id))
+
+
+func world_lock(world: int, hero_id: StringName) -> String:
+	return Difficulty.world_lock_reason(world, highest_cleared, power_of(hero_id))
 
 
 func record_clear(d: int) -> void:

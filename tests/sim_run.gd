@@ -127,7 +127,20 @@ func _process(_delta: float) -> bool:
 			result = "CAIU no andar %d" % _main.floor_number if player.health.is_dead else "VENCEU a run"
 		print("RESULTADO [%s, semente %d]: %s em %ds; abates %d; desvios %d; mega magias %d; buffs %s" % [
 			_hero, _main.run_seed, result, _frames / 60, _main._stats.kills, _dodges, _mega_seen, _main._stats.buffs])
-		print("  reagentes: ", _main._stats.loot)
+		if not _main._run_over:
+			var cur = _main._current_room
+			if cur:
+				print("  travou na sala %d: vivos=%d ondas_restantes=%d pendente=%s limpa=%s" % [cur.index, cur.alive, cur.waves_left, cur.wave_pending, cur.cleared])
+			for e in get_nodes_in_group("enemies"):
+				print("    inimigo %s estado=%d acordado=%s pos=%s dist=%.1f" % [e.data.id, e.state, e._awake, e.global_position, e.global_position.distance_to(player.global_position)])
+			print("    herói em ", player.global_position, " alvo ", _choose_target(player))
+			var lay = _main.layout
+			if cur:
+				print("    objetivo ", lay.goal_index, " caminho ", lay.path(cur.index, lay.goal_index), " baús fechados ",
+					_main.builder.props.keys().filter(func(k): return _main.builder.props[k].kind == 0 and not _main.builder.props[k].used))
+				for r in _main.builder.rooms:
+					print("      sala %d tipo %d limpa %s vivos %d centro %s" % [r.index, r.type, r.cleared, r.alive, r.center()])
+		print("  furiosos derrotados: %d · reagentes: %s" % [int(_main._stats.get("elites", 0)), _main._stats.loot])
 		Input.action_release("attack")
 		quit(0 if _main._run_over else 1)
 	return false
@@ -182,8 +195,15 @@ func _choose_target(player: Node3D) -> Vector3:
 			return enemy.global_position
 		return Vector3.INF
 	# 2) loot por perto
-	var pickup := _nearest(pos, get_nodes_in_group("pickups"))
+	var pickups := get_nodes_in_group("pickups").filter(func(p: Node) -> bool: return not p.has_meta("robot_skip"))
+	var pickup := _nearest(pos, pickups)
 	if pickup and pos.distance_to(pickup.global_position) < 12.0:
+		# Desiste de um item que não alcança (caiu dentro de um pilar, por exemplo).
+		var tries: int = pickup.get_meta("robot_frames", 0) + 1
+		pickup.set_meta("robot_frames", tries)
+		if tries > 240:
+			pickup.set_meta("robot_skip", true)
+			print("  robô desistiu de um item em ", pickup.global_position)
 		return pickup.global_position
 	# 3) próxima sala: baús ainda fechados primeiro, depois o objetivo
 	var layout = _main.layout

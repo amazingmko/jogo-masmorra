@@ -177,8 +177,8 @@ func _test_crafting(catalog: ItemCatalog) -> void:
 		if res.success:
 			made_common = true
 			break
-	check(made_common and inv4.equipment.size() == 1 and int(inv4.equipment[0].ilvl) == Crafting.CRAFTED_ILVL[0],
-		"fabrica a peça Comum com o nível de item certo")
+	check(made_common and inv4.equipment.size() == 1 and ItemFactory.gear_power(inv4.equipment[0]) == 10,
+		"fabrica a peça Comum (Poder 10)")
 	check(Crafting.check(rare, inv4, prof4) == "", "com a Comum na bolsa, a Rara fica disponível")
 	var made_rare := false
 	for i in 20:
@@ -206,11 +206,22 @@ func _test_professions(catalog: ItemCatalog) -> void:
 
 
 func _test_difficulty_and_energy(catalog: ItemCatalog) -> void:
-	check(Difficulty.lock_reason(0, -1, 0.0) == "", "Normal sempre liberado")
-	check(Difficulty.lock_reason(1, -1, 20.0).contains("vencer o Normal"), "Difícil pede vencer o Normal")
-	check(Difficulty.lock_reason(1, 0, 5.0).contains("nível de item médio 8"), "Difícil pede nível de item médio 8")
-	check(Difficulty.lock_reason(1, 0, 8.0) == "", "Difícil libera com Normal vencido e média 8")
-	check(Difficulty.lock_reason(3, 1, 30.0) != "", "Mítico pede vencer o Heroico")
+	check(Difficulty.lock_reason(0, -1, 0) == "", "Normal sempre liberado")
+	check(Difficulty.lock_reason(1, -1, 500).contains("vencer o Normal"), "Difícil pede vencer o Normal")
+	check(Difficulty.lock_reason(1, 0, 60).contains("Poder 80"), "Difícil pede Poder 80")
+	check(Difficulty.lock_reason(1, 0, 80) == "", "Difícil libera com Normal vencido e Poder 80")
+	check(Difficulty.lock_reason(3, 1, 500) != "", "Mítico pede vencer o Heroico")
+	check(Difficulty.world_lock_reason(1, -1, 200).contains("vencer Terra Firme"), "Igapó pede vencer a Terra Firme")
+	check(Difficulty.world_lock_reason(1, 0, 60).contains("Poder 90"), "Igapó pede Poder 90")
+	check(Difficulty.world_lock_reason(1, 0, 90) == "", "Igapó libera com Terra Firme vencida e Poder 90")
+	var R := GameEnums.Rarity
+	check(ItemFactory.gear_power({"rarity": R.COMMON}) * 6 == 60 and ItemFactory.gear_power({"rarity": R.LEGENDARY}) == 55,
+		"Poder: Comum 10 por peça (60 o conjunto), Lendária 55")
+	var helm := catalog.get_item(&"elmo_placa")
+	var rng0 := RandomNumberGenerator.new()
+	var c0 := ItemFactory.roll(helm, Crafting.WORLD_TIER, R.COMMON, rng0)
+	var e0 := ItemFactory.roll(helm, Crafting.WORLD_TIER, R.EPIC, rng0)
+	check(int(e0.stats.strength) >= 2 * int(c0.stats.strength), "Épica tem bem mais atributo que a Comum (%d vs %d)" % [e0.stats.strength, c0.stats.strength])
 
 	# Recompensa: dificuldade multiplica reagentes; sem energia, cai uma fração e nada Épico+.
 	var boss := catalog.get_drop_table(&"chefe_mapinguari")
@@ -572,6 +583,10 @@ func _test_telegraphs_and_status(catalog: ItemCatalog) -> void:
 		five = five or (a.kind == EnemyAttack.Kind.FAN and a.count == 5)
 	check(map.eye_count == 5 and map.belly_mouth, "Mapinguari tem cinco olhos e boca na barriga")
 	check(fear and feeds and five, "Mapinguari: grito que dá medo, bocarra que cura e olhar dos cinco olhos")
+	var exposes := false
+	for a in map.attacks:
+		exposes = exposes or a.exposes_weak_spot > 0.0
+	check(map.hide_damage_mult < 1.0 and exposes, "couro do Mapinguari: toma menos dano, e mais com a barriga exposta")
 
 	var st2 := StatusEffects.new()
 	st2.apply(EnemyAttack.Effect.FEAR, 1.0)
