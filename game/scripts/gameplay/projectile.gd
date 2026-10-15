@@ -16,6 +16,10 @@ var damage := 4
 var element: GameEnums.Element = GameEnums.Element.NEUTRAL
 var crit_chance := 0.0
 var rng: RandomNumberGenerator
+## Crítico extra contra alvos longe de onde a flecha saiu (Olho de Caçadora).
+var far_crit_bonus := 0.0
+var far_distance := 6.0
+var origin := Vector3.ZERO
 
 var _traveled := 0.0
 var _spent := false
@@ -72,7 +76,10 @@ func _on_body_entered(body: Node3D) -> void:
 		return
 	if body.is_in_group("enemies"):
 		_spent = true
-		var hit := Damage.roll(damage, element, body.data.element, crit_chance, rng)
+		var crit := crit_chance
+		if far_crit_bonus > 0.0 and origin.distance_to(body.global_position) >= far_distance:
+			crit += far_crit_bonus
+		var hit := Damage.roll(damage, element, body.data.element, crit, rng)
 		body.take_hit(hit.amount, hit.crit, direction)
 		queue_free()
 	elif not body.is_in_group("player"):

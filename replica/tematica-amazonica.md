@@ -18,7 +18,7 @@ Fantasia épica de MMORPG (escala heroica, classes com papéis claros, chefes de
 | --- | --- | --- | --- | --- | --- |
 | **Icamiaba** | guerreiro | força / placa | tanque | lança e escudo de casco | **no jogo:** Provocar (habilidade), Muralha de Casco (ultimate), Muiraquitã e Revide (passivas), bloqueio com o escudo |
 | **Jaguaretê** | berserker | força / placa | dano corpo a corpo | borduna ou garras | espírito da onça: quanto menos vida, mais rápido e mais forte |
-| **Mateira** | ranger | agilidade / couro | dano à distância | arco e zarabatana | companheira **harpia** (gavião-real) e armadilhas de cipó |
+| **Mateira** | ranger | agilidade / couro | dano à distância | arco e zarabatana | **no jogo:** Armadilha de Cipó (habilidade), Chamado da Harpia (ultimate), Olho de Caçadora e Rastro Leve (passivas) |
 | **Andarilho de Pés Virados** | ladino | agilidade / couro | dano em explosão | facas duplas | inspirado no Curupira: deixa **rastros falsos** (iscas) e some na mata |
 | **Druida da Mata** | druida | agilidade / couro | híbrido | cajado de raiz | troca de forma: **onça** (corpo a corpo), **sucuri** (prende e aperta), **boto** (cura e velocidade na água) |
 | **Matinta** | vampiro | agilidade / couro | dano sustentado | garras e assobio | feiticeira da noite: o assobio drena vida, e ela vira pássaro por um instante para esquivar; morcegos-vampiro como invocação |

@@ -82,6 +82,12 @@ Em dificuldades maiores os inimigos também ficam mais agressivos, com mais onda
 - *Muiraquitã* (passiva): uma vez por andar, um golpe fatal a deixa com 25% da vida.
 - *Revide* (passiva): depois de bloquear, o próximo golpe causa +50%.
 
+**Poderes da Mateira:**
+- *Armadilha de Cipó* (habilidade, 10 s): armadilha no chão à frente; o primeiro bicho que pisar fica preso 3 s.
+- *Chamado da Harpia* (ultimate): o gavião-real mergulha nos inimigos por 8 s, começando pelo mais ferido (120% do dano do arco por mergulho).
+- *Olho de Caçadora* (passiva): +20% de crítico contra inimigos a mais de 6 m.
+- *Rastro Leve* (passiva): depois de cada abate, corre 15% mais rápido por 2 s.
+
 Cada classe tem um kit (`game/scripts/gameplay/kits/`): a Druida usa a habilidade para trocar de forma.
 
 **Sem escudo:** quando a barra de escudo zera, qualquer herói toma +25% de dano até ela voltar.

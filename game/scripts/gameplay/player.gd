@@ -214,7 +214,7 @@ func _physics_process(delta: float) -> void:
 	if controls_enabled:
 		input = touch_move if touch_move.length() > 0.05 else Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var direction := Vector3(input.x, 0.0, input.y)
-	var speed := move_speed * status.move_factor()
+	var speed := move_speed * status.move_factor() * (kit.speed_factor() if kit else 1.0)
 	velocity.x = direction.x * speed
 	velocity.z = direction.z * speed
 	velocity.y = 0.0 if is_on_floor() else velocity.y - _gravity * delta
@@ -277,8 +277,11 @@ func _attack() -> void:
 		_animator.attack(_ground_speed() > 0.15)
 	if weapon_stats.is_ranged():
 		var projectile := Projectile.create(_facing, weapon_stats, hero.element, crit_chance, _rng)
+		if kit:
+			kit.modify_projectile(projectile)
 		get_parent().add_child(projectile)
 		projectile.global_position = global_position + Vector3(0, 0.9, 0) + _facing * 0.6
+		projectile.origin = projectile.global_position
 	else:
 		_melee_swing()
 	if kit:

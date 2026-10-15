@@ -74,7 +74,7 @@ func _build_tree(model: Node) -> void:
 	var acts := AnimationNodeTransition.new()
 	acts.xfade_time = 0.0
 	var act_names := _attacks.duplicate()
-	for extra in ["dano", "bloqueio", "provocar", "muralha"]:
+	for extra in ["dano", "bloqueio", "provocar", "muralha", "armadilha", "harpia"]:
 		if _anim.has_animation(extra):
 			act_names.append(extra)
 	if act_names.is_empty():

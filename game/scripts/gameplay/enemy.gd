@@ -707,14 +707,14 @@ func is_provoked() -> bool:
 
 ## Golpe da Sucuri: segura o inimigo no lugar por alguns segundos (chefe: bem menos).
 ## Não interrompe um ataque já avisado no chão.
-func constrict(seconds: float) -> void:
+func constrict(seconds: float, label := "apertado") -> void:
 	if state == State.DEAD or _constrict_immune > 0.0:
 		return
 	if is_boss:
 		seconds *= 0.3
 	_constrict_left = seconds
 	_constrict_immune = seconds + 2.0
-	Fx.float_text(get_parent(), global_position + Vector3(0, 2.0 * data.body_scale, 0), "apertado", Color("9fd86b"))
+	Fx.float_text(get_parent(), global_position + Vector3(0, 2.0 * data.body_scale, 0), label, Color("9fd86b"))
 
 
 ## Chamado por outro do bando: ataca junto, com um tiquinho de atraso para não sair igual.

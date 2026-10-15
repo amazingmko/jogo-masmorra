@@ -22,6 +22,8 @@ static func for_hero(hero: HeroData) -> HeroKit:
 	match hero.hero_class:
 		GameEnums.HeroClass.TANK:
 			return TankKit.new()
+		GameEnums.HeroClass.RANGER:
+			return RangerKit.new()
 		GameEnums.HeroClass.DRUID:
 			return DruidKit.new()
 	return HeroKit.new()
@@ -145,6 +147,16 @@ func on_damaged(amount: int) -> void:
 ## Dano de um golpe do herói, depois das passivas. consume: o golpe aconteceu (gasta efeitos de "próximo golpe").
 func modify_outgoing(amount: int) -> int:
 	return amount
+
+
+## Multiplicador de velocidade de movimento (passivas como Rastro Leve).
+func speed_factor() -> float:
+	return 1.0
+
+
+## Ajusta uma flecha/magia antes de sair (ex.: Olho de Caçadora).
+func modify_projectile(_p: Projectile) -> void:
+	pass
 
 
 ## Chamado depois de cada golpe/disparo do herói.

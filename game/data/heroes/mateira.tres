@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="HeroData" format=3]
 
 [ext_resource type="Script" path="res://game/scripts/resources/hero_data.gd" id="1_aj6tg"]
+[ext_resource type="PackedScene" path="res://game/art/herois/mateira.glb" id="1_goqll"]
 
 [resource]
 script = ExtResource("1_aj6tg")
@@ -14,4 +15,5 @@ weapon_type = &"arco"
 max_health = 90
 max_energy = 180
 move_speed = 5.5
+model = ExtResource("1_goqll")
 starting_weapon_id = &"arco_simples"
