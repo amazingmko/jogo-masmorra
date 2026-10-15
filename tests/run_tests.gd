@@ -658,3 +658,13 @@ func _test_hero_animator() -> void:
 	check(model.find_children("Gear_*", "BoneAttachment3D", true, false).size() == 2, "lança e escudo presos nas mãos")
 	model.queue_free()
 	animator.queue_free()
+	# Mateira: animada e com o arco na mão esquerda.
+	var m2: Node3D = load("res://game/art/herois/mateira.glb").instantiate()
+	root.add_child(m2)
+	var an2 := HeroAnimator.new()
+	root.add_child(an2)
+	check(an2.setup(m2) and an2.has_animation("armadilha") and an2.has_animation("harpia"), "Mateira animada, com os poderes")
+	HeroGear.attach(m2, &"mateira")
+	check(m2.find_children("Gear_mixamorig_LeftHand", "BoneAttachment3D", true, false).size() == 1, "arco na mão esquerda da Mateira")
+	m2.queue_free()
+	an2.queue_free()

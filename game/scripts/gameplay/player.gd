@@ -277,6 +277,7 @@ func _attack() -> void:
 		_animator.attack(_ground_speed() > 0.15)
 	if weapon_stats.is_ranged():
 		var projectile := Projectile.create(_facing, weapon_stats, hero.element, crit_chance, _rng)
+		projectile.arrow = hero.weapon_type == &"arco"
 		if kit:
 			kit.modify_projectile(projectile)
 		get_parent().add_child(projectile)

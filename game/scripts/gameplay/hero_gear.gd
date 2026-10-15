@@ -29,6 +29,16 @@ const GEAR := {
 			"grip": Vector3(0.0, 0.49, -0.1),
 		},
 	],
+	&"mateira": [
+		{  # arco: na mão esquerda, braços (lado X do modelo) para cima e para baixo, barriga do arco para a frente
+			"scene": "res://game/art/armas/arco_mateira.glb",
+			"bone": "mixamorig_LeftHand",
+			"offset": Vector3(0.0, 0.08, 0.0),
+			"basis": Basis(Vector3(1, 0, 0), Vector3(0, -1, 0), Vector3(0, 0, -1)),
+			"size": 1.3,
+			"grip": Vector3(0.0, 0.03, 0.0),
+		},
+	],
 }
 
 

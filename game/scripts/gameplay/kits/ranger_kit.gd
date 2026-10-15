@@ -52,7 +52,7 @@ func _use_skill() -> bool:
 	var at := player.global_position + player.facing() * TRAP_DISTANCE
 	trap.global_position = Vector3(at.x, 0.0, at.z)
 	Vfx.particles(player.get_parent(), trap.global_position + Vector3(0, 0.3, 0), "folha", 8, 0.8, Color(1, 1, 1, 0.9), 0.35, Vector2(1.5, 3.0), 60.0, -6.0, false)
-	player.play_kit_animation("armadilha", 0.7, "")
+	player.play_kit_animation("armadilha", 1.0, "")
 	return true
 
 
@@ -64,7 +64,7 @@ func _use_ultimate() -> void:
 	player.get_parent().add_child(harpy)
 	harpy.global_position = player.global_position + Vector3(0, 8.0, 0)
 	Fx.float_text(player.get_parent(), player.global_position + Vector3(0, 3.0, 0), "CHAMADO DA HARPIA!", Color("e8f5ff"))
-	player.play_kit_animation("harpia", 1.0, "")
+	player.play_kit_animation("harpia", 1.6, "")
 
 
 func _process(delta: float) -> void:

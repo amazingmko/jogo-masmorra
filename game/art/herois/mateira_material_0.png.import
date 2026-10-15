@@ -2,12 +2,10 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bi3rj6knve134"
-path.s3tc="res://.godot/imported/mateira_0.png-e1484f101ad1e5e79be7a587544804da.s3tc.ctex"
-path.etc2="res://.godot/imported/mateira_0.png-e1484f101ad1e5e79be7a587544804da.etc2.ctex"
+uid="uid://cpxyhi53esnf2"
+path="res://.godot/imported/mateira_material_0.png-8a38be21ed28d46c7b20366fbb2ad793.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc", "etc2_astc"],
-"vram_texture": true
+"vram_texture": false
 }
 generator_parameters={
 "md5": "1380d29eeab0184a3e6f0f4c028f12ff"
@@ -15,12 +13,12 @@ generator_parameters={
 
 [deps]
 
-source_file="res://game/art/herois/mateira_0.png"
-dest_files=["res://.godot/imported/mateira_0.png-e1484f101ad1e5e79be7a587544804da.s3tc.ctex", "res://.godot/imported/mateira_0.png-e1484f101ad1e5e79be7a587544804da.etc2.ctex"]
+source_file="res://game/art/herois/mateira_material_0.png"
+dest_files=["res://.godot/imported/mateira_material_0.png-8a38be21ed28d46c7b20366fbb2ad793.ctex"]
 
 [params]
 
-compress/mode=2
+compress/mode=0
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -42,4 +40,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=0
+detect_3d/compress_to=1
