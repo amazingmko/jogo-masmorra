@@ -76,6 +76,14 @@ Em dificuldades maiores os inimigos também ficam mais agressivos, com mais onda
 ### A run
 
 **Tanque (Icamiaba):** mais vida, escudo maior e armadura própria; golpes de lança mais lentos e com menos dano. Só o tanque **bloqueia**: 12% de base mais o Escudo de Casco equipado (4/6/8/11% por raridade, até 50%). Golpe bloqueado perde 70% do dano (veneno e mega magia não são bloqueáveis).
+**Poderes da Icamiaba** (PC: Q habilidade, F ultimate; no celular, botões ao lado do ATACAR):
+- *Provocar* (habilidade, 12 s): inimigos a 9 m vêm para cima dela sem recuar, saem da tocaia/camuflagem e batem 25% mais fraco por 6 s.
+- *Muralha de Casco* (ultimate): por 6 s segura todo golpe, até a mega magia. Carrega matando (+8, furioso +20), bloqueando (+5) e apanhando; fica entre andares e zera a cada run.
+- *Muiraquitã* (passiva): uma vez por andar, um golpe fatal a deixa com 25% da vida.
+- *Revide* (passiva): depois de bloquear, o próximo golpe causa +50%.
+
+Cada classe tem um kit (`game/scripts/gameplay/kits/`): a Druida usa a habilidade para trocar de forma.
+
 **Sem escudo:** quando a barra de escudo zera, qualquer herói toma +25% de dano até ela voltar.
 
 A **Terra Firme**: 5 andares de mata fechada gerados aleatoriamente. Nas salas de combate as portas fecham até o último inimigo cair. Baús (amarelo no minimapa) dão reagentes, a fonte (verde) cura, o portal azul leva ao próximo andar (sem bênçãos: a força vem do equipamento fabricado). No 5º andar, o Mapinguari, que deixa muitos reagentes e o Pelo de Mapinguari. XP e reagentes ficam com o herói, mesmo perdendo.

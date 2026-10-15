@@ -103,7 +103,7 @@ func new_run(seed: int = 0) -> void:
 	_stats = {"kills": 0, "loot": {}, "started": Time.get_ticks_msec(), "buffs": [], "xp": 0,
 		"level_start": GameState.level_of(_player.hero_id), "best": {}}
 	_hud.hide_panel()
-	_player.clear_buffs()
+	_player.start_run()
 	_player.revive(Vector3(0, 0.1, 0))
 	floor_number = 0
 	_next_floor()
@@ -135,6 +135,7 @@ func _next_floor() -> void:
 	_player.velocity = Vector3.ZERO
 	_player.reset_physics_interpolation()
 	_camera.snap()
+	_player.start_floor()
 	_hud.minimap.show_layout(layout)
 	_hud.set_wave("Andar %d/%d · %s%s" % [floor_number, FLOORS, Difficulty.name_of(difficulty),
 		"" if full_rewards else " · sem energia"])
@@ -380,6 +381,7 @@ func _on_enemy_died(enemy: Enemy) -> void:
 	_alive -= 1
 	if not enemy.is_summon:
 		_stats.kills += 1
+		_player.on_enemy_killed(enemy.elite)
 		_give_xp(enemy.data.xp_reward * (ELITE_XP if enemy.elite else 1))
 		if enemy.elite:
 			_stats.elites = int(_stats.get("elites", 0)) + 1

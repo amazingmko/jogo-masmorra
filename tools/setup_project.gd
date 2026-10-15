@@ -47,7 +47,8 @@ func _setup_input_map() -> void:
 		"move_up": [KEY_W, KEY_UP],
 		"move_down": [KEY_S, KEY_DOWN],
 		"attack": [KEY_SPACE, KEY_J],
-		"form": [KEY_Q, KEY_K],
+		"form": [KEY_Q, KEY_K],  # habilidade da classe (Druida: forma; tanque: Provocar)
+		"ultimate": [KEY_F, KEY_L],
 	}
 	for action in actions:
 		var events := []

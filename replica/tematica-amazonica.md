@@ -16,7 +16,7 @@ Fantasia épica de MMORPG (escala heroica, classes com papéis claros, chefes de
 
 | classe (proposta) | arquétipo | atributo / armadura | papel | arma | assinatura |
 | --- | --- | --- | --- | --- | --- |
-| **Icamiaba** | guerreiro | força / placa | tanque | lança e escudo de casco | escudo frontal e o amuleto **muiraquitã**, que absorve um golpe fatal |
+| **Icamiaba** | guerreiro | força / placa | tanque | lança e escudo de casco | **no jogo:** Provocar (habilidade), Muralha de Casco (ultimate), Muiraquitã e Revide (passivas), bloqueio com o escudo |
 | **Jaguaretê** | berserker | força / placa | dano corpo a corpo | borduna ou garras | espírito da onça: quanto menos vida, mais rápido e mais forte |
 | **Mateira** | ranger | agilidade / couro | dano à distância | arco e zarabatana | companheira **harpia** (gavião-real) e armadilhas de cipó |
 | **Andarilho de Pés Virados** | ladino | agilidade / couro | dano em explosão | facas duplas | inspirado no Curupira: deixa **rastros falsos** (iscas) e some na mata |

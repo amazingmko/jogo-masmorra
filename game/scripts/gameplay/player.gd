@@ -52,7 +52,10 @@ var controls_enabled := true
 var combat_enabled := true
 ## Forma atual da Druida (NONE para os outros heróis) e o botão de toque de trocar.
 var form: Form = Form.NONE
-var touch_form := false
+var touch_form := false  # botão de habilidade (nome antigo: era só a forma da Druida)
+var touch_ultimate := false
+## Habilidade, ultimate e passivas da classe (ver kits/hero_kit.gd).
+var kit: HeroKit
 var _form_cooldown := 0.0
 var _regen_acc := 0.0
 
@@ -101,6 +104,7 @@ func _ready() -> void:
 	health.exposed_bonus = EXPOSED_BONUS
 	health.hit_blocked.connect(_on_blocked)
 	health.shield_broken.connect(_on_shield_broken)
+	health.death_saved.connect(_on_death_saved)
 	status.name = "StatusEffects"
 	status.health = health
 	add_child(status)
@@ -121,6 +125,13 @@ func set_hero(new_hero: HeroData) -> void:
 	_base_color = CLASS_COLORS.get(new_hero.hero_class, Color.WHITE)
 	_apply_model(new_hero)
 	_apply_form_visual()
+	if kit:
+		kit.queue_free()
+	kit = HeroKit.for_hero(new_hero)
+	kit.name = "Kit"
+	kit.player = self
+	add_child(kit)
+	kit.on_run_start()
 	hero_changed.emit(new_hero)
 
 
@@ -212,9 +223,13 @@ func _physics_process(delta: float) -> void:
 		_facing = direction.normalized()
 
 	_form_cooldown -= delta
-	if controls_enabled and combat_enabled and (touch_form or Input.is_action_just_pressed("form")):
-		touch_form = false
-		cycle_form()
+	if controls_enabled and combat_enabled and kit:
+		if touch_form or Input.is_action_just_pressed("form"):
+			kit.try_skill()
+		if touch_ultimate or Input.is_action_just_pressed("ultimate"):
+			kit.try_ultimate()
+	touch_form = false
+	touch_ultimate = false
 	if form == Form.BOTO and not health.is_dead:
 		# Boto: recupera um pouco de vida sem parar.
 		_regen_acc += health.max_health * float(FORMS[form].regen) * delta
@@ -266,6 +281,8 @@ func _attack() -> void:
 		projectile.global_position = global_position + Vector3(0, 0.9, 0) + _facing * 0.6
 	else:
 		_melee_swing()
+	if kit:
+		kit.on_attack_done()
 
 
 func _melee_swing() -> void:
@@ -278,6 +295,8 @@ func _melee_swing() -> void:
 		# Acerta quem está no alcance e num cone de ~140° à frente (ou colado no herói).
 		if dist <= reach + 0.4 and (dist < 0.6 or _facing.angle_to(to_enemy) <= deg_to_rad(70)):
 			var hit := Damage.roll(weapon_stats.damage, hero.element, enemy.data.element, crit_chance, _rng)
+			if kit:
+				hit.amount = kit.modify_outgoing(hit.amount)  # passivas (ex.: Revide)
 			enemy.take_hit(hit.amount, hit.crit, to_enemy)
 			if form != Form.NONE and float(FORMS[form].constrict) > 0.0:
 				enemy.constrict(float(FORMS[form].constrict))
@@ -290,6 +309,8 @@ func _on_damaged(amount: int) -> void:
 	_flash_model()
 	if _animator and not health.is_dead:
 		_animator.hurt(_ground_speed() > 0.15)
+	if kit:
+		kit.on_damaged(amount)
 	Fx.damage_number(get_parent(), global_position + Vector3(0, 2.0, 0), amount, false, Color("ff6b6b"))
 
 
@@ -309,6 +330,37 @@ func _on_blocked(_amount: int) -> void:
 	Fx.float_text(get_parent(), global_position + Vector3(0, 2.6, 0), "BLOQUEIO", Color("8fd3ff"))
 	if _animator:
 		_animator.block(_ground_speed() > 0.15)
+	if kit:
+		kit.on_blocked()
+
+
+func _on_death_saved() -> void:
+	Fx.float_text(get_parent(), global_position + Vector3(0, 3.0, 0), "MUIRAQUITÃ!", Color("6fdc7b"))
+	Fx.flash(_material, _base_color, Color("6fdc7b"))
+
+
+## Animação de um poder da classe (o tronco, se estiver andando).
+func play_kit_animation(anim_name: String) -> void:
+	if _animator:
+		_animator.play_action(anim_name, 0.5, _ground_speed() > 0.15)
+
+
+## Começo de uma run: sem bênçãos, ultimate vazia, passivas renovadas.
+func start_run() -> void:
+	clear_buffs()
+	if kit:
+		kit.on_run_start()
+
+
+## Começo de cada andar (Muiraquitã volta).
+func start_floor() -> void:
+	if kit:
+		kit.on_floor_start()
+
+
+func on_enemy_killed(elite: bool) -> void:
+	if kit:
+		kit.on_kill(elite)
 
 
 func _on_shield_broken() -> void:
@@ -372,11 +424,12 @@ func is_shapeshifter() -> bool:
 
 
 ## Passa para a próxima forma: Onça → Sucuri → Boto → Onça.
-func cycle_form() -> void:
+func cycle_form() -> bool:
 	if not is_shapeshifter() or _form_cooldown > 0.0 or health.is_dead:
-		return
+		return false
 	var i := FORM_ORDER.find(form)
 	set_form(FORM_ORDER[(i + 1) % FORM_ORDER.size()])
+	return true
 
 
 func set_form(new_form: Form) -> void:

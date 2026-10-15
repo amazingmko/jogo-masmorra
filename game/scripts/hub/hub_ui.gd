@@ -466,6 +466,15 @@ func _fill_bag() -> void:
 		lines.insert(3, "Bloqueio %d%% (o golpe bloqueado perde 70%%)" % int(round(st.block_chance * 100)))
 	lines.append("Sem escudo: +%d%% de dano recebido" % int(Player.EXPOSED_BONUS * 100))
 	left.add_child(_label("\n".join(lines), 16))
+	var kit := HeroKit.for_hero(hero)
+	var powers := kit.describe()
+	kit.free()
+	if not powers.is_empty():
+		left.add_child(_label("Poderes", 18, GOLD))
+		var p := _label("\n".join(powers), 14)
+		p.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		p.custom_minimum_size = Vector2(380, 0)
+		left.add_child(p)
 
 	# Direita: abas de equipamento e materiais.
 	var right := VBoxContainer.new()

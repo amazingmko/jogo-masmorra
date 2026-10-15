@@ -206,6 +206,13 @@ func hurt(moving: bool) -> void:
 	_fire("dano", 0.5, moving)
 
 
+## Animação de ação qualquer (poderes da classe). Não interrompe um golpe.
+func play_action(anim_name: String, duration: float, moving: bool) -> void:
+	if _tree == null or _dead or _attacking() or not _anim.has_animation(anim_name):
+		return
+	_fire(anim_name, duration, moving)
+
+
 ## Bloqueou com o escudo: levanta o escudo (substitui o "dano", mas não interrompe um golpe).
 func block(moving: bool) -> void:
 	if _tree == null or _dead or _attacking() or not _anim.has_animation("bloqueio"):

@@ -9,8 +9,10 @@ signal buff_chosen(buff: BuffData)
 
 var joystick: TouchJoystick
 var attack_button: TouchButton
-## Só aparece para a Druida: troca de forma.
+## Habilidade da classe (Druida: forma; tanque: Provocar). Escondido se a classe não tem.
 var form_button: TouchButton
+## Ultimate da classe (carrega no combate).
+var ultimate_button: TouchButton
 var minimap: Minimap
 
 var _health_bar: ProgressBar
@@ -87,6 +89,24 @@ func hide_boss() -> void:
 
 func _process(_delta: float) -> void:
 	_refresh_status()
+	_update_kit_buttons()
+
+
+## Botões de habilidade e ultimate: nome do poder, anel de recarga/carga, apagado quando não dá.
+func _update_kit_buttons() -> void:
+	if form_button == null or ultimate_button == null:
+		return
+	var kit: HeroKit = _player.kit if _player else null
+	form_button.visible = kit != null and kit.has_skill()
+	ultimate_button.visible = kit != null and kit.has_ultimate()
+	if form_button.visible:
+		var cd := kit.skill_cooldown_ratio()
+		form_button.color = kit.skill_color()
+		form_button.set_state(1.0 - cd if cd > 0.0 else -1.0, cd > 0.0, kit.skill_name().to_upper())
+	if ultimate_button.visible:
+		var ready := kit.ultimate_ready()
+		var label := kit.ultimate_name().to_upper() if ready else "%d%%" % int(kit.charge)
+		ultimate_button.set_state(kit.charge / 100.0, not ready, label)
 
 
 func _refresh_status() -> void:
@@ -217,8 +237,7 @@ func _on_hero_changed(hero: HeroData) -> void:
 		form_text = " · forma: %s" % _player.form_name()
 	_hero_label.text = "%s (%s) · nv %d%s" % [hero.display_name, class_names.get(hero.hero_class, "?"),
 		GameState.level_of(hero.id), form_text]
-	if form_button:
-		form_button.visible = hero.hero_class == GameEnums.HeroClass.DRUID
+	_update_kit_buttons()
 
 
 # ---------- montagem ----------
@@ -249,7 +268,7 @@ func _build_status() -> void:
 	add_child(_wave_label)
 
 	_help_label = _make_label(14)
-	_help_label.text = "PC: WASD anda · Espaço ataca · Q troca de forma (Druida)\nR nova run · G salva"
+	_help_label.text = "PC: WASD anda · Espaço ataca · Q habilidade · F ultimate\nR nova run · G salva"
 	_help_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_help_label.modulate.a = 0.7
 	_help_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
@@ -289,10 +308,28 @@ func _build_controls() -> void:
 	form_button.offset_right = -230
 	form_button.offset_bottom = -50
 	form_button.visible = false
+	form_button.font_size = 15
 	form_button.pressed_changed.connect(func(pressed: bool) -> void:
 		if pressed and _player:
 			_player.touch_form = true)
 	add_child(form_button)
+
+	ultimate_button = TouchButton.new()
+	ultimate_button.text = "ULTIMATE"
+	ultimate_button.color = Color("e8c26a")
+	ultimate_button.font_size = 17
+	ultimate_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	ultimate_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	ultimate_button.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	ultimate_button.offset_left = -200
+	ultimate_button.offset_top = -330
+	ultimate_button.offset_right = -90
+	ultimate_button.offset_bottom = -220
+	ultimate_button.visible = false
+	ultimate_button.pressed_changed.connect(func(pressed: bool) -> void:
+		if pressed and _player:
+			_player.touch_ultimate = true)
+	add_child(ultimate_button)
 
 
 func _build_toasts() -> void:

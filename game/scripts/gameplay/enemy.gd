@@ -80,6 +80,9 @@ var _tint := Color.WHITE
 var _exposed_left := 0.0
 ## Apertado pela Sucuri: não anda nem decide atacar. Depois, fica imune por um tempo.
 var _constrict_left := 0.0
+## Provocado pelo tanque: só avança (não recua) e bate mais fraco.
+var _provoked_left := 0.0
+const PROVOKE_DAMAGE := 0.75
 var _constrict_immune := 0.0
 var _mouth_material: StandardMaterial3D
 var _recent_timer := 0.0
@@ -149,6 +152,10 @@ func _physics_process(delta: float) -> void:
 	_dodge_cd -= delta
 	_constrict_left -= delta
 	_constrict_immune -= delta
+	if _provoked_left > 0.0:
+		_provoked_left -= delta
+		if _provoked_left <= 0.0:
+			damage_multiplier /= PROVOKE_DAMAGE
 	if _exposed_left > 0.0:
 		_exposed_left -= delta
 		if _exposed_left <= 0.0 and _mouth_material:
@@ -453,6 +460,8 @@ func _update_tactic(delta: float) -> void:
 
 
 func _set_tactic(t: Tactic) -> void:
+	if t == Tactic.BACK_OFF and _provoked_left > 0.0:
+		t = Tactic.PRESS  # provocado não recua
 	tactic = t
 	_maneuver_left = 0.0
 	if t == Tactic.BACK_OFF:
@@ -672,6 +681,28 @@ func _start(a: EnemyAttack, from_rally: bool = false) -> void:
 				_spawn_telegraph(Telegraph.for_attack(a, spot, Vector3.FORWARD, damage_multiplier), haste)
 		EnemyAttack.Kind.MEGA:
 			_start_mega(a)
+
+
+## Provocar (tanque): vem para cima do herói sem recuar, aparece se estava escondido e bate mais fraco.
+## Chefe: metade do tempo.
+func provoke(seconds: float) -> void:
+	if state == State.DEAD:
+		return
+	if is_boss:
+		seconds *= 0.5
+	if _provoked_left <= 0.0:
+		damage_multiplier *= PROVOKE_DAMAGE
+	_provoked_left = seconds
+	_recent_timer = maxf(_recent_timer, seconds)  # a onça sai da camuflagem
+	if not _awake:
+		_wake()
+	if tactic == Tactic.BACK_OFF:
+		_set_tactic(Tactic.PRESS)
+	Fx.float_text(get_parent(), global_position + Vector3(0, 2.0 * data.body_scale, 0), "provocado", Color("ff9f43"))
+
+
+func is_provoked() -> bool:
+	return _provoked_left > 0.0
 
 
 ## Golpe da Sucuri: segura o inimigo no lugar por alguns segundos (chefe: bem menos).

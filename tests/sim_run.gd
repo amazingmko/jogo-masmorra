@@ -25,6 +25,8 @@ var _shot_on_buff := false
 var _shot_on_mega := false
 var _mega_frame := -1
 var _buff_wait := 0
+var _skills_used := 0
+var _ults_used := 0
 var _last_pos := Vector3.ZERO
 var _stuck_frames := 0
 var _detour := 0
@@ -102,6 +104,18 @@ func _process(_delta: float) -> bool:
 	# Druida: troca de forma a cada 10 s, para testar as três.
 	if player.is_shapeshifter() and _frames % 600 == 0:
 		player.cycle_form()
+	# Tanque: provoca quando há bicho perto; Muralha quando a vida cai abaixo da metade.
+	elif player.kit and player.kit.has_ultimate():
+		var near := 0
+		for e in _main.get_tree().get_nodes_in_group("enemies"):
+			if e.global_position.distance_to(player.global_position) < 7.0:
+				near += 1
+		if near >= 2 and player.kit.skill_ready():
+			player.touch_form = true
+			_skills_used += 1
+		if player.kit.ultimate_ready() and player.health.health < player.health.max_health * 0.5:
+			player.touch_ultimate = true
+			_ults_used += 1
 
 	if _shot_path != "" and _frames == _shot_frame:
 		root.get_viewport().get_texture().get_image().save_png(_shot_path)
@@ -134,6 +148,7 @@ func _process(_delta: float) -> bool:
 			result = "CAIU no andar %d" % _main.floor_number if player.health.is_dead else "VENCEU a run"
 		print("RESULTADO [%s, semente %d]: %s em %ds; abates %d; desvios %d; mega magias %d; buffs %s" % [
 			_hero, _main.run_seed, result, _frames / 60, _main._stats.kills, _dodges, _mega_seen, _main._stats.buffs])
+		print("  habilidade usada %d vezes · ultimate %d vezes" % [_skills_used, _ults_used])
 		if not _main._run_over:
 			var cur = _main._current_room
 			if cur:

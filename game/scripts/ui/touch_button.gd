@@ -7,6 +7,11 @@ signal pressed_changed(is_pressed: bool)
 
 @export var text: String = "ATACAR"
 @export var color: Color = Color("e8c26a")
+## Anel de progresso em volta (recarga ou carga da ultimate): 0 a 1. Negativo = sem anel.
+var progress := -1.0
+## Apagado (ainda não dá para usar).
+var dimmed := false
+@export var font_size := 22
 
 var is_pressed := false
 var _touch_index := -1
@@ -44,11 +49,22 @@ func _draw() -> void:
 	var center := size * 0.5
 	var r := minf(size.x, size.y) * 0.5
 	var fill := color
-	fill.a = 0.75 if is_pressed else 0.4
+	fill.a = 0.75 if is_pressed else (0.15 if dimmed else 0.4)
 	draw_circle(center, r, fill)
-	draw_arc(center, r, 0.0, TAU, 48, Color(1, 1, 1, 0.7), 3.0, true)
+	draw_arc(center, r, 0.0, TAU, 48, Color(1, 1, 1, 0.35 if dimmed else 0.7), 3.0, true)
+	if progress >= 0.0:
+		draw_arc(center, r - 5.0, -PI * 0.5, -PI * 0.5 + TAU * clampf(progress, 0.0, 1.0), 48, color.lightened(0.3), 7.0, true)
 	var font := get_theme_default_font()
-	var font_size := 22
 	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
 	draw_string(font, center - Vector2(text_size.x * 0.5, -font_size * 0.35), text,
-		HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, Color.WHITE)
+		HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, Color(1, 1, 1, 0.55 if dimmed else 1.0))
+
+
+## Atualiza o desenho só quando algo muda.
+func set_state(new_progress: float, new_dimmed: bool, new_text: String) -> void:
+	if is_equal_approx(new_progress, progress) and new_dimmed == dimmed and new_text == text:
+		return
+	progress = new_progress
+	dimmed = new_dimmed
+	text = new_text
+	queue_redraw()

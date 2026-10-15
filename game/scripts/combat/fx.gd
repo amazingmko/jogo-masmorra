@@ -75,3 +75,48 @@ static func slash(parent: Node, origin: Vector3, direction: Vector3, reach: floa
 	tween.tween_property(mesh, "scale", Vector3(1.0, 1.0, 1.0), 0.12)
 	tween.tween_property(mat, "albedo_color:a", 0.0, 0.15)
 	tween.chain().tween_callback(mesh.queue_free)
+
+
+## Onda que se espalha pelo chão (Provocar).
+static func shockwave(parent: Node, origin: Vector3, radius: float, color: Color) -> void:
+	var mesh := MeshInstance3D.new()
+	var shape := TorusMesh.new()
+	shape.inner_radius = 0.85
+	shape.outer_radius = 1.0
+	mesh.mesh = shape
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(color, 0.8)
+	mesh.material_override = mat
+	parent.add_child(mesh)
+	mesh.global_position = origin + Vector3(0, 0.15, 0)
+	mesh.scale = Vector3(0.5, 0.3, 0.5)
+	var tween := mesh.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(mesh, "scale", Vector3(radius, 0.3, radius), 0.35).set_ease(Tween.EASE_OUT)
+	tween.tween_property(mat, "albedo_color:a", 0.0, 0.45)
+	tween.chain().tween_callback(mesh.queue_free)
+
+
+## Cúpula translúcida em volta de alguém por alguns segundos (Muralha de Casco). Devolve o nó.
+static func dome(parent: Node3D, radius: float, color: Color, seconds: float) -> MeshInstance3D:
+	var mesh := MeshInstance3D.new()
+	var shape := SphereMesh.new()
+	shape.radius = radius
+	shape.height = radius * 2.0
+	shape.is_hemisphere = true
+	mesh.mesh = shape
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.albedo_color = Color(color, 0.0)
+	mesh.material_override = mat
+	parent.add_child(mesh)
+	var tween := mesh.create_tween()
+	tween.tween_property(mat, "albedo_color:a", 0.28, 0.2)
+	tween.tween_interval(maxf(seconds - 0.6, 0.0))
+	tween.tween_property(mat, "albedo_color:a", 0.0, 0.4)
+	tween.tween_callback(mesh.queue_free)
+	return mesh
