@@ -4,7 +4,7 @@ Dois usos:
   python3 tools/vfx_texturas.py provisorias
       desenha versões simples por código em game/art/vfx/ (para os efeitos funcionarem já).
   python3 tools/vfx_texturas.py preparar arte/vfx
-      pega as imagens geradas por IA (fundo PRETO) em arte/vfx/<nome>.png e grava em game/art/vfx/
+      pega as imagens geradas por IA (fundo PRETO) em arte/vfx/<nome>.png/.jpg e grava em game/art/vfx/
       com transparência: o preto vira transparente, o brilho fica.
 
 Nomes (os efeitos procuram por estes arquivos):
@@ -130,8 +130,10 @@ if __name__ == '__main__':
     elif mode == 'preparar':
         src = sys.argv[2]
         for name, s in SIZES.items():
-            path = os.path.join(src, name + '.png')
-            if not os.path.exists(path):
+            # aceita .png, .jpg, .jpeg ou .webp (o Gemini costuma entregar .jpg)
+            path = next((os.path.join(src, name + ext) for ext in ('.png', '.jpg', '.jpeg', '.webp')
+                         if os.path.exists(os.path.join(src, name + ext))), None)
+            if path is None:
                 continue
             img = Image.open(path)
             img = img.resize((s, s), Image.LANCZOS)
