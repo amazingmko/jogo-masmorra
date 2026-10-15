@@ -204,7 +204,7 @@ static func shell_hit(dome: MeshInstance3D) -> void:
 
 ## Muiraquitã: sapinho verde sobe brilhando e faíscas verdes explodem.
 static func muiraquita(owner: Node3D) -> void:
-	var s := icon(owner, "sapo_muiraquita", 1.4, 1.0, Color(1, 1, 1, 1))
+	var s := icon(owner, "sapo_muiraquita", 1.4, 1.7, Color(1.3, 1.3, 1.3, 1))
 	var t := s.create_tween()
 	t.set_parallel(true)
 	t.tween_property(s, "position:y", 2.8, 1.1).set_ease(Tween.EASE_OUT)
