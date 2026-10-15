@@ -5,12 +5,14 @@ extends Node
 ##  - tronco: golpes (em sequência, como combo) e "tomar dano" por cima das pernas,
 ##    assim o herói não desliza quando ataca ou apanha andando;
 ##  - morte: o corpo inteiro.
-## Nomes esperados no GLB (ver tools/prep_anim.mjs): idle, walk, run, ataque1..N, dano, morte.
+## Nomes esperados no GLB (ver tools/mixamo_merge.mjs): idle, walk, run, ataque1..N, dano, bloqueio, morte.
 ## Parado, os golpes usam o corpo inteiro (passo de ataque); andando, só o tronco.
 
 const BLEND := 0.15
-const RUN_SPEED := 3.4    # m/s em que a corrida do modelo casa com o chão
-const WALK_SPEED := 0.95
+const RUN_SPEED := 3.3    # m/s em que a corrida do modelo (Mixamo) casa com o chão
+const WALK_SPEED := 1.2
+const ATTACK_SPEED := 1.6  # os golpes do Mixamo duram ~1,5 s; aqui tocam mais rápidos, sem perder o desenho
+const ATTACK_MIN_GAP := 0.42  # um golpe só é trocado pelo próximo depois de mostrar o impacto
 const COMBO_RESET := 1.1  # segundos sem atacar e o combo volta ao primeiro golpe
 ## Partes do esqueleto (Mixamo) que pertencem ao tronco.
 const UPPER := ["Spine", "Neck", "Head", "Shoulder", "Arm", "Hand"]
@@ -23,6 +25,7 @@ var _combo := 0
 var _since_attack := 99.0
 var _loco := ""
 var _dead := false
+var _since_fire := 99.0
 
 
 ## Prepara o modelo. Devolve false se ele não tiver animações (o herói usa o balanço simples).
@@ -69,8 +72,9 @@ func _build_tree(model: Node) -> void:
 	var acts := AnimationNodeTransition.new()
 	acts.xfade_time = 0.0
 	var act_names := _attacks.duplicate()
-	if _anim.has_animation("dano"):
-		act_names.append("dano")
+	for extra in ["dano", "bloqueio"]:
+		if _anim.has_animation(extra):
+			act_names.append(extra)
 	if act_names.is_empty():
 		act_names.append("idle")
 	for k in act_names.size():
@@ -140,6 +144,7 @@ func update(delta: float, ground_speed: float, move_speed: float) -> void:
 	if _tree == null or _dead:
 		return
 	_since_attack += delta
+	_since_fire += delta
 	if ground_speed > move_speed * 0.45:
 		_set_loco("run", clampf(ground_speed / RUN_SPEED, 0.7, 1.8))
 	elif ground_speed > 0.15:
@@ -154,16 +159,21 @@ func _fire(anim_name: String, duration: float, moving: bool) -> void:
 	_tree.set("parameters/acts/transition_request", anim_name)
 	_tree.set("parameters/act_ts/scale", length / maxf(duration, 0.1))
 	_tree.set("parameters/act/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
+	_since_fire = 0.0
 
 
 ## Um golpe: avança no combo (golpe 1, 2, 3...) e volta ao início se ficar um tempo sem atacar.
-func attack(duration: float, moving: bool) -> void:
+## O ritmo do desenho é próprio: se o golpe anterior ainda não mostrou o impacto, ele continua.
+func attack(moving: bool) -> void:
 	if _tree == null or _dead or _attacks.is_empty():
 		return
 	if _since_attack > COMBO_RESET:
 		_combo = 0
 	_since_attack = 0.0
-	_fire(_attacks[_combo % _attacks.size()], duration, moving)
+	if is_acting() and _since_fire < ATTACK_MIN_GAP:
+		return
+	var anim_name := _attacks[_combo % _attacks.size()]
+	_fire(anim_name, _anim.get_animation(anim_name).length / ATTACK_SPEED, moving)
 	_combo += 1
 
 
@@ -171,11 +181,15 @@ func is_acting() -> bool:
 	return _tree != null and bool(_tree.get("parameters/act/active"))
 
 
-## Tomar dano: só o tronco reage (nunca trava as pernas) e não interrompe um golpe.
-func hurt() -> void:
-	if _tree == null or _dead or not _anim.has_animation("dano") or is_acting():
+## Atingido: parado, levanta o escudo (corpo todo); andando, só o tronco recua (as pernas seguem).
+## Nunca interrompe um golpe.
+func hurt(moving: bool) -> void:
+	if _tree == null or _dead or is_acting():
 		return
-	_fire("dano", 0.5, true)
+	if not moving and _anim.has_animation("bloqueio"):
+		_fire("bloqueio", 0.55, false)
+	elif _anim.has_animation("dano"):
+		_fire("dano", 0.5, true)
 
 
 func die() -> void:

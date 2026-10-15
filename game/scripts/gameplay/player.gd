@@ -252,7 +252,7 @@ func _find_target() -> Node3D:
 func _attack() -> void:
 	_lunge = 1.0
 	if _animator:
-		_animator.attack(clampf(weapon_stats.cooldown() * 0.95, 0.4, 0.9), _ground_speed() > 0.15)
+		_animator.attack(_ground_speed() > 0.15)
 	if weapon_stats.is_ranged():
 		var projectile := Projectile.create(_facing, weapon_stats, hero.element, crit_chance, _rng)
 		get_parent().add_child(projectile)
@@ -282,7 +282,7 @@ func _on_damaged(amount: int) -> void:
 	Fx.flash(_material, _base_color, Color("ff4d4d"))
 	_flash_model()
 	if _animator and not health.is_dead:
-		_animator.hurt()
+		_animator.hurt(_ground_speed() > 0.15)
 	Fx.damage_number(get_parent(), global_position + Vector3(0, 2.0, 0), amount, false, Color("ff6b6b"))
 
 
@@ -442,6 +442,7 @@ func _apply_model(new_hero: HeroData) -> void:
 		_fill_light.light_color = Color("fff1dc")
 		_fill_light.shadow_enabled = false
 		add_child(_fill_light)
+	HeroGear.attach(_model, new_hero.id)
 	_collect_meshes(_model)
 	var animator := HeroAnimator.new()
 	add_child(animator)

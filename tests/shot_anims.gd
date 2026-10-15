@@ -6,6 +6,7 @@ extends SceneTree
 var _f := 0
 var _model := ""
 var _shot := ""
+var _hero := &""
 var _anim: AnimationPlayer
 var _jobs: Array = []
 
@@ -14,6 +15,8 @@ func _initialize() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("model="):
 			_model = arg.trim_prefix("model=")
+		elif arg.begins_with("hero="):
+			_hero = StringName(arg.trim_prefix("hero="))
 		elif arg.begins_with("shot="):
 			_shot = arg.trim_prefix("shot=")
 	var root3d := Node3D.new()
@@ -30,6 +33,8 @@ func _initialize() -> void:
 	root3d.add_child(sun)
 	var model: Node3D = load(_model).instantiate()
 	root3d.add_child(model)
+	if _hero != &"":
+		HeroGear.attach(model, _hero)
 	_anim = model.find_children("*", "AnimationPlayer", true, false)[0]
 	var cam := Camera3D.new()
 	root3d.add_child(cam)

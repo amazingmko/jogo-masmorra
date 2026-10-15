@@ -23,11 +23,22 @@ Como o Claude prepara: reduz os triângulos mantendo o mapeamento da textura (o 
 reduz a textura para 1024 px, coloca 1,7 m de altura com os pés no chão. Na Tripo, **não usar a
 retopologia**: exportar o modelo original em GLB.
 
-## Animações (Tripo)
+## Animações (padrão: Mixamo) e armas
 
-1. No Tripo: Rig → Humanoide, predefinição Mixamo → Auto Rig, usando o modelo **já reduzido** do jogo (`game/art/herois/<heroi>.glb`), não o original de milhões de faces.
-2. Animar: Idle, Walk, Run, Slash, Hit to body e Fall. Exportar em GLB com as animações.
-3. Salvar em `arte/bruto/<heroi>_animado.glb`, commit e push.
-4. Preparar para o jogo (altura, sem deslocamento, nomes, corte do golpe):
-   `node tools/prep_anim.mjs arte/bruto/<heroi>_animado.glb game/art/herois/<heroi>.glb`
-   Conferir as poses com `tests/shot_anims.gd`.
+Exemplo pronto: a Icamiaba. Repetir igual para os outros heróis.
+
+1. **Modelo sem esqueleto**: o modelo reduzido do jogo (8 mil triângulos) em OBJ + textura num .zip.
+2. **Mixamo** (mixamo.com, conta Adobe grátis): Upload Character → posicionar queixo, pulsos, cotovelos, joelhos e virilha → Skeleton LOD Standard.
+3. Baixar as animações do pacote da arma da classe (ex.: "sword and shield"), cada uma em **FBX Binary, With Skin, 30 fps** ("In Place" quando houver), e salvar em `arte/animacoes/<heroi>/` com estes nomes:
+   `parada, andar, corrida, golpe1, golpe2, golpe3 (até golpe4), impacto, bloquear, morte` (.fbx).
+4. **Armas**: imagem (ChatGPT/Gemini) → Tripo, sem retopologia → GLB em `arte/bruto/armas/<arma>_<heroi>.glb`.
+5. Preparar para o jogo (feito pelo Claude):
+   - FBX → GLB: `FBX2glTF -b -i arquivo.fbx -o arquivo` (npm i fbx2gltf)
+   - juntar: `node tools/mixamo_merge.mjs <pasta dos .glb> game/art/herois/<heroi>.glb` (escala, nomes, sem deslocamento, material fosco)
+   - armas: reduzir para ~2.500 triângulos e textura 512 → `game/art/armas/`
+   - encaixe nas mãos: tabela `GEAR` em `game/scripts/gameplay/hero_gear.gd`
+   - conferir: `tests/shot_anims.gd -- model=... hero=<heroi> shot=...`
+
+No jogo (`hero_animator.gd`): pernas (parada/andar/correr) e tronco (golpes, dano) em camadas; combo de golpes em sequência; atingido parado levanta o escudo; morte no corpo todo.
+
+O caminho antigo (rig e animações do Tripo, `tools/prep_anim.mjs`) ficou como alternativa: as animações do Tripo são genéricas e sem arma.
