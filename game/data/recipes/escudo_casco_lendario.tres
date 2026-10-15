@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_jaaqs"]
+
+[resource]
+script = ExtResource("1_jaaqs")
+id = &"escudo_casco_lendario"
+display_name = "Escudo de Casco (Lendário)"
+result_item_id = &"escudo_casco"
+result_rarity = 3
+requires_base = true
+ingredients = {
+"couro_jacare": 80,
+"madeira_lei": 140,
+"muiraquita": 1,
+"pelo_mapinguari": 6,
+"pena_arara": 6
+}
+profession_id = &"ferreiro"
+required_level = 40
+xp_reward = 500

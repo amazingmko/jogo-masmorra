@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_e6yqb"]
+
+[resource]
+script = ExtResource("1_e6yqb")
+id = &"lanca_ipe_lendario"
+display_name = "Lança de Ipê (Lendário)"
+result_item_id = &"lanca_ipe"
+result_rarity = 3
+requires_base = true
+ingredients = {
+"madeira_lei": 170,
+"minerio_ferro": 100,
+"muiraquita": 1,
+"pelo_mapinguari": 7,
+"pena_arara": 7
+}
+profession_id = &"ferreiro"
+required_level = 40
+xp_reward = 600

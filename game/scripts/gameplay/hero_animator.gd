@@ -11,8 +11,8 @@ extends Node
 const BLEND := 0.15
 const RUN_SPEED := 3.3    # m/s em que a corrida do modelo (Mixamo) casa com o chão
 const WALK_SPEED := 1.2
-const ATTACK_SPEED := 1.6  # os golpes do Mixamo duram ~1,5 s; aqui tocam mais rápidos, sem perder o desenho
-const ATTACK_MIN_GAP := 0.42  # um golpe só é trocado pelo próximo depois de mostrar o impacto
+const ATTACK_SPEED := 1.25  # os golpes do Mixamo duram ~1,5 s; aqui um pouco mais rápidos, com peso
+const ATTACK_MIN_GAP := 0.6  # um golpe só é trocado pelo próximo depois de mostrar o impacto
 const COMBO_RESET := 1.1  # segundos sem atacar e o combo volta ao primeiro golpe
 ## Partes do esqueleto (Mixamo) que pertencem ao tronco.
 const UPPER := ["Spine", "Neck", "Head", "Shoulder", "Arm", "Hand"]
@@ -26,6 +26,8 @@ var _since_attack := 99.0
 var _loco := ""
 var _dead := false
 var _since_fire := 99.0
+var _act_name := ""
+var _act_left := 0.0
 
 
 ## Prepara o modelo. Devolve false se ele não tiver animações (o herói usa o balanço simples).
@@ -112,9 +114,18 @@ func _build_tree(model: Node) -> void:
 	_tree = AnimationTree.new()
 	_tree.name = "AnimationTree"
 	model.add_child(_tree)
-	_tree.anim_player = _tree.get_path_to(_anim)
+	# As animações vão direto para a árvore (sem depender do anim_player, que nem sempre
+	# sincroniza quando a árvore nasce durante o _ready). root_node ".." = raiz do modelo.
+	for lib_name in _anim.get_animation_library_list():
+		_tree.add_animation_library(lib_name, _anim.get_animation_library(lib_name))
+	_anim.active = false
 	_tree.tree_root = bt
 	_tree.active = true
+	# Os parâmetros da árvore só existem depois de lidos uma vez; sem isso o primeiro pedido
+	# ("idle", "vivo") se perde e as transições ficam sem estado (herói em pose de T).
+	_tree.get_property_list()
+	_tree.set("parameters/life/transition_request", "vivo")
+	_loco = ""
 	_set_loco("idle", 1.0)
 
 
@@ -145,6 +156,7 @@ func update(delta: float, ground_speed: float, move_speed: float) -> void:
 		return
 	_since_attack += delta
 	_since_fire += delta
+	_act_left -= delta
 	if ground_speed > move_speed * 0.45:
 		_set_loco("run", clampf(ground_speed / RUN_SPEED, 0.7, 1.8))
 	elif ground_speed > 0.15:
@@ -160,6 +172,8 @@ func _fire(anim_name: String, duration: float, moving: bool) -> void:
 	_tree.set("parameters/act_ts/scale", length / maxf(duration, 0.1))
 	_tree.set("parameters/act/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
 	_since_fire = 0.0
+	_act_name = anim_name
+	_act_left = duration
 
 
 ## Um golpe: avança no combo (golpe 1, 2, 3...) e volta ao início se ficar um tempo sem atacar.
@@ -170,7 +184,7 @@ func attack(moving: bool) -> void:
 	if _since_attack > COMBO_RESET:
 		_combo = 0
 	_since_attack = 0.0
-	if is_acting() and _since_fire < ATTACK_MIN_GAP:
+	if _act_name.begins_with("ataque") and is_acting() and _since_fire < ATTACK_MIN_GAP:
 		return
 	var anim_name := _attacks[_combo % _attacks.size()]
 	_fire(anim_name, _anim.get_animation(anim_name).length / ATTACK_SPEED, moving)
@@ -178,24 +192,39 @@ func attack(moving: bool) -> void:
 
 
 func is_acting() -> bool:
-	return _tree != null and bool(_tree.get("parameters/act/active"))
+	return _tree != null and _act_left > 0.0
 
 
-## Atingido: parado, levanta o escudo (corpo todo); andando, só o tronco recua (as pernas seguem).
-## Nunca interrompe um golpe.
+func _attacking() -> bool:
+	return is_acting() and _act_name.begins_with("ataque")
+
+
+## Atingido: o tronco recua (andando, as pernas seguem; parado, o corpo todo). Não interrompe golpe nem bloqueio.
 func hurt(moving: bool) -> void:
-	if _tree == null or _dead or is_acting():
+	if _tree == null or _dead or is_acting() or not _anim.has_animation("dano"):
 		return
-	if not moving and _anim.has_animation("bloqueio"):
-		_fire("bloqueio", 0.55, false)
-	elif _anim.has_animation("dano"):
-		_fire("dano", 0.5, true)
+	_fire("dano", 0.5, moving)
+
+
+## Animação de ação qualquer (poderes da classe). Não interrompe um golpe.
+func play_action(anim_name: String, duration: float, moving: bool) -> void:
+	if _tree == null or _dead or _attacking() or not _anim.has_animation(anim_name):
+		return
+	_fire(anim_name, duration, moving)
+
+
+## Bloqueou com o escudo: levanta o escudo (substitui o "dano", mas não interrompe um golpe).
+func block(moving: bool) -> void:
+	if _tree == null or _dead or _attacking() or not _anim.has_animation("bloqueio"):
+		return
+	_fire("bloqueio", 0.5, moving)
 
 
 func die() -> void:
 	if _tree == null:
 		return
 	_dead = true
+	_act_left = 0.0
 	_tree.set("parameters/act/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_ABORT)
 	_tree.set("parameters/life/transition_request", "morto")
 

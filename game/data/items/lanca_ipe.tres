@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/item_data.gd" id="1_3fji5"]
+
+[resource]
+script = ExtResource("1_3fji5")
+id = &"lanca_ipe"
+display_name = "Lança de Ipê"
+description = "Lança de madeira de lei com ponta de pedra verde. Alcance bom, golpes firmes."
+kind = 1
+max_stack = 1
+stats = {
+"attack_range": 2.3,
+"attack_speed": 1.3,
+"damage": 60
+}
+weapon_type = &"lanca"

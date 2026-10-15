@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/item_data.gd" id="1_xhw8n"]
+
+[resource]
+script = ExtResource("1_xhw8n")
+id = &"escudo_casco"
+display_name = "Escudo de Casco"
+description = "Casco de tracajá com aro de madeira de lei. Só tanques: dá armadura e chance de bloquear."
+kind = 2
+max_stack = 1
+slot = 6
+armor_type = 2

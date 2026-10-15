@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_pns7o"]
+
+[resource]
+script = ExtResource("1_pns7o")
+id = &"escudo_casco_raro"
+display_name = "Escudo de Casco (Raro)"
+result_item_id = &"escudo_casco"
+result_rarity = 1
+requires_base = true
+ingredients = {
+"couro_jacare": 24,
+"madeira_lei": 42,
+"pena_arara": 2
+}
+profession_id = &"ferreiro"
+required_level = 5
+xp_reward = 80

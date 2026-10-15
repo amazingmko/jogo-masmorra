@@ -12,7 +12,8 @@ enum PrimaryStat { STRENGTH, AGILITY, INTELLECT }
 
 enum ArmorType { CLOTH, LEATHER, PLATE }
 
-enum Slot { WEAPON, HEAD, CHEST, HANDS, LEGS, FEET }
+## OFFHAND (escudo) fica no fim para não mudar o número dos slots nos saves antigos.
+enum Slot { WEAPON, HEAD, CHEST, HANDS, LEGS, FEET, OFFHAND }
 
 enum Difficulty { NORMAL, HARD, HEROIC, MYTHIC }
 
@@ -33,7 +34,7 @@ const ARMOR_NAMES := ["Tecido", "Couro", "Placa"]
 ## Tipo de armadura de quem usa cada atributo.
 const ARMOR_FOR_PRIMARY := [ArmorType.PLATE, ArmorType.LEATHER, ArmorType.CLOTH]
 const PRIMARY_FOR_ARMOR := [PrimaryStat.INTELLECT, PrimaryStat.AGILITY, PrimaryStat.STRENGTH]
-const SLOT_NAMES := ["Arma", "Cabeça", "Peito", "Mãos", "Pernas", "Pés"]
+const SLOT_NAMES := ["Arma", "Cabeça", "Peito", "Mãos", "Pernas", "Pés", "Escudo"]
 
 ## Nome de exibição de cada atributo guardado nos itens.
 const STAT_NAMES := {
@@ -46,6 +47,7 @@ const STAT_NAMES := {
 	"haste": "Aceleração",
 	"luck": "Sorte",
 	"damage": "Dano",
+	"block": "Bloqueio",
 }
 
 ## Bônus de dano quando o elemento do atacante vence o do alvo.

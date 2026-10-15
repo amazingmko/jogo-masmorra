@@ -9,6 +9,9 @@ var primary := 10      # valor do atributo principal da classe
 var vigor := 0
 var armor := 0
 var crit_chance := 0.05
+## Chance de bloquear um golpe (0 a MAX_BLOCK). Só tanques.
+var block_chance := 0.0
+const MAX_BLOCK := 0.5
 var haste := 0.0       # % de velocidade de ataque
 var luck := 0.0        # % de recursos extras (usado nas recompensas)
 var move_speed := 5.0
@@ -33,7 +36,7 @@ static func compute(hero: HeroData, level: int, equipped: Dictionary, catalog: I
 	var lvl_bonus := maxi(level - 1, 0)
 	s.primary = hero.base_primary + lvl_bonus * Progression.PRIMARY_PER_LEVEL + int(sum.get(primary_key, 0))
 	s.vigor = lvl_bonus * Progression.VIGOR_PER_LEVEL + int(sum.get("vigor", 0))
-	s.armor = int(sum.get("armor", 0))
+	s.armor = hero.base_armor + int(sum.get("armor", 0))
 
 	# Arma: a equipada, ou a inicial da classe como molde comum de nível 1.
 	var weapon_inst: Dictionary = equipped.get(GameEnums.Slot.WEAPON, {})
@@ -56,6 +59,8 @@ static func compute(hero: HeroData, level: int, equipped: Dictionary, catalog: I
 	s.move_speed = _apply(buffs, &"move_speed", hero.move_speed)
 	s.crit_chance = clampf(_apply(buffs, &"crit_chance", base_crit), 0.0, 1.0)
 	s.damage_reduction = clampf(float(s.armor) / (float(s.armor) + 200.0), 0.0, 0.75)
+	if hero.hero_class == GameEnums.HeroClass.TANK:
+		s.block_chance = clampf(hero.block_chance + float(sum.get("block", 0)) / 100.0, 0.0, MAX_BLOCK)
 	return s
 
 

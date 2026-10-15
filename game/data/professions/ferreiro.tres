@@ -6,7 +6,7 @@
 script = ExtResource("1_njlcf")
 id = &"ferreiro"
 display_name = "Ferreiro"
-description = "Forja espadas e armaduras de placa com ferro e madeira de lei."
+description = "Forja lanças, escudos e armaduras de placa com ferro e madeira de lei."
 max_level = 100
 base_xp = 60
 xp_growth = 1.045

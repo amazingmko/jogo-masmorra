@@ -20,6 +20,10 @@ extends Resource
 @export var max_energy: int = 150
 @export var move_speed: float = 5.0
 @export_range(0.0, 1.0) var crit_chance: float = 0.05
+## Armadura própria da classe, somada à do equipamento (tanques nascem mais protegidos).
+@export var base_armor: int = 0
+## Chance de bloquear um golpe inimigo (só tanques; o escudo equipado soma mais).
+@export_range(0.0, 0.5) var block_chance: float = 0.0
 
 @export_group("Visual")
 ## Modelo 3D do herói (.glb). Vazio = cápsula provisória. Deve olhar para +Z, pés em y = 0, ~1,7 m.

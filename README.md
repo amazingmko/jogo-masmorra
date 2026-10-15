@@ -17,7 +17,7 @@ O jogo abre na base. Ande até um ponto e toque no botão azul (PC: **E**):
 
 - **Portal da Masmorra** — escolher a dificuldade, decidir se gasta energia e começar a run
 - **Baú e Equipamento** — vestir e tirar peças, ver atributos e reagentes
-- **Quadro de Heróis** — trocar de herói (Icamiaba: força/placa · Mateira: agilidade/couro · Encantado do Rio: inteligência/tecido · Druida da Mata: agilidade/couro)
+- **Quadro de Heróis** — trocar de herói (Icamiaba: tanque, lança e escudo, força/placa · Mateira: agilidade/couro · Encantado do Rio: inteligência/tecido · Druida da Mata: agilidade/couro)
 - **Oficina dos Artesãos** — fabricar equipamento e garrafadas
 
 ### Druida da Mata
@@ -38,7 +38,7 @@ Nada de equipamento cai nas masmorras: **tudo é fabricado**. Cada profissão so
 
 | profissão | fabrica | reagentes principais |
 | --- | --- | --- |
-| Ferreiro | espada e armadura de placa | Minério de Ferro, Madeira de Lei |
+| Ferreiro | lança, escudo (só tanques) e armadura de placa | Minério de Ferro, Madeira de Lei, Couro de Jacaré |
 | Curtidor | arco, Cajado de Raiz e armadura de couro | Couro de Jacaré, Látex de Seringueira, Madeira de Lei |
 | Tecelã | cajado e armadura de tecido | Fibra de Tucum, Látex de Seringueira, Madeira de Lei |
 | Erveira | Garrafada de Cura | Óleo de Andiroba |
@@ -75,7 +75,18 @@ Em dificuldades maiores os inimigos também ficam mais agressivos, com mais onda
 
 ### A run
 
-A **Terra Firme**: 5 andares de mata fechada gerados aleatoriamente. Nas salas de combate as portas fecham até o último inimigo cair. Baús (amarelo no minimapa) dão reagentes, a fonte (verde) cura, o portal azul leva ao próximo andar depois de escolher 1 entre 3 bênçãos. No 5º andar, o Mapinguari, que deixa muitos reagentes e o Pelo de Mapinguari. XP e reagentes ficam com o herói, mesmo perdendo.
+**Tanque (Icamiaba):** mais vida, escudo maior e armadura própria; golpes de lança mais lentos e com menos dano. Só o tanque **bloqueia**: 12% de base mais o Escudo de Casco equipado (4/6/8/11% por raridade, até 50%). Golpe bloqueado perde 70% do dano (veneno e mega magia não são bloqueáveis).
+**Poderes da Icamiaba** (PC: Q habilidade, F ultimate; no celular, botões ao lado do ATACAR):
+- *Provocar* (habilidade, 12 s): inimigos a 9 m vêm para cima dela sem recuar, saem da tocaia/camuflagem e batem 25% mais fraco por 6 s.
+- *Muralha de Casco* (ultimate): por 6 s segura todo golpe, até a mega magia. Carrega matando (+8, furioso +20), bloqueando (+5) e apanhando; fica entre andares e zera a cada run.
+- *Muiraquitã* (passiva): uma vez por andar, um golpe fatal a deixa com 25% da vida.
+- *Revide* (passiva): depois de bloquear, o próximo golpe causa +50%.
+
+Cada classe tem um kit (`game/scripts/gameplay/kits/`): a Druida usa a habilidade para trocar de forma.
+
+**Sem escudo:** quando a barra de escudo zera, qualquer herói toma +25% de dano até ela voltar.
+
+A **Terra Firme**: 5 andares de mata fechada gerados aleatoriamente. Nas salas de combate as portas fecham até o último inimigo cair. Baús (amarelo no minimapa) dão reagentes, a fonte (verde) cura, o portal azul leva ao próximo andar (sem bênçãos: a força vem do equipamento fabricado). No 5º andar, o Mapinguari, que deixa muitos reagentes e o Pelo de Mapinguari. XP e reagentes ficam com o herói, mesmo perdendo.
 
 ### Ondas e furiosos
 
