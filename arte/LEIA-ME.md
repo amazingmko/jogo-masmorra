@@ -42,3 +42,15 @@ Exemplo pronto: a Icamiaba. Repetir igual para os outros heróis.
 No jogo (`hero_animator.gd`): pernas (parada/andar/correr) e tronco (golpes, dano) em camadas; combo de golpes em sequência; atingido parado levanta o escudo; morte no corpo todo.
 
 O caminho antigo (rig e animações do Tripo, `tools/prep_anim.mjs`) ficou como alternativa: as animações do Tripo são genéricas e sem arma.
+
+## Efeitos das magias (texturas)
+
+Os efeitos já funcionam com texturas provisórias desenhadas por código (`game/art/vfx/`).
+Para trocar pelas versões pintadas por IA:
+
+1. Gerar cada imagem no Gemini/ChatGPT com **fundo preto puro**, quadrada, sem texto (prompts no chat / abaixo).
+2. Salvar em `arte/vfx/` com o nome exato: `casco_hex.png`, `onda_choque.png`, `poeira.png`, `folha.png`,
+   `faisca.png`, `sapo_muiraquita.png`, `simbolo_provocado.png` (pode mandar só algumas).
+3. Preparar (o preto vira transparente): `python3 tools/vfx_texturas.py preparar arte/vfx`
+
+Efeitos no código: `game/scripts/combat/vfx.gd`. Fotos para conferir: `tests/shot_powers.gd`.

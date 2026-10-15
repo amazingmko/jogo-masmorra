@@ -698,7 +698,7 @@ func provoke(seconds: float) -> void:
 		_wake()
 	if tactic == Tactic.BACK_OFF:
 		_set_tactic(Tactic.PRESS)
-	Fx.float_text(get_parent(), global_position + Vector3(0, 2.0 * data.body_scale, 0), "provocado", Color("ff9f43"))
+	Vfx.provoked_mark(self, seconds, 2.3 * data.body_scale)
 
 
 func is_provoked() -> bool:

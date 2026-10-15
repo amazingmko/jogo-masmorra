@@ -337,11 +337,16 @@ func _on_blocked(_amount: int) -> void:
 
 func _on_death_saved() -> void:
 	Fx.float_text(get_parent(), global_position + Vector3(0, 3.0, 0), "MUIRAQUITÃ!", Color("6fdc7b"))
+	Vfx.muiraquita(self)
 	Fx.flash(_material, _base_color, Color("6fdc7b"))
 
 
 ## Animação de um poder da classe (o tronco, se estiver andando).
 ## fallback: usada se o modelo ainda não tiver a animação própria do poder.
+func facing() -> Vector3:
+	return _facing
+
+
 func play_kit_animation(anim_name: String, duration := 0.5, fallback := "bloqueio") -> void:
 	if _animator == null:
 		return
