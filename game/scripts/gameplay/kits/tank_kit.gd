@@ -54,7 +54,7 @@ func _use_skill() -> bool:
 			hit += 1
 	Fx.shockwave(player.get_parent(), origin, PROVOKE_RADIUS, Color("ff9f43"))
 	Fx.float_text(player.get_parent(), origin + Vector3(0, 2.8, 0), "PROVOCAR!", Color("ff9f43"))
-	player.play_kit_animation("bloqueio")
+	player.play_kit_animation("provocar", 1.0)
 	return true
 
 
@@ -65,7 +65,7 @@ func _use_ultimate() -> void:
 		_dome.queue_free()
 	_dome = Fx.dome(player, 1.6, COLOR, WALL_TIME)
 	Fx.float_text(player.get_parent(), player.global_position + Vector3(0, 3.0, 0), "MURALHA DE CASCO!", COLOR)
-	player.play_kit_animation("bloqueio")
+	player.play_kit_animation("muralha", 1.1)
 
 
 func _process(delta: float) -> void:

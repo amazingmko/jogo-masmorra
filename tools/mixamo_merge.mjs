@@ -15,6 +15,7 @@ const NOMES = {
   parada: 'idle', andar: 'walk', corrida: 'run',
   golpe1: 'ataque1', golpe2: 'ataque2', golpe3: 'ataque3', golpe4: 'ataque4',
   impacto: 'dano', bloquear: 'bloqueio', morte: 'morte',
+  provocar: 'provocar', muralha: 'muralha',  // poderes da classe
 };
 const SCALE = 100;
 const io = new NodeIO();

@@ -30,7 +30,7 @@ Exemplo pronto: a Icamiaba. Repetir igual para os outros heróis.
 1. **Modelo sem esqueleto**: o modelo reduzido do jogo (8 mil triângulos) em OBJ + textura num .zip.
 2. **Mixamo** (mixamo.com, conta Adobe grátis): Upload Character → posicionar queixo, pulsos, cotovelos, joelhos e virilha → Skeleton LOD Standard.
 3. Baixar as animações do pacote da arma da classe (ex.: "sword and shield"), cada uma em **FBX Binary, With Skin, 30 fps** ("In Place" quando houver), e salvar em `arte/animacoes/<heroi>/` com estes nomes:
-   `parada, andar, corrida, golpe1, golpe2, golpe3 (até golpe4), impacto, bloquear, morte` (.fbx).
+   `parada, andar, corrida, golpe1, golpe2, golpe3 (até golpe4), impacto, bloquear, morte` e os poderes `provocar, muralha` (.fbx).
 4. **Armas**: imagem (ChatGPT/Gemini) → Tripo, sem retopologia → GLB em `arte/bruto/armas/<arma>_<heroi>.glb`.
 5. Preparar para o jogo (feito pelo Claude):
    - FBX → GLB: `FBX2glTF -b -i arquivo.fbx -o arquivo` (npm i fbx2gltf)
