@@ -287,7 +287,8 @@ func _attack() -> void:
 
 func _melee_swing() -> void:
 	var reach := weapon_stats.attack_range
-	Fx.slash(get_parent(), global_position, _facing, reach)
+	if _animator == null:
+		Fx.slash(get_parent(), global_position, _facing, reach)  # só para quem ainda é cápsula (sem animação de golpe)
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		var to_enemy: Vector3 = enemy.global_position - global_position
 		to_enemy.y = 0.0
@@ -336,13 +337,21 @@ func _on_blocked(_amount: int) -> void:
 
 func _on_death_saved() -> void:
 	Fx.float_text(get_parent(), global_position + Vector3(0, 3.0, 0), "MUIRAQUITÃ!", Color("6fdc7b"))
+	Vfx.muiraquita(self)
 	Fx.flash(_material, _base_color, Color("6fdc7b"))
 
 
 ## Animação de um poder da classe (o tronco, se estiver andando).
-func play_kit_animation(anim_name: String) -> void:
-	if _animator:
-		_animator.play_action(anim_name, 0.5, _ground_speed() > 0.15)
+## fallback: usada se o modelo ainda não tiver a animação própria do poder.
+func facing() -> Vector3:
+	return _facing
+
+
+func play_kit_animation(anim_name: String, duration := 0.5, fallback := "bloqueio") -> void:
+	if _animator == null:
+		return
+	var use := anim_name if _animator.has_animation(anim_name) else fallback
+	_animator.play_action(use, duration if use == anim_name else 0.5, _ground_speed() > 0.15)
 
 
 ## Começo de uma run: sem bênçãos, ultimate vazia, passivas renovadas.

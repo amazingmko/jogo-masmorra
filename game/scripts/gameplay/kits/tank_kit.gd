@@ -18,6 +18,7 @@ const COLOR := Color("e8c26a")
 var _wall_left := 0.0
 var _revide_left := 0.0
 var _dome: MeshInstance3D
+var _glow: CPUParticles3D
 
 
 func skill_name() -> String:
@@ -52,9 +53,9 @@ func _use_skill() -> bool:
 		if enemy.has_method("provoke") and origin.distance_to(enemy.global_position) <= PROVOKE_RADIUS:
 			enemy.provoke(PROVOKE_TIME)
 			hit += 1
-	Fx.shockwave(player.get_parent(), origin, PROVOKE_RADIUS, Color("ff9f43"))
+	Vfx.provoke(player.get_parent(), origin, PROVOKE_RADIUS)
 	Fx.float_text(player.get_parent(), origin + Vector3(0, 2.8, 0), "PROVOCAR!", Color("ff9f43"))
-	player.play_kit_animation("bloqueio")
+	player.play_kit_animation("provocar", 1.0)
 	return true
 
 
@@ -63,9 +64,9 @@ func _use_ultimate() -> void:
 	player.health.wall_active = true
 	if is_instance_valid(_dome):
 		_dome.queue_free()
-	_dome = Fx.dome(player, 1.6, COLOR, WALL_TIME)
+	_dome = Vfx.shell_dome(player, 1.7, WALL_TIME)
 	Fx.float_text(player.get_parent(), player.global_position + Vector3(0, 3.0, 0), "MURALHA DE CASCO!", COLOR)
-	player.play_kit_animation("bloqueio")
+	player.play_kit_animation("muralha", 1.1)
 
 
 func _process(delta: float) -> void:
@@ -76,6 +77,8 @@ func _process(delta: float) -> void:
 			player.health.wall_active = false
 	if _revide_left > 0.0:
 		_revide_left -= delta
+		if _revide_left <= 0.0:
+			_stop_glow()
 
 
 func wall_active() -> bool:
@@ -87,6 +90,9 @@ func on_run_start() -> void:
 	_wall_left = 0.0
 	_revide_left = 0.0
 	player.health.wall_active = false
+	_stop_glow()
+	if is_instance_valid(_dome):
+		_dome.queue_free()
 	on_floor_start()
 
 
@@ -98,9 +104,25 @@ func on_blocked() -> void:
 	# Durante a Muralha, cada golpe segurado também arma o Revide, mas não enche a ultimate.
 	if not wall_active():
 		super()
+	else:
+		Vfx.shell_hit(_dome)
 	if _revide_left <= 0.0:
-		Fx.float_text(player.get_parent(), player.global_position + Vector3(0, 2.3, 0), "revide pronto", COLOR)
+		_stop_glow()
+		_glow = Vfx.revide_glow(_spear_hand())
 	_revide_left = REVIDE_WINDOW
+
+
+## Onde fica a lança (mão direita do modelo); sem modelo, o próprio herói.
+func _spear_hand() -> Node3D:
+	var found := player.find_children("Gear_mixamorig_RightHand", "BoneAttachment3D", true, false)
+	return found[0] if not found.is_empty() else player
+
+
+func _stop_glow() -> void:
+	if is_instance_valid(_glow):
+		_glow.emitting = false
+		_glow.get_tree().create_timer(0.6, false).timeout.connect(_glow.queue_free)
+	_glow = null
 
 
 func revide_ready() -> bool:
@@ -116,4 +138,6 @@ func modify_outgoing(amount: int) -> int:
 func on_attack_done() -> void:
 	if _revide_left > 0.0:
 		_revide_left = 0.0
+		_stop_glow()
 		Fx.float_text(player.get_parent(), player.global_position + Vector3(0, 2.5, 0), "REVIDE!", COLOR)
+		Vfx.revide_strike(player.get_parent(), player.global_position + player.facing() * 1.4 + Vector3(0, 1.0, 0))

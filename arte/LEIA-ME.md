@@ -30,7 +30,7 @@ Exemplo pronto: a Icamiaba. Repetir igual para os outros heróis.
 1. **Modelo sem esqueleto**: o modelo reduzido do jogo (8 mil triângulos) em OBJ + textura num .zip.
 2. **Mixamo** (mixamo.com, conta Adobe grátis): Upload Character → posicionar queixo, pulsos, cotovelos, joelhos e virilha → Skeleton LOD Standard.
 3. Baixar as animações do pacote da arma da classe (ex.: "sword and shield"), cada uma em **FBX Binary, With Skin, 30 fps** ("In Place" quando houver), e salvar em `arte/animacoes/<heroi>/` com estes nomes:
-   `parada, andar, corrida, golpe1, golpe2, golpe3 (até golpe4), impacto, bloquear, morte` (.fbx).
+   `parada, andar, corrida, golpe1, golpe2, golpe3 (até golpe4), impacto, bloquear, morte` e os poderes `provocar, muralha` (.fbx).
 4. **Armas**: imagem (ChatGPT/Gemini) → Tripo, sem retopologia → GLB em `arte/bruto/armas/<arma>_<heroi>.glb`.
 5. Preparar para o jogo (feito pelo Claude):
    - FBX → GLB: `FBX2glTF -b -i arquivo.fbx -o arquivo` (npm i fbx2gltf)
@@ -42,3 +42,15 @@ Exemplo pronto: a Icamiaba. Repetir igual para os outros heróis.
 No jogo (`hero_animator.gd`): pernas (parada/andar/correr) e tronco (golpes, dano) em camadas; combo de golpes em sequência; atingido parado levanta o escudo; morte no corpo todo.
 
 O caminho antigo (rig e animações do Tripo, `tools/prep_anim.mjs`) ficou como alternativa: as animações do Tripo são genéricas e sem arma.
+
+## Efeitos das magias (texturas)
+
+Os efeitos já funcionam com texturas provisórias desenhadas por código (`game/art/vfx/`).
+Para trocar pelas versões pintadas por IA:
+
+1. Gerar cada imagem no Gemini/ChatGPT com **fundo preto puro**, quadrada, sem texto (prompts no chat / abaixo).
+2. Salvar em `arte/vfx/` com o nome exato: `casco_hex.png`, `onda_choque.png`, `poeira.png`, `folha.png`,
+   `faisca.png`, `sapo_muiraquita.png`, `simbolo_provocado.png` (pode ser .jpg; pode mandar só algumas).
+3. Preparar (o preto vira transparente): `python3 tools/vfx_texturas.py preparar arte/vfx`
+
+Efeitos no código: `game/scripts/combat/vfx.gd`. Fotos para conferir: `tests/shot_powers.gd`.

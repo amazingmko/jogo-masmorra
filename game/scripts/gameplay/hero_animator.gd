@@ -74,7 +74,7 @@ func _build_tree(model: Node) -> void:
 	var acts := AnimationNodeTransition.new()
 	acts.xfade_time = 0.0
 	var act_names := _attacks.duplicate()
-	for extra in ["dano", "bloqueio"]:
+	for extra in ["dano", "bloqueio", "provocar", "muralha"]:
 		if _anim.has_animation(extra):
 			act_names.append(extra)
 	if act_names.is_empty():
@@ -207,6 +207,10 @@ func hurt(moving: bool) -> void:
 
 
 ## Animação de ação qualquer (poderes da classe). Não interrompe um golpe.
+func has_animation(anim_name: String) -> bool:
+	return _anim != null and _anim.has_animation(anim_name)
+
+
 func play_action(anim_name: String, duration: float, moving: bool) -> void:
 	if _tree == null or _dead or _attacking() or not _anim.has_animation(anim_name):
 		return
