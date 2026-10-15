@@ -46,9 +46,18 @@ func _ready() -> void:
 	collision_mask = Layers.WORLD | Layers.ENEMIES
 	monitorable = false
 	var shape := CollisionShape3D.new()
-	var sphere := SphereShape3D.new()
-	sphere.radius = 0.25
-	shape.shape = sphere
+	if arrow:
+		# A flecha voa na altura da mão (~1,25 m): a área de acerto desce até perto do chão,
+		# para pegar bichos baixos (formigas, cobras) sem encostar no piso.
+		var cyl := CylinderShape3D.new()
+		cyl.radius = 0.25
+		cyl.height = 1.4
+		shape.shape = cyl
+		shape.position.y = -0.45
+	else:
+		var sphere := SphereShape3D.new()
+		sphere.radius = 0.25
+		shape.shape = sphere
 	add_child(shape)
 
 	if arrow:

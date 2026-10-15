@@ -8,7 +8,7 @@ extends RefCounted
 ## 3. só então troca o temporário pelo principal.
 ## Se o principal estiver corrompido ao carregar, usa o backup.
 
-const CURRENT_VERSION := 4
+const CURRENT_VERSION := 5
 
 ## v3: heróis e reagentes com nomes da temática amazônica.
 const HERO_RENAMES := {"guardiao": "icamiaba", "batedora": "mateira", "arcanista": "encantado"}
@@ -16,6 +16,8 @@ const ITEM_RENAMES := {"fragmento_osso": "madeira_lei", "couro_rasgado": "couro_
 const PROFESSION_RENAMES := {"alquimista": "erveira"}
 ## v4: a arma do tanque virou lança (a Icamiaba luta com lança e escudo).
 const ITEM_RENAMES_V4 := {"espada_ferro": "lanca_ipe"}
+## v5: o arco atira menos vezes por segundo e cada flecha bate mais (50 -> 80 de base).
+const DAMAGE_SCALE_V5 := {"arco_simples": 1.6}
 
 
 static func write(path: String, data: Dictionary) -> Error:
@@ -71,6 +73,9 @@ static func migrate(data: Dictionary) -> Dictionary:
 	if version < 4:
 		_migrate_v4(data)
 		version = 4
+	if version < 5:
+		_migrate_v5(data)
+		version = 5
 	data["save_version"] = version
 	return data
 
@@ -125,6 +130,14 @@ static func _migrate_v4(data: Dictionary) -> void:
 				k = ITEM_RENAMES_V4[old] + k.substr(String(old).length())
 		new_streaks[k] = streaks[key]
 	data["craft_streaks"] = new_streaks
+
+
+static func _migrate_v5(data: Dictionary) -> void:
+	for piece in data.get("inventory", {}).get("equipment", []):
+		if piece is Dictionary and DAMAGE_SCALE_V5.has(String(piece.get("item_id", ""))):
+			var stats: Dictionary = piece.get("stats", {})
+			if stats.has("damage"):
+				stats["damage"] = int(round(float(stats.damage) * DAMAGE_SCALE_V5[String(piece.item_id)]))
 
 
 static func _read_json(path: String) -> Dictionary:

@@ -287,14 +287,9 @@ func _movement_velocity(delta: float, to_player: Vector3, dist: float) -> Vector
 	if _maneuver_left <= 0.0:
 		_pick_maneuver(dist, pref)
 
-	# Mira um pouco à frente de onde o herói está indo.
+	# Vai para onde o herói está (sem antecipar o passo dele: antecipando, o bando inteiro
+	# desviava para o mesmo lado junto com o herói e parecia imitar o movimento).
 	var lead_dir := dir_to
-	if _player and dist > 1.5:
-		var lead := _player.velocity * clampf(dist / maxf(speed * 2.0, 0.1), 0.0, 0.6)
-		lead.y = 0.0
-		var aimed := to_player + lead
-		if aimed.length() > 0.01:
-			lead_dir = aimed.normalized()
 	var tangent := Vector3(-dir_to.z, 0, dir_to.x) * _side
 	var noise := deg_to_rad(18.0) * _wander
 	var v := Vector3.ZERO

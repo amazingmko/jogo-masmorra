@@ -42,6 +42,13 @@ const GEAR := {
 }
 
 
+## Disparo à distância: em que fração da animação de ataque a flecha sai (a mão solta a corda).
+## Medido na animação (distância entre as mãos salta na soltura). Sem valor, sai na hora do toque.
+const RELEASE := {
+	&"mateira": 0.73,
+}
+
+
 ## Prende as peças do herói no modelo. Devolve os nós criados (para trocar depois).
 static func attach(model: Node, hero_id: StringName) -> Array[Node3D]:
 	var made: Array[Node3D] = []

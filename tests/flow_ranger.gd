@@ -9,6 +9,8 @@ var _player
 var _kit
 var _enemy
 var _hp_before := 0
+var _shot_at := 0
+var _shot_seen := -1
 
 
 func check(cond: bool, label: String) -> void:
@@ -55,6 +57,21 @@ func _process(_d: float) -> bool:
 		check(_kit.try_ultimate(), "Chamado da Harpia funciona")
 	if _f == 120:
 		check(_enemy.health.health < _hp_before or not is_instance_valid(_enemy), "a harpia mergulhou e feriu o bicho")
+		# Flecha sincronizada: não sai no toque, sai na soltura da corda (73% da animação).
+		for p in get_nodes_in_group("player_projectiles"):
+			p.free()
+		_player._attack()
+		_shot_at = Time.get_ticks_msec()
+		check(get_nodes_in_group("player_projectiles").is_empty(), "a flecha não sai no instante do toque")
+	if _f > 120 and _shot_seen < 0 and not get_nodes_in_group("player_projectiles").is_empty():
+		_shot_seen = Time.get_ticks_msec() - _shot_at
+	if _f == 200:
+		var expected: float = _player.weapon_stats.cooldown() * 0.98 * 0.73 * 1000.0
+		check(_shot_seen > 0 and absf(_shot_seen - expected) < 120.0, "a flecha sai na soltura (%d ms; esperado ~%d ms)" % [_shot_seen, int(expected)])
+		check(not get_nodes_in_group("floor_effects").is_empty(), "armadilha/harpia ainda no andar")
+		_main.debug_jump_to_floor(2)
+	if _f == 205:
+		check(get_nodes_in_group("floor_effects").is_empty(), "trocar de andar limpa armadilhas e a harpia")
 		print("fim: ", "TUDO OK" if _ok else "COM FALHAS")
 		quit(0 if _ok else 1)
 	return false
