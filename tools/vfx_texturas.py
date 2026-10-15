@@ -136,6 +136,10 @@ if __name__ == '__main__':
             if path is None:
                 continue
             img = Image.open(path)
+            w, h = img.size
+            if w != h:  # IA às vezes entrega retangular: usa o quadrado do centro
+                m = min(w, h)
+                img = img.crop(((w - m) // 2, (h - m) // 2, (w + m) // 2, (h + m) // 2))
             img = img.resize((s, s), Image.LANCZOS)
             rgb, alpha = from_black(img)
             save_rgba(name, rgb, alpha)
