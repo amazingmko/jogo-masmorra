@@ -28,6 +28,12 @@ var _dead := false
 var _since_fire := 99.0
 var _act_name := ""
 var _act_left := 0.0
+var _act_filtered := false
+## Atirar andando: tronco girado para o alvo (SpineTwist) e pernas para frente ou para trás.
+var _twist: SpineTwist
+var _aim_active := false
+var _aim_angle := 0.0
+var _legs_reverse := false
 
 
 ## Prepara o modelo. Devolve false se ele não tiver animações (o herói usa o balanço simples).
@@ -121,6 +127,11 @@ func _build_tree(model: Node) -> void:
 	_anim.active = false
 	_tree.tree_root = bt
 	_tree.active = true
+	var skeletons := model.find_children("*", "Skeleton3D", true, false)
+	if not skeletons.is_empty():
+		_twist = SpineTwist.new()
+		_twist.name = "SpineTwist"
+		skeletons[0].add_child(_twist)
 	# Os parâmetros da árvore só existem depois de lidos uma vez; sem isso o primeiro pedido
 	# ("idle", "vivo") se perde e as transições ficam sem estado (herói em pose de T).
 	_tree.get_property_list()
@@ -157,7 +168,16 @@ func update(delta: float, ground_speed: float, move_speed: float) -> void:
 	_since_attack += delta
 	_since_fire += delta
 	_act_left -= delta
-	if ground_speed > move_speed * 0.45:
+	if _twist:
+		var want := 1.0 if _aim_active and _act_filtered and is_acting() else 0.0
+		_twist.weight = move_toward(_twist.weight, want, delta * 8.0)
+		if _aim_active:
+			_twist.angle = _aim_angle
+	if _aim_active and ground_speed > 0.15:
+		# Mirando andando: passo de caminhada (para trás quando ela recua atirando).
+		var s := clampf(ground_speed / WALK_SPEED, 0.8, 2.2)
+		_set_loco("walk", -s if _legs_reverse else s)
+	elif ground_speed > move_speed * 0.45:
 		_set_loco("run", clampf(ground_speed / RUN_SPEED, 0.7, 1.8))
 	elif ground_speed > 0.15:
 		_set_loco("walk", clampf(ground_speed / WALK_SPEED, 0.8, 2.0))
@@ -168,12 +188,20 @@ func update(delta: float, ground_speed: float, move_speed: float) -> void:
 func _fire(anim_name: String, duration: float, moving: bool) -> void:
 	var length := _anim.get_animation(anim_name).length
 	_act.filter_enabled = moving
+	_act_filtered = moving
 	_tree.set("parameters/acts/transition_request", anim_name)
 	_tree.set("parameters/act_ts/scale", length / maxf(duration, 0.1))
 	_tree.set("parameters/act/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
 	_since_fire = 0.0
 	_act_name = anim_name
 	_act_left = duration
+
+
+## Atirar andando: quanto girar o tronco (radianos) e se as pernas andam para trás.
+func set_aim(active: bool, twist_angle := 0.0, legs_reverse := false) -> void:
+	_aim_active = active
+	_aim_angle = twist_angle
+	_legs_reverse = legs_reverse
 
 
 ## Um golpe: avança no combo (golpe 1, 2, 3...) e volta ao início se ficar um tempo sem atacar.

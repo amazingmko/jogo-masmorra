@@ -82,6 +82,11 @@ var _animator: HeroAnimator
 const EXPOSED_BONUS := 0.25
 ## Altura em que a flecha voa (a da mão do arco na hora de soltar).
 const ARROW_HEIGHT := 1.25
+## Velocidade enquanto puxa e solta a corda (andar mirando é mais lento: sem patinar).
+const SHOOT_MOVE_FACTOR := 0.55
+## Maior torção do tronco ao atirar andando (rad); além disso ela vira o corpo.
+const MAX_TWIST := 1.4
+var _shot_left := 0.0
 
 ## Veneno, raízes e lentidão (ver StatusEffects).
 var status := StatusEffects.new()
@@ -217,6 +222,9 @@ func _physics_process(delta: float) -> void:
 		input = touch_move if touch_move.length() > 0.05 else Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var direction := Vector3(input.x, 0.0, input.y)
 	var speed := move_speed * status.move_factor() * (kit.speed_factor() if kit else 1.0)
+	_shot_left -= delta
+	if _shot_left > 0.0:
+		speed *= SHOOT_MOVE_FACTOR
 	velocity.x = direction.x * speed
 	velocity.z = direction.z * speed
 	velocity.y = 0.0 if is_on_floor() else velocity.y - _gravity * delta
@@ -256,6 +264,7 @@ func _physics_process(delta: float) -> void:
 
 	if controls_enabled:
 		var target_angle := atan2(_facing.x, _facing.z)
+		target_angle = _aim_while_moving(target_angle)
 		_body.rotation.y = lerp_angle(_body.rotation.y, target_angle, turn_speed * delta)
 	move_and_slide()
 
@@ -279,6 +288,7 @@ func _attack() -> void:
 	if weapon_stats.is_ranged() and _animator and release >= 0.0:
 		# Arco: a animação inteira por tiro, e a flecha sai no quadro em que ela solta a corda.
 		var duration := weapon_stats.cooldown() * 0.98
+		_shot_left = duration
 		if _animator.attack_sync(duration, _ground_speed() > 0.15):
 			get_tree().create_timer(duration * release, false).timeout.connect(_release_shot)
 		else:
@@ -294,20 +304,47 @@ func _attack() -> void:
 		kit.on_attack_done()
 
 
+## Atirando andando (arco): as pernas vão para onde ela anda (ou para trás, se ela recua)
+## e o tronco gira para o alvo, contando a postura de lado do arqueiro. Devolve o giro do corpo.
+func _aim_while_moving(aim_angle: float) -> float:
+	var stance: float = HeroGear.AIM_STANCE.get(hero_id, -1.0)
+	var move := Vector2(velocity.x, velocity.z)
+	if _animator == null or stance < 0.0 or _shot_left <= 0.0 or move.length() < 0.3:
+		if _animator:
+			_animator.set_aim(false)
+		return aim_angle
+	var move_angle := atan2(move.x, move.y)
+	var fwd := wrapf(aim_angle - move_angle - stance, -PI, PI)
+	var back := wrapf(aim_angle - (move_angle + PI) - stance, -PI, PI)
+	var reverse := absf(back) < absf(fwd)
+	var legs := move_angle + (PI if reverse else 0.0)
+	var twist := clampf(back if reverse else fwd, -MAX_TWIST, MAX_TWIST)
+	_animator.set_aim(true, twist, reverse)
+	return legs
+
+
 ## Solta a flecha/magia: sai da mão do arco (ou da frente do herói), na direção que ele mira agora.
 func _release_shot() -> void:
 	if health.is_dead or not is_inside_tree():
 		return
-	var projectile := Projectile.create(_facing, weapon_stats, hero.element, crit_chance, _rng)
-	projectile.arrow = hero.weapon_type == &"arco"
+	var at := global_position + Vector3(0, 0.9, 0) + _facing * 0.6
+	var is_arrow := hero.weapon_type == &"arco"
+	var hand := find_children("Gear_mixamorig_LeftHand", "BoneAttachment3D", true, false)
+	if is_arrow and not hand.is_empty():
+		var h: Vector3 = (hand[0] as Node3D).global_position
+		at = Vector3(h.x, ARROW_HEIGHT, h.z) + _facing * 0.25
+	# Mira no alvo a partir de onde a flecha sai (saindo da mão, não do centro do corpo).
+	var dir := _facing
+	if is_instance_valid(_target):
+		var to := _target.global_position - at
+		to.y = 0.0
+		if to.length() > 0.3:
+			dir = to.normalized()
+	var projectile := Projectile.create(dir, weapon_stats, hero.element, crit_chance, _rng)
+	projectile.arrow = is_arrow
 	if kit:
 		kit.modify_projectile(projectile)
 	get_parent().add_child(projectile)
-	var at := global_position + Vector3(0, 0.9, 0) + _facing * 0.6
-	var hand := find_children("Gear_mixamorig_LeftHand", "BoneAttachment3D", true, false)
-	if projectile.arrow and not hand.is_empty():
-		var h: Vector3 = (hand[0] as Node3D).global_position
-		at = Vector3(h.x, ARROW_HEIGHT, h.z) + _facing * 0.25
 	projectile.global_position = at
 	projectile.origin = at
 

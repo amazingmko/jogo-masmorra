@@ -11,6 +11,15 @@ var _enemy
 var _hp_before := 0
 var _shot_at := 0
 var _shot_seen := -1
+var _target
+var _last_hp := 99999
+var _hit_frames := 0
+var _np := 0
+var _spawned := 0
+
+
+func _hits_count() -> int:
+	return _hit_frames
 
 
 func check(cond: bool, label: String) -> void:
@@ -72,6 +81,31 @@ func _process(_d: float) -> bool:
 		_main.debug_jump_to_floor(2)
 	if _f == 205:
 		check(get_nodes_in_group("floor_effects").is_empty(), "trocar de andar limpa armadilhas e a harpia")
-		print("fim: ", "TUDO OK" if _ok else "COM FALHAS")
-		quit(0 if _ok else 1)
+		# Pontaria: alvo parado a 8 m; a flecha sai da mão (de lado do corpo) e precisa acertar.
+		var room = _main.builder.rooms[_main.layout.start_index]
+		for e in get_nodes_in_group("enemies"):
+			e.queue_free()
+		_player.global_position = room.center() + Vector3(4, 0.1, 0)
+		_target = _main._spawn(&"formiga_fogo", room, room.center() + Vector3(-4, 0.1, 1.5))
+		_target._constrict_left = 999.0  # parado (preso), mas ainda no mundo físico
+		_target._dodge_cd = 999.0  # sem esquivar: o teste é de pontaria
+		_target.health.damaged.connect(func(_a: int) -> void: _hit_frames += 1)
+		_target.health.max_health = 99999
+		_target.health.health = 99999
+	if _f in [230, 290, 350] and is_instance_valid(_target):
+		_target._dodge_cd = 999.0
+		_player._target = _target
+		var to: Vector3 = _target.global_position - _player.global_position
+		to.y = 0.0
+		_player._facing = to.normalized()
+		_player._attack()
+	if _f > 230:
+		var flying := get_nodes_in_group("player_projectiles").size()
+		if flying > _np:
+			_spawned += flying - _np
+		_np = flying
+		if (_spawned >= 3 and flying == 0) or _f > 3000:
+			check(_hits_count() >= 3, "acerta o alvo parado nas 3 flechas (%d de 3)" % _hits_count())
+			print("fim: ", "TUDO OK" if _ok else "COM FALHAS")
+			quit(0 if _ok else 1)
 	return false

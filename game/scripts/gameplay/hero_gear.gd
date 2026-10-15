@@ -49,6 +49,13 @@ const RELEASE := {
 }
 
 
+## Postura de arqueiro: na animação de disparo o quadril fica de lado e a flecha sai a este
+## ângulo (radianos) à frente do peito. Usado para girar o tronco quando ela atira andando.
+const AIM_STANCE := {
+	&"mateira": 0.14,  # ~8°: andando, o braço do arco já aponta quase para a frente das pernas
+}
+
+
 ## Prende as peças do herói no modelo. Devolve os nós criados (para trocar depois).
 static func attach(model: Node, hero_id: StringName) -> Array[Node3D]:
 	var made: Array[Node3D] = []
