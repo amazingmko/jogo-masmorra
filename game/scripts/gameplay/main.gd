@@ -148,7 +148,8 @@ func _clear_floor() -> void:
 	for child in _dungeon.get_children():
 		child.queue_free()
 	_hud.hide_boss()
-	for group in ["enemies", "pickups", "telegraphs", "enemy_projectiles"]:
+	# floor_effects: armadilhas, harpia e outros poderes deixados no chão (não passam de andar).
+	for group in ["enemies", "pickups", "telegraphs", "enemy_projectiles", "player_projectiles", "floor_effects"]:
 		for node in get_tree().get_nodes_in_group(group):
 			node.queue_free()
 

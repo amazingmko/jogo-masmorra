@@ -191,6 +191,18 @@ func attack(moving: bool) -> void:
 	_combo += 1
 
 
+## Disparo sincronizado (arco): cada tiro toca um ciclo inteiro do golpe, com a duração dada
+## (o tempo entre tiros). Quem chama solta a flecha no instante da soltura (HeroGear.RELEASE).
+func attack_sync(duration: float, moving: bool) -> bool:
+	if _tree == null or _dead or _attacks.is_empty():
+		return false
+	var anim_name := _attacks[_combo % _attacks.size()]
+	_fire(anim_name, duration, moving)
+	_combo += 1
+	_since_attack = 0.0
+	return true
+
+
 func is_acting() -> bool:
 	return _tree != null and _act_left > 0.0
 

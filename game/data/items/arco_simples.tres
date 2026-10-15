@@ -6,13 +6,13 @@
 script = ExtResource("1_u8u0k")
 id = &"arco_simples"
 display_name = "Arco Simples"
-description = "Leve, para ataques à distância."
+description = "Arco de madeira de lei. Cada flecha sai na hora em que a corda solta."
 kind = 1
 max_stack = 1
 stats = {
 "attack_range": 11.0,
-"attack_speed": 3.0,
-"damage": 50,
+"attack_speed": 1.6,
+"damage": 80,
 "projectile_speed": 20.0
 }
 weapon_type = &"arco"

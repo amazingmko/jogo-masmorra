@@ -13,6 +13,7 @@ var _spikes: Array[MeshInstance3D] = []
 
 
 func _ready() -> void:
+	add_to_group("floor_effects")
 	# Círculo de cipó trançado no chão e pontas de cipó em volta.
 	_ring = MeshInstance3D.new()
 	var torus := TorusMesh.new()

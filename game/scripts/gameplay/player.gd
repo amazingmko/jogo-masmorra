@@ -80,6 +80,8 @@ var _fill_light: OmniLight3D
 var _animator: HeroAnimator
 ## Dano extra recebido com o escudo zerado.
 const EXPOSED_BONUS := 0.25
+## Altura em que a flecha voa (a da mão do arco na hora de soltar).
+const ARROW_HEIGHT := 1.25
 
 ## Veneno, raízes e lentidão (ver StatusEffects).
 var status := StatusEffects.new()
@@ -273,20 +275,41 @@ func _find_target() -> Node3D:
 
 func _attack() -> void:
 	_lunge = 1.0
-	if _animator:
-		_animator.attack(_ground_speed() > 0.15)
-	if weapon_stats.is_ranged():
-		var projectile := Projectile.create(_facing, weapon_stats, hero.element, crit_chance, _rng)
-		projectile.arrow = hero.weapon_type == &"arco"
-		if kit:
-			kit.modify_projectile(projectile)
-		get_parent().add_child(projectile)
-		projectile.global_position = global_position + Vector3(0, 0.9, 0) + _facing * 0.6
-		projectile.origin = projectile.global_position
+	var release: float = HeroGear.RELEASE.get(hero_id, -1.0)
+	if weapon_stats.is_ranged() and _animator and release >= 0.0:
+		# Arco: a animação inteira por tiro, e a flecha sai no quadro em que ela solta a corda.
+		var duration := weapon_stats.cooldown() * 0.98
+		if _animator.attack_sync(duration, _ground_speed() > 0.15):
+			get_tree().create_timer(duration * release, false).timeout.connect(_release_shot)
+		else:
+			_release_shot()
 	else:
-		_melee_swing()
+		if _animator:
+			_animator.attack(_ground_speed() > 0.15)
+		if weapon_stats.is_ranged():
+			_release_shot()
+		else:
+			_melee_swing()
 	if kit:
 		kit.on_attack_done()
+
+
+## Solta a flecha/magia: sai da mão do arco (ou da frente do herói), na direção que ele mira agora.
+func _release_shot() -> void:
+	if health.is_dead or not is_inside_tree():
+		return
+	var projectile := Projectile.create(_facing, weapon_stats, hero.element, crit_chance, _rng)
+	projectile.arrow = hero.weapon_type == &"arco"
+	if kit:
+		kit.modify_projectile(projectile)
+	get_parent().add_child(projectile)
+	var at := global_position + Vector3(0, 0.9, 0) + _facing * 0.6
+	var hand := find_children("Gear_mixamorig_LeftHand", "BoneAttachment3D", true, false)
+	if projectile.arrow and not hand.is_empty():
+		var h: Vector3 = (hand[0] as Node3D).global_position
+		at = Vector3(h.x, ARROW_HEIGHT, h.z) + _facing * 0.25
+	projectile.global_position = at
+	projectile.origin = at
 
 
 func _melee_swing() -> void:

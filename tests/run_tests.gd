@@ -268,6 +268,8 @@ func _test_save_migration() -> void:
 		"craft_streaks": {"espada_ferro_raro": 2}})
 	check(v3.inventory.equipment[0].item_id == "lanca_ipe" and int(v3.craft_streaks.get("lanca_ipe_raro", 0)) == 2,
 		"save v3: a Espada de Ferro vira Lança de Ipê (com as falhas seguidas)")
+	var v4 := SaveFile.migrate({"save_version": 4, "inventory": {"stacks": {}, "equipment": [{"uid": "b1", "item_id": "arco_simples", "rarity": 0, "stats": {"damage": 50}}]}})
+	check(int(v4.inventory.equipment[0].stats.damage) == 80, "save v4: arco já fabricado ganha o dano novo (50 -> 80)")
 
 
 func _test_save_file() -> void:

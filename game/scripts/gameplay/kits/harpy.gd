@@ -21,6 +21,7 @@ var _wings: Array[Node3D] = []
 
 
 func _ready() -> void:
+	add_to_group("floor_effects")
 	_body = Node3D.new()
 	add_child(_body)
 	var grey := _mat(Color("8d8f96"))
