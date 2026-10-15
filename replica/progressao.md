@@ -75,7 +75,7 @@ Um herói só veste o próprio tipo de armadura. Armas também são por classe (
 
 | profissão | faz |
 | --- | --- |
-| Ferreiro | armadura de placa e espadas |
+| Ferreiro | armadura de placa, lanças e escudos |
 | Curtidor | armadura de couro e arcos |
 | Tecelã | armadura de tecido e cajados |
 | Erveira | garrafadas (bônus para uma run) |

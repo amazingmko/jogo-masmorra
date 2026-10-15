@@ -6,7 +6,10 @@ extends RefCounted
 ##   {"uid", "item_id", "ilvl", "rarity", "stats": {"strength": 12, "vigor": 8, "armor": 30, ...}}
 
 ## Peso de cada slot no "orçamento" de atributos (peito vale mais que mãos).
-const SLOT_WEIGHT := [1.2, 0.8, 1.0, 0.6, 0.9, 0.6]  # arma, cabeça, peito, mãos, pernas, pés
+const SLOT_WEIGHT := [1.2, 0.8, 1.0, 0.6, 0.9, 0.6, 1.0]  # arma, cabeça, peito, mãos, pernas, pés, escudo
+## Escudo (só tanques): mais armadura que uma peça comum e chance de bloquear, que sobe com a raridade.
+const SHIELD_ARMOR_MULT := 1.6
+const SHIELD_BLOCK := [4, 6, 8, 11]  # % de bloqueio por raridade
 ## Armadura base por tipo (tecido protege menos que placa).
 const ARMOR_BASE := [4.0, 7.0, 11.0]
 const SECONDARY_KEYS := ["crit", "haste", "luck"]
@@ -27,6 +30,9 @@ static func roll(template: ItemData, ilvl: int, rarity: int, rng: RandomNumberGe
 
 	if template.kind == ItemData.Kind.ARMOR:
 		stats["armor"] = int(round(ARMOR_BASE[template.armor_type] * (1.0 + ilvl * 0.15) * weight * power))
+		if template.slot == GameEnums.Slot.OFFHAND:
+			stats["armor"] = int(round(stats["armor"] * SHIELD_ARMOR_MULT))
+			stats["block"] = SHIELD_BLOCK[clampi(rarity, 0, 3)]
 	elif template.kind == ItemData.Kind.WEAPON:
 		var base_damage := float(template.stats.get("damage", 30))
 		stats["damage"] = int(round(base_damage * (1.0 + 0.1 * (ilvl - 1)) * power))
@@ -76,13 +82,13 @@ static func gear_power(instance: Dictionary) -> int:
 ## Lista curta de atributos: "+12 Força · +8 Vigor · 30 Armadura".
 static func describe_stats(stats: Dictionary) -> String:
 	var parts := PackedStringArray()
-	var order := ["damage", "strength", "agility", "intellect", "vigor", "armor", "crit", "haste", "luck"]
+	var order := ["damage", "strength", "agility", "intellect", "vigor", "armor", "block", "crit", "haste", "luck"]
 	for key in order:
 		if not stats.has(key):
 			continue
 		var value := int(stats[key])
 		var label: String = GameEnums.STAT_NAMES.get(key, key)
-		if key in ["crit", "haste", "luck"]:
+		if key in ["crit", "haste", "luck", "block"]:
 			parts.append("+%d%% %s" % [value, label])
 		elif key in ["damage", "armor"]:
 			parts.append("%d %s" % [value, label])
@@ -98,5 +104,7 @@ static func can_use(hero: HeroData, template: ItemData) -> bool:
 	if template.kind == ItemData.Kind.WEAPON:
 		return template.weapon_type == hero.weapon_type
 	if template.kind == ItemData.Kind.ARMOR:
+		if template.slot == GameEnums.Slot.OFFHAND:
+			return hero.hero_class == GameEnums.HeroClass.TANK  # escudo é coisa de tanque
 		return template.armor_type == hero.armor_type()
 	return false

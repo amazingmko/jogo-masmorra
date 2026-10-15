@@ -8,12 +8,14 @@ extends RefCounted
 ## 3. só então troca o temporário pelo principal.
 ## Se o principal estiver corrompido ao carregar, usa o backup.
 
-const CURRENT_VERSION := 3
+const CURRENT_VERSION := 4
 
 ## v3: heróis e reagentes com nomes da temática amazônica.
 const HERO_RENAMES := {"guardiao": "icamiaba", "batedora": "mateira", "arcanista": "encantado"}
 const ITEM_RENAMES := {"fragmento_osso": "madeira_lei", "couro_rasgado": "couro_jacare", "erva_vermelha": "oleo_andiroba"}
 const PROFESSION_RENAMES := {"alquimista": "erveira"}
+## v4: a arma do tanque virou lança (a Icamiaba luta com lança e escudo).
+const ITEM_RENAMES_V4 := {"espada_ferro": "lanca_ipe"}
 
 
 static func write(path: String, data: Dictionary) -> Error:
@@ -66,6 +68,9 @@ static func migrate(data: Dictionary) -> Dictionary:
 	if version < 3:
 		_migrate_v3(data)
 		version = 3
+	if version < 4:
+		_migrate_v4(data)
+		version = 4
 	data["save_version"] = version
 	return data
 
@@ -98,6 +103,28 @@ static func _migrate_v3(data: Dictionary) -> void:
 	for key in profs:
 		new_profs[PROFESSION_RENAMES.get(String(key), String(key))] = profs[key]
 	data["professions"] = new_profs
+
+
+static func _migrate_v4(data: Dictionary) -> void:
+	var inv: Dictionary = data.get("inventory", {})
+	for piece in inv.get("equipment", []):
+		if piece is Dictionary and ITEM_RENAMES_V4.has(String(piece.get("item_id", ""))):
+			piece["item_id"] = ITEM_RENAMES_V4[String(piece.item_id)]
+	var stacks: Dictionary = inv.get("stacks", {})
+	for old in ITEM_RENAMES_V4:
+		if stacks.has(old):
+			stacks[ITEM_RENAMES_V4[old]] = int(stacks.get(ITEM_RENAMES_V4[old], 0)) + int(stacks[old])
+			stacks.erase(old)
+	# Falhas seguidas no crafting são guardadas por receita ("espada_ferro_raro" -> "lanca_ipe_raro").
+	var streaks: Dictionary = data.get("craft_streaks", {})
+	var new_streaks := {}
+	for key in streaks:
+		var k := String(key)
+		for old in ITEM_RENAMES_V4:
+			if k.begins_with(old + "_"):
+				k = ITEM_RENAMES_V4[old] + k.substr(String(old).length())
+		new_streaks[k] = streaks[key]
+	data["craft_streaks"] = new_streaks
 
 
 static func _read_json(path: String) -> Dictionary:

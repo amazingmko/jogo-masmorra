@@ -438,6 +438,8 @@ func _fill_bag() -> void:
 	left.add_child(_label("Vestido (toque para tirar)", 18, GOLD))
 	var equipped := GameState.equipped_items(hero.id)
 	for slot in GameEnums.SLOT_NAMES.size():
+		if slot == GameEnums.Slot.OFFHAND and hero.hero_class != GameEnums.HeroClass.TANK:
+			continue  # escudo é só de tanque
 		var inst: Dictionary = equipped.get(slot, {})
 		var text := "%s: —" % GameEnums.SLOT_NAMES[slot]
 		var color := MUTED
@@ -456,10 +458,13 @@ func _fill_bag() -> void:
 	var lines := PackedStringArray([
 		"Poder %d · Vida %d · Escudo %d" % [GameState.power_of(hero.id), st.max_health, st.max_shield],
 		"%s %d · Vigor %d" % [GameEnums.PRIMARY_NAMES[hero.primary_stat], st.primary, st.vigor],
-		"Armadura %d (bloqueia %d%% do dano)" % [st.armor, int(round(st.damage_reduction * 100))],
+		"Armadura %d (reduz %d%% do dano)" % [st.armor, int(round(st.damage_reduction * 100))],
 		"Dano da arma %d · Crítico %d%%" % [st.weapon.damage, int(round(st.crit_chance * 100))],
 		"Aceleração %d%% · Sorte %d%%" % [int(st.haste), int(st.luck)],
 	])
+	if hero.hero_class == GameEnums.HeroClass.TANK:
+		lines.insert(3, "Bloqueio %d%% (o golpe bloqueado perde 70%%)" % int(round(st.block_chance * 100)))
+	lines.append("Sem escudo: +%d%% de dano recebido" % int(Player.EXPOSED_BONUS * 100))
 	left.add_child(_label("\n".join(lines), 16))
 
 	# Direita: abas de equipamento e materiais.

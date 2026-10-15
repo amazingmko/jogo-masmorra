@@ -7,6 +7,10 @@ extends Node
 signal changed(health: int, max_health: int, armor: int, max_armor: int)
 signal damaged(amount: int)
 signal died
+## Um golpe foi bloqueado (amount: dano que ainda passou).
+signal hit_blocked(amount: int)
+## O escudo acabou de zerar.
+signal shield_broken
 
 @export var max_health: int = 6
 @export var max_armor: int = 0
@@ -18,6 +22,12 @@ signal died
 @export var armor_regen_amount: int = 1
 ## Fração do dano bloqueada pela Armadura (0 a 0.75).
 var damage_reduction: float = 0.0
+## Chance de bloquear um golpe direto (só tanques). Veneno e mega magia não são bloqueáveis.
+var block_chance: float = 0.0
+## Quanto do golpe o bloqueio segura.
+const BLOCK_REDUCTION := 0.7
+## Dano extra enquanto o escudo está zerado (heróis; 0 = sem efeito).
+var exposed_bonus: float = 0.0
 ## Não toma dano nenhum (ex.: chefe canalizando a mega magia).
 var untouchable: bool = false
 ## Segundos de invencibilidade depois de apanhar (para o herói não morrer de uma vez).
@@ -30,9 +40,11 @@ var is_dead: bool = false
 var _since_hit: float = 0.0
 var _regen_timer: float = 0.0
 var _invulnerable: float = 0.0
+var _rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
+	_rng.randomize()
 	reset()
 
 
@@ -52,6 +64,12 @@ func take_damage(amount: int, grant_invuln: bool = true, ignore_invuln: bool = f
 	if is_dead or amount <= 0 or (_invulnerable > 0.0 and not ignore_invuln) or untouchable:
 		return 0
 	amount = maxi(int(round(amount * (1.0 - damage_reduction))), 1)
+	var was_blocked := grant_invuln and not ignore_invuln and block_chance > 0.0 and _rng.randf() < block_chance
+	if was_blocked:
+		amount = maxi(int(round(amount * (1.0 - BLOCK_REDUCTION))), 1)
+	if is_exposed():
+		amount = int(round(amount * (1.0 + exposed_bonus)))
+	var had_shield := armor > 0
 	var absorbed := mini(armor, amount)
 	armor -= absorbed
 	health -= amount - absorbed
@@ -59,7 +77,11 @@ func take_damage(amount: int, grant_invuln: bool = true, ignore_invuln: bool = f
 	_regen_timer = 0.0
 	if grant_invuln:
 		_invulnerable = invulnerability_time
+	if was_blocked:
+		hit_blocked.emit(amount)  # antes do "damaged", para a animação de bloqueio vencer a de dano
 	damaged.emit(amount)
+	if had_shield and armor == 0 and max_armor > 0:
+		shield_broken.emit()
 	if health <= 0:
 		health = 0
 		is_dead = true
@@ -91,6 +113,11 @@ func heal(amount: int) -> void:
 		return
 	health = mini(health + amount, max_health)
 	_emit_changed()
+
+
+## Sem escudo e sujeito ao dano extra.
+func is_exposed() -> bool:
+	return exposed_bonus > 0.0 and max_armor > 0 and armor <= 0
 
 
 func is_invulnerable() -> bool:

@@ -2,7 +2,7 @@ extends Node3D
 ## Controle da run (fase 3).
 ## Uma run = 5 andares gerados aleatoriamente. Em cada andar: entrar nas salas, limpar as de combate
 ## (as portas fecham até o último inimigo cair), abrir baús, usar a fonte e achar o portal de saída.
-## No portal, escolhe 1 entre 3 buffs e desce. No 5º andar, o chefe está na sala mais distante.
+## No portal, desce direto (a força vem do equipamento fabricado, não de bênçãos da run). No 5º andar, o chefe está na sala mais distante.
 ## Todo loot e XP vão para o herói na hora: mesmo perdendo, a run rende avanço.
 ## O herói e o equipamento vêm do hub (GameState.selected_hero).
 ##
@@ -70,7 +70,6 @@ func _ready() -> void:
 	_hud.bind_player(_player)
 	_hud.restart_requested.connect(_back_to_hub)
 	GameState.leveled_up.connect(_on_leveled_up)
-	_hud.buff_chosen.connect(_on_buff_chosen)
 	_player.died.connect(_on_player_died)
 	new_run()
 
@@ -429,35 +428,8 @@ func _on_prop_activated(prop: RoomProp) -> void:
 			_player.health.heal(_player.health.max_health)
 			_hud.show_toast("A fonte restaurou sua vida.", Color("6fdc7b"))
 		RoomProp.Kind.PORTAL:
-			_offer_buffs()
-
-
-# ---------- buffs ----------
-
-func _offer_buffs() -> void:
-	var available: Array[BuffData] = []
-	for b: BuffData in ItemDB.catalog.buffs.values():
-		if not _player.buffs.has(b):
-			available.append(b)
-	if available.is_empty():
-		_next_floor()
-		return
-	# Embaralha com o gerador da run, para a mesma semente oferecer os mesmos buffs.
-	for i in range(available.size() - 1, 0, -1):
-		var j := _rng.randi_range(0, i)
-		var tmp := available[i]
-		available[i] = available[j]
-		available[j] = tmp
-	var options: Array[BuffData] = available.slice(0, 3)
-	get_tree().paused = true
-	_hud.show_buff_choice(options, "Escolha uma bênção para o andar %d" % (floor_number + 1))
-
-
-func _on_buff_chosen(buff: BuffData) -> void:
-	_player.apply_buff(buff)
-	_stats.buffs.append(buff.display_name)
-	get_tree().paused = false
-	_next_floor()
+			# Fora da colisão do portal: montar o andar novo dentro dela não é permitido.
+			_next_floor.call_deferred()
 
 
 # ---------- fim da run ----------

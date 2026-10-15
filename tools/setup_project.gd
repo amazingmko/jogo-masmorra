@@ -124,15 +124,23 @@ func _make_items() -> void:
 
 	var S := GameEnums.Slot
 	var P := GameEnums.PrimaryStat
-	_weapon("espada_ferro", "Espada de Ferro", "Simples e confiável.", "espada", P.STRENGTH,
-		{"damage": 80, "attack_speed": 2.0, "attack_range": 1.9})
+	# Tanque: lança de alcance maior, golpes mais lentos e menos dano (a força dele é aguentar).
+	_weapon("lanca_ipe", "Lança de Ipê", "Lança de madeira de lei com ponta de pedra verde. Alcance bom, golpes firmes.", "lanca", P.STRENGTH,
+		{"damage": 60, "attack_speed": 1.3, "attack_range": 2.3})
 	_weapon("arco_simples", "Arco Simples", "Leve, para ataques à distância.", "arco", P.AGILITY,
 		{"damage": 50, "attack_speed": 3.0, "attack_range": 11.0, "projectile_speed": 20.0})
 	_weapon("cajado_aprendiz", "Cajado de Aprendiz", "Canaliza magia básica.", "cajado", P.INTELLECT,
 		{"damage": 90, "attack_speed": 1.5, "attack_range": 10.0, "projectile_speed": 13.0})
 	_weapon("cajado_raiz", "Cajado de Raiz", "Raiz viva que chama os espíritos da mata. A Druida luta com ele em forma de bicho.",
 		"cajado_raiz", P.AGILITY, {"damage": 60, "attack_speed": 2.0, "attack_range": 1.9})
-	_equipment_ids = ["espada_ferro", "arco_simples", "cajado_aprendiz", "cajado_raiz"]
+	_equipment_ids = ["lanca_ipe", "arco_simples", "cajado_aprendiz", "cajado_raiz"]
+	# Escudo: só tanques usam. Muita armadura e chance de bloquear.
+	var shield := _item("escudo_casco", "Escudo de Casco", "Casco de tracajá com aro de madeira de lei. Só tanques: dá armadura e chance de bloquear.",
+		ItemData.Kind.ARMOR, GameEnums.Rarity.COMMON, 1, 1)
+	shield.slot = S.OFFHAND
+	shield.armor_type = GameEnums.ArmorType.PLATE
+	_save_item(shield)
+	_equipment_ids.append("escudo_casco")
 
 	var A := GameEnums.ArmorType
 	var pieces := {
@@ -152,7 +160,7 @@ func _make_items() -> void:
 
 
 func _hero(id: String, name: String, desc: String, cls: int, element: int, primary: int, weapon_type: String,
-		hp: int, shield: int, energy: int, speed: float, weapon: String) -> void:
+		hp: int, shield: int, energy: int, speed: float, weapon: String, armor := 0, block := 0.0) -> void:
 	var h := HeroData.new()
 	h.id = StringName(id)
 	h.display_name = name
@@ -167,6 +175,8 @@ func _hero(id: String, name: String, desc: String, cls: int, element: int, prima
 	h.max_energy = energy
 	h.move_speed = speed
 	h.starting_weapon_id = StringName(weapon)
+	h.base_armor = armor
+	h.block_chance = block
 	# Modelo 3D, quando já existe (arte gerada com IA, preparada em game/art/herois/).
 	var model_path := "res://game/art/herois/%s.glb" % id
 	if ResourceLoader.exists(model_path):
@@ -178,7 +188,8 @@ func _make_heroes() -> void:
 	var H := GameEnums.HeroClass
 	var E := GameEnums.Element
 	var P := GameEnums.PrimaryStat
-	_hero("icamiaba", "Icamiaba", "Guerreira da lenda das Icamiabas. Aguenta pancada e protege. Força, placa.", H.TANK, E.NEUTRAL, P.STRENGTH, "espada", 120, 50, 120, 4.5, "espada_ferro")
+	_hero("icamiaba", "Icamiaba", "Guerreira da lenda das Icamiabas. Tanque: aguenta pancada, bloqueia com o escudo e segura os inimigos. Lança e escudo, força, placa.", H.TANK, E.NEUTRAL, P.STRENGTH, "lanca", 170, 100, 120, 4.0, "lanca_ipe",
+		60, 0.12)
 	_hero("mateira", "Mateira", "Caçadora da mata, rápida, ataca de longe. Agilidade, couro.", H.RANGER, E.NATURE, P.AGILITY, "arco", 90, 30, 180, 5.5, "arco_simples")
 	_hero("druida", "Druida da Mata", "Guardiã da mata que vira bicho: Onça (golpes rápidos), Sucuri (aperta e prende, aguenta mais) e Boto (jatos d'água de longe, cura sem parar). Agilidade, couro.",
 		H.DRUID, E.NATURE, P.AGILITY, "cajado_raiz", 110, 35, 160, 5.2, "cajado_raiz")
@@ -197,7 +208,7 @@ func _profession(id: String, name: String, desc: String) -> void:
 
 
 func _make_professions() -> void:
-	_profession("ferreiro", "Ferreiro", "Forja espadas e armaduras de placa com ferro e madeira de lei.")
+	_profession("ferreiro", "Ferreiro", "Forja lanças, escudos e armaduras de placa com ferro e madeira de lei.")
 	_profession("curtidor", "Curtidor", "Trabalha o couro de jacaré: armaduras de couro e arcos.")
 	_profession("tecela", "Tecelã", "Tece fibra de tucum: armaduras de tecido e cajados.")
 	_profession("erveira", "Erveira", "Prepara garrafadas com óleos e sementes da mata.")
@@ -220,7 +231,8 @@ func _recipe(id: String, name: String, result: String, ingredients: Dictionary,
 
 ## Quem fabrica cada peça e com quais reagentes: [profissão, reagente principal, secundário].
 const CRAFT_SOURCES := {
-	"espada_ferro": ["ferreiro", "minerio_ferro", "madeira_lei"],
+	"lanca_ipe": ["ferreiro", "madeira_lei", "minerio_ferro"],
+	"escudo_casco": ["ferreiro", "madeira_lei", "couro_jacare"],
 	"arco_simples": ["curtidor", "madeira_lei", "couro_jacare"],
 	"cajado_aprendiz": ["tecela", "madeira_lei", "fibra_tucum"],
 	"cajado_raiz": ["curtidor", "madeira_lei", "latex_seringueira"],
@@ -229,7 +241,7 @@ const CRAFT_SOURCES := {
 	"tecido": ["tecela", "fibra_tucum", "latex_seringueira"],
 }
 ## Peso de cada slot no custo (igual ao do ItemFactory: arma e peito custam mais).
-const COST_WEIGHT := [1.2, 0.8, 1.0, 0.6, 0.9, 0.6]
+const COST_WEIGHT := [1.2, 0.8, 1.0, 0.6, 0.9, 0.6, 1.0]
 const RARITY_SUFFIX := ["comum", "raro", "epico", "lendario"]
 ## Por raridade: multiplicador dos reagentes base, nível de profissão exigido e XP.
 const CHAIN_MULT := [1, 3, 6, 10]

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_dxfxk"]
+
+[resource]
+script = ExtResource("1_dxfxk")
+id = &"escudo_casco_comum"
+display_name = "Escudo de Casco (Comum)"
+result_item_id = &"escudo_casco"
+ingredients = {
+"couro_jacare": 8,
+"madeira_lei": 14
+}
+profession_id = &"ferreiro"
+required_level = 1
+xp_reward = 30

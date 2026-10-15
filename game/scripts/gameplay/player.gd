@@ -75,6 +75,8 @@ var _moving := 0.0
 var _fill_light: OmniLight3D
 ## Animações do modelo em camadas (pernas, tronco, morte). Null se o modelo não tiver animações.
 var _animator: HeroAnimator
+## Dano extra recebido com o escudo zerado.
+const EXPOSED_BONUS := 0.25
 
 ## Veneno, raízes e lentidão (ver StatusEffects).
 var status := StatusEffects.new()
@@ -95,6 +97,10 @@ func _ready() -> void:
 	health.damaged.connect(_on_damaged)
 	health.died.connect(_on_died)
 	health.armor_regen_amount = 10
+	# Sem escudo, o herói fica exposto e toma mais dano (o escudo vale a pena proteger).
+	health.exposed_bonus = EXPOSED_BONUS
+	health.hit_blocked.connect(_on_blocked)
+	health.shield_broken.connect(_on_shield_broken)
 	status.name = "StatusEffects"
 	status.health = health
 	add_child(status)
@@ -139,6 +145,7 @@ func refresh_stats(full_heal: bool = false) -> void:
 	move_speed = stats.move_speed
 	crit_chance = stats.crit_chance
 	health.damage_reduction = stats.damage_reduction
+	health.block_chance = stats.block_chance
 	if form != Form.NONE:
 		_apply_form_stats()
 	if full_heal:
@@ -296,6 +303,16 @@ func _on_died() -> void:
 		var tween := create_tween()
 		tween.tween_property(_body, "rotation:x", deg_to_rad(-90), 0.3)
 	died.emit()
+
+
+func _on_blocked(_amount: int) -> void:
+	Fx.float_text(get_parent(), global_position + Vector3(0, 2.6, 0), "BLOQUEIO", Color("8fd3ff"))
+	if _animator:
+		_animator.block(_ground_speed() > 0.15)
+
+
+func _on_shield_broken() -> void:
+	Fx.float_text(get_parent(), global_position + Vector3(0, 2.9, 0), "SEM ESCUDO! +%d%% de dano" % int(EXPOSED_BONUS * 100), Color("ff9f43"))
 
 
 # ---------- marcador de alvo ----------

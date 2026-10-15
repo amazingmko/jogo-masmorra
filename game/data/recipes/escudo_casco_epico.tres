@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/recipe_data.gd" id="1_ggtpp"]
+
+[resource]
+script = ExtResource("1_ggtpp")
+id = &"escudo_casco_epico"
+display_name = "Escudo de Casco (Épico)"
+result_item_id = &"escudo_casco"
+result_rarity = 2
+requires_base = true
+ingredients = {
+"couro_jacare": 48,
+"madeira_lei": 84,
+"pelo_mapinguari": 3,
+"pena_arara": 4
+}
+profession_id = &"ferreiro"
+required_level = 20
+xp_reward = 200

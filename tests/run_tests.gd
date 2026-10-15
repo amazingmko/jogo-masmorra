@@ -30,6 +30,7 @@ func _process(_delta: float) -> bool:
 	_test_items_and_stats(catalog)
 	_test_progression()
 	_test_telegraphs_and_status(catalog)
+	_test_hero_animator()
 
 	print("\n%d verificações passaram, %d falharam." % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
@@ -94,17 +95,17 @@ func _test_inventory(catalog: ItemCatalog) -> void:
 	inv.add(catalog.get_item(&"minerio_ferro"), 3)
 	inv.add(catalog.get_item(&"minerio_ferro"), 2)
 	check(inv.count(&"minerio_ferro") == 5, "materiais empilham")
-	inv.add(catalog.get_item(&"espada_ferro"), 2)
+	inv.add(catalog.get_item(&"lanca_ipe"), 2)
 	check(inv.equipment.size() == 2 and inv.equipment[0].uid != inv.equipment[1].uid, "equipamentos ficam separados com uid próprio")
 	check(not inv.remove_all({"minerio_ferro": 9}), "não remove se faltar")
 	check(inv.count(&"minerio_ferro") == 5, "tentativa falha não consome nada")
-	check(inv.remove_all({"minerio_ferro": 5, "espada_ferro": 1}), "remove material e equipamento")
+	check(inv.remove_all({"minerio_ferro": 5, "lanca_ipe": 1}), "remove material e equipamento")
 	check(inv.count(&"minerio_ferro") == 0 and inv.equipment.size() == 1, "quantidades certas depois de remover")
 
 	var copy := Inventory.new()
 	copy.from_dict(JSON.parse_string(JSON.stringify(inv.to_dict())))
-	check(copy.equipment.size() == 1 and copy.count(&"espada_ferro") == 1, "inventário sobrevive à ida e volta em JSON")
-	copy.add(catalog.get_item(&"espada_ferro"), 1)
+	check(copy.equipment.size() == 1 and copy.count(&"lanca_ipe") == 1, "inventário sobrevive à ida e volta em JSON")
+	copy.add(catalog.get_item(&"lanca_ipe"), 1)
 	check(copy.equipment[0].uid != copy.equipment[1].uid, "uid continua único depois de carregar")
 
 
@@ -257,12 +258,16 @@ func _test_save_migration() -> void:
 		"professions": {"alquimista": {"level": 2, "xp": 5}},
 	}
 	var data := SaveFile.migrate(old)
-	check(int(data.save_version) == 3, "save antigo migra para a versão 3")
+	check(int(data.save_version) == SaveFile.CURRENT_VERSION, "save antigo migra para a versão atual")
 	check(data.selected_hero == "mateira" and data.heroes.has("icamiaba") and not data.heroes.has("guardiao"),
 		"heróis renomeados mantêm o progresso")
 	check(int(data.inventory.stacks.madeira_lei) == 7 and int(data.inventory.stacks.oleo_andiroba) == 3,
 		"reagentes antigos viram os novos e somam")
 	check(data.professions.has("erveira"), "Alquimista vira Erveira")
+	var v3 := SaveFile.migrate({"save_version": 3, "inventory": {"stacks": {}, "equipment": [{"uid": "e1", "item_id": "espada_ferro", "rarity": 1, "stats": {}}]},
+		"craft_streaks": {"espada_ferro_raro": 2}})
+	check(v3.inventory.equipment[0].item_id == "lanca_ipe" and int(v3.craft_streaks.get("lanca_ipe_raro", 0)) == 2,
+		"save v3: a Espada de Ferro vira Lança de Ipê (com as falhas seguidas)")
 
 
 func _test_save_file() -> void:
@@ -318,6 +323,27 @@ func _test_health() -> void:
 	h.free()
 	inv.free()
 
+	# Bloqueio (tanque) e escudo quebrado (exposto).
+	var tank := Health.new()
+	tank.max_health = 1000
+	tank.max_armor = 10
+	tank.reset()
+	tank.block_chance = 1.0
+	var blocks := [0]
+	tank.hit_blocked.connect(func(_a: int) -> void: blocks[0] += 1)
+	var dealt := tank.take_damage(100)
+	check(blocks[0] == 1 and dealt == 30, "bloqueio segura 70%% do golpe (passou %d)" % dealt)
+	check(tank.take_damage(100, false) == 100, "veneno (sem invencibilidade) não é bloqueado")
+	tank.block_chance = 0.0
+	tank.exposed_bonus = 0.25
+	var broke := [false]
+	tank.shield_broken.connect(func() -> void: broke[0] = true)
+	tank.reset()
+	tank.take_damage(10)
+	check(broke[0] and tank.is_exposed(), "escudo zerado avisa e deixa exposto")
+	check(tank.take_damage(100, false) == 125, "exposto toma +25%% de dano")
+	tank.free()
+
 
 func _test_damage(catalog: ItemCatalog) -> void:
 	var rng := RandomNumberGenerator.new()
@@ -330,10 +356,10 @@ func _test_damage(catalog: ItemCatalog) -> void:
 	var crit := Damage.roll(10, E.NEUTRAL, E.NEUTRAL, 1.0, rng)
 	check(crit.crit and crit.amount == 20, "crítico dobra o dano")
 
-	var sword := WeaponStats.from_item(catalog.get_item(&"espada_ferro"))
+	var sword := WeaponStats.from_item(catalog.get_item(&"lanca_ipe"))
 	var bow := WeaponStats.from_item(catalog.get_item(&"arco_simples"))
 	check(not sword.is_ranged() and bow.is_ranged(), "espada é corpo a corpo, arco dispara")
-	check(is_equal_approx(sword.cooldown(), 0.5), "espada ataca 2x por segundo")
+	check(sword.cooldown() > 0.7, "lança do tanque ataca devagar (menos de 1,5x por segundo)")
 	check(catalog.enemies.size() >= 3, "inimigos carregados")
 
 
@@ -422,8 +448,8 @@ func _test_items_and_stats(catalog: ItemCatalog) -> void:
 		"Curtidor fabrica o Cajado de Raiz")
 	var guardian := catalog.get_hero(&"icamiaba")
 	check(ItemFactory.can_use(guardian, helm) and not ItemFactory.can_use(guardian, robe), "guardião veste placa e não tecido")
-	check(ItemFactory.can_use(guardian, catalog.get_item(&"espada_ferro")) and not ItemFactory.can_use(guardian, catalog.get_item(&"arco_simples")),
-		"guardião usa espada e não arco")
+	check(ItemFactory.can_use(guardian, catalog.get_item(&"lanca_ipe")) and not ItemFactory.can_use(guardian, catalog.get_item(&"arco_simples")),
+		"tanque usa lança e não arco")
 
 	# Tabela "equipamento" (guardada para recompensas futuras) vira peça única com atributos.
 	var got_piece := false
@@ -459,9 +485,22 @@ func _test_items_and_stats(catalog: ItemCatalog) -> void:
 	var chest := ItemFactory.roll(catalog.get_item(&"peitoral_placa"), 5, R.RARE, rng)
 	var geared := HeroStats.compute(guardian, 5, {GameEnums.Slot.CHEST: chest}, catalog)
 	check(base.primary == 10 and leveled.primary == 18 and leveled.max_health > base.max_health, "nível dá força e vida")
-	check(geared.primary == leveled.primary + int(chest.stats.strength) and geared.armor == int(chest.stats.armor),
+	check(geared.primary == leveled.primary + int(chest.stats.strength) and geared.armor == guardian.base_armor + int(chest.stats.armor),
 		"equipamento soma força e armadura")
 	check(geared.damage_reduction > 0.0 and geared.weapon.damage > leveled.weapon.damage - 1, "armadura reduz dano; força aumenta o dano")
+	# Tanque: armadura própria, bloqueio (base + escudo) e escudo só para tanque.
+	var shield_t := catalog.get_item(&"escudo_casco")
+	var shield := ItemFactory.roll(shield_t, 5, R.EPIC, rng)
+	var tank := HeroStats.compute(guardian, 5, {GameEnums.Slot.OFFHAND: shield}, catalog)
+	check(leveled.armor > 0 and leveled.block_chance > 0.0, "tanque nasce com armadura e bloqueio")
+	check(int(shield.stats.block) > 0 and is_equal_approx(tank.block_chance, leveled.block_chance + float(shield.stats.block) / 100.0),
+		"escudo soma chance de bloqueio")
+	check(ItemFactory.can_use(guardian, shield_t) and not ItemFactory.can_use(catalog.get_hero(&"mateira"), shield_t),
+		"escudo só para tanques")
+	var ranger := HeroStats.compute(catalog.get_hero(&"mateira"), 5, {GameEnums.Slot.OFFHAND: shield}, catalog)
+	check(ranger.block_chance == 0.0, "quem não é tanque não bloqueia")
+	check(guardian.max_shield > catalog.get_hero(&"mateira").max_shield and guardian.max_health > catalog.get_hero(&"mateira").max_health,
+		"tanque tem mais vida e escudo maior")
 	var fury: BuffData = catalog.buffs.get(&"furia")
 	var buffed := HeroStats.compute(guardian, 5, {}, catalog, [fury])
 	check(buffed.weapon.damage > leveled.weapon.damage, "bênção Fúria aumenta o dano")
@@ -601,3 +640,21 @@ func _test_telegraphs_and_status(catalog: ItemCatalog) -> void:
 	st2.tick(1.1)
 	check(st2.can_attack() and st2.move_factor() == 1.0, "o medo passa")
 	st2.free()
+
+
+## O modelo animado começa em "parada" em qualquer cena (antes ficava em pose de T no hub).
+func _test_hero_animator() -> void:
+	var path := "res://game/art/herois/icamiaba.glb"
+	if not ResourceLoader.exists(path):
+		return
+	var model: Node3D = load(path).instantiate()
+	root.add_child(model)
+	var animator := HeroAnimator.new()
+	root.add_child(animator)
+	check(animator.setup(model), "modelo da Icamiaba tem animações")
+	animator._tree.advance(0.1)
+	check(String(animator._tree.get("parameters/loco/current_state")) == "idle", "animação começa em parada")
+	HeroGear.attach(model, &"icamiaba")
+	check(model.find_children("Gear_*", "BoneAttachment3D", true, false).size() == 2, "lança e escudo presos nas mãos")
+	model.queue_free()
+	animator.queue_free()
