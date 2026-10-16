@@ -61,6 +61,8 @@ func _setup_input_map() -> void:
 	ProjectSettings.set_setting("input_devices/pointing/emulate_touch_from_mouse", true)
 	# Movimento suave em telas de 90/120/144 Hz (a física roda a 60 por segundo).
 	ProjectSettings.set_setting("physics/common/physics_interpolation", true)
+	# Celular (Android): texturas comprimidas no formato que os celulares leem (ETC2/ASTC).
+	ProjectSettings.set_setting("rendering/textures/vram_compression/import_etc2_astc", true)
 	var layer_names := ["mundo", "jogador", "inimigos", "coletaveis"]
 	for i in layer_names.size():
 		ProjectSettings.set_setting("layer_names/3d_physics/layer_%d" % (i + 1), layer_names[i])
