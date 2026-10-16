@@ -97,6 +97,8 @@ var _poison_tick := 0.0
 var _marks := {}
 ## Dano a mais que recebe enquanto está provocado (Grito das Amazonas).
 var provoked_vulnerability := 0.0
+## Boneco de treino (só para testes): não desvia nem machuca, e quase não morre.
+var training_dummy := false
 var _mouth_material: StandardMaterial3D
 var _recent_timer := 0.0
 var _own_telegraphs: Array[Telegraph] = []
@@ -534,6 +536,8 @@ func _react_to_pain() -> void:
 
 ## Golpe do herói chegando: chance de sair de lado e não tomar o dano.
 func _try_evade(from_direction: Vector3) -> bool:
+	if training_dummy:
+		return false
 	if state != State.MOVE or _dodge_cd > 0.0 or _dodge_left > 0.0:
 		return false
 	if _rng.randf() >= _dodge_chance() * 0.5:

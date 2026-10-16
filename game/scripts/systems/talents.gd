@@ -69,7 +69,7 @@ const TREES := {
 			{"id": "pena_gaviao", "name": "Pena de Gavião", "row": 1, "max": 1, "per": 3, "desc": "A Harpia dura +{v} s"},
 			{"id": "garras_afiadas", "name": "Garras Afiadas", "row": 2, "max": 2, "per": 20, "desc": "Mergulhos da Harpia causam +{v}% de dano"},
 			{"id": "vinculo", "name": "Vínculo", "row": 2, "max": 1, "per": 1, "desc": "Cada abate com a Harpia ativa a mantém +{v} s"},
-			{"id": "revoada", "name": "Revoada", "row": 3, "max": 1, "per": 40, "desc": "A Harpia acompanha sempre ({v}% do dano); a ultimate vira Fúria da Harpia: dano em dobro por 8 s"},
+			{"id": "revoada", "name": "Revoada", "row": 3, "max": 1, "per": 40, "desc": "Uma Harpia acompanha sempre ({v}% do dano); a ultimate chama uma segunda Harpia"},
 		]},
 	],
 }

@@ -82,7 +82,7 @@ var _animator: HeroAnimator
 const EXPOSED_BONUS := 0.25
 ## Altura em que a flecha voa (a da mão do arco na hora de soltar).
 const ARROW_HEIGHT := 1.25
-## Velocidade enquanto puxa e solta a corda (andar mirando é mais lento: sem patinar).
+## Velocidade enquanto golpeia ou puxa a corda (andar atacando é mais lento: sem patinar).
 const SHOOT_MOVE_FACTOR := 0.55
 ## Maior torção do tronco ao atirar andando (rad); além disso ela vira o corpo.
 const MAX_TWIST := 1.4
@@ -246,6 +246,8 @@ func _physics_process(delta: float) -> void:
 	velocity.y = 0.0 if is_on_floor() else velocity.y - _gravity * delta
 
 	_attack_left -= delta
+	if _animator:
+		_animator.steering = direction.length() > 0.1
 	if direction.length() > 0.1 and _attack_left <= 0.0:
 		_facing = direction.normalized()
 
@@ -284,6 +286,20 @@ func _physics_process(delta: float) -> void:
 			_attack()
 			_attack_cooldown = weapon_stats.cooldown()
 
+	# Golpe que avança (giro da lança): o corpo vai junto com o passo do golpe, sem patinar,
+	# e para antes de atravessar o alvo.
+	if _animator and _attack_left > 0.0:
+		var rm := _animator.root_motion_step()
+		rm.y = 0.0
+		if rm.length() > 0.0001 and delta > 0.0:
+			if is_instance_valid(_attack_target):
+				var gap := _attack_target.global_position - global_position
+				gap.y = 0.0
+				if gap.length() < 1.3 or rm.dot(gap) < 0.0:
+					rm = Vector3.ZERO
+			velocity.x += rm.x / delta
+			velocity.z += rm.z / delta
+
 	if controls_enabled:
 		var target_angle := atan2(_facing.x, _facing.z)
 		target_angle = _aim_while_moving(target_angle)
@@ -321,13 +337,12 @@ func _attack() -> void:
 	var duration := weapon_stats.cooldown() * 0.98
 	var anim_name := ""
 	if _animator and HeroGear.has_timing(hero_id):
-		anim_name = _animator.attack_sync(duration, _ground_speed() > 0.15)
+		anim_name = _animator.attack_sync(duration, _animator.steering)
 	_swings += 1
 	_combo_step = (int(anim_name.trim_prefix("ataque")) - 1) if anim_name.begins_with("ataque") else (_swings - 1) % 3
 	if anim_name != "":
 		_attack_left = duration
-		if weapon_stats.is_ranged():
-			_shot_left = duration
+		_shot_left = duration  # golpeando/atirando, anda mais devagar (sem patinar)
 		var hit_at := HeroGear.impact(hero_id, anim_name)
 		get_tree().create_timer(duration * hit_at, false).timeout.connect(_deliver_attack)
 	else:

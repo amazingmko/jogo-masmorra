@@ -34,6 +34,14 @@ var _twist: SpineTwist
 var _aim_active := false
 var _aim_angle := 0.0
 var _legs_reverse := false
+## Golpes que avançam (ex.: o giro da Icamiaba): o caminho do quadril vem numa animação
+## "raiz_<golpe>" e o herói anda junto (root motion), em vez de os pés patinarem.
+var _roots := {}
+var _skeleton: Skeleton3D
+var _act_duration := 1.0
+var _root_prev := Vector3.ZERO
+## O jogador está mandando andar (joystick/teclas). O passo do próprio golpe não conta.
+var steering := false
 
 
 ## Prepara o modelo. Devolve false se ele não tiver animações (o herói usa o balanço simples).
@@ -53,6 +61,9 @@ func setup(model: Node) -> bool:
 		i += 1
 	if _attacks.is_empty() and _anim.has_animation("ataque"):
 		_attacks.append("ataque")
+	for a in _attacks:
+		if _anim.has_animation("raiz_" + a):
+			_roots[a] = _anim.get_animation("raiz_" + a)
 	_build_tree(model)
 	return true
 
@@ -129,6 +140,7 @@ func _build_tree(model: Node) -> void:
 	_tree.active = true
 	var skeletons := model.find_children("*", "Skeleton3D", true, false)
 	if not skeletons.is_empty():
+		_skeleton = skeletons[0]
 		_twist = SpineTwist.new()
 		_twist.name = "SpineTwist"
 		skeletons[0].add_child(_twist)
@@ -168,6 +180,11 @@ func update(delta: float, ground_speed: float, move_speed: float) -> void:
 	_since_attack += delta
 	_since_fire += delta
 	_act_left -= delta
+	# Golpe começou parado (corpo inteiro) e ela saiu andando: passa a ser só o tronco,
+	# para as pernas do golpe não brigarem com o movimento.
+	if is_acting() and _act_name.begins_with("ataque") and not _act_filtered and steering:
+		_act.filter_enabled = true
+		_act_filtered = true
 	if _twist:
 		var want := 1.0 if _aim_active and _act_filtered and is_acting() else 0.0
 		_twist.weight = move_toward(_twist.weight, want, delta * 8.0)
@@ -195,6 +212,8 @@ func _fire(anim_name: String, duration: float, moving: bool) -> void:
 	_since_fire = 0.0
 	_act_name = anim_name
 	_act_left = duration
+	_act_duration = maxf(duration, 0.01)
+	_root_prev = Vector3.ZERO
 
 
 ## Atirar andando: quanto girar o tronco (radianos) e se as pernas andam para trás.
@@ -225,13 +244,29 @@ func attack(moving: bool) -> void:
 func attack_sync(duration: float, moving: bool) -> String:
 	if _tree == null or _dead or _attacks.is_empty():
 		return ""
-	if _since_attack > COMBO_RESET:
+	# Volta ao 1º golpe só se ficou um tempo sem atacar DEPOIS do golpe anterior terminar
+	# (golpes lentos duram mais que COMBO_RESET).
+	if _since_attack > _act_duration + COMBO_RESET:
 		_combo = 0
 	var anim_name := _attacks[_combo % _attacks.size()]
 	_fire(anim_name, duration, moving)
 	_combo += 1
 	_since_attack = 0.0
 	return anim_name
+
+
+## Quanto o herói deve andar neste quadro (no mundo) por causa de um golpe que avança.
+## Zero se o golpe atual não avança ou se está andando (aí só o tronco golpeia).
+func root_motion_step() -> Vector3:
+	if not is_acting() or _act_filtered or not _roots.has(_act_name) or _skeleton == null:
+		return Vector3.ZERO
+	var anim: Animation = _roots[_act_name]
+	var t := clampf(1.0 - _act_left / _act_duration, 0.0, 1.0) * anim.length
+	var p := anim.position_track_interpolate(0, t)
+	p.y = 0.0
+	var step := p - _root_prev
+	_root_prev = p
+	return _skeleton.global_transform.basis * step
 
 
 func is_acting() -> bool:
