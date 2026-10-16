@@ -270,6 +270,8 @@ func _test_save_migration() -> void:
 		"save v3: a Espada de Ferro vira Lança de Ipê (com as falhas seguidas)")
 	var v4 := SaveFile.migrate({"save_version": 4, "inventory": {"stacks": {}, "equipment": [{"uid": "b1", "item_id": "arco_simples", "rarity": 0, "stats": {"damage": 50}}]}})
 	check(int(v4.inventory.equipment[0].stats.damage) == 80, "save v4: arco já fabricado ganha o dano novo (50 -> 80)")
+	var v5 := SaveFile.migrate({"save_version": 5, "inventory": {"stacks": {}, "equipment": [{"uid": "l1", "item_id": "lanca_ipe", "rarity": 0, "stats": {"damage": 60}}]}})
+	check(int(v5.inventory.equipment[0].stats.damage) == 92, "save v5: lança já fabricada ganha o dano novo (60 -> 92)")
 
 
 func _test_save_file() -> void:

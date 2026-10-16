@@ -11,7 +11,7 @@ kind = 1
 max_stack = 1
 stats = {
 "attack_range": 2.3,
-"attack_speed": 1.3,
-"damage": 60
+"attack_speed": 0.85,
+"damage": 92
 }
 weapon_type = &"lanca"

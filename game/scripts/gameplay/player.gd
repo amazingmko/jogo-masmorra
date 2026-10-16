@@ -87,6 +87,14 @@ const SHOOT_MOVE_FACTOR := 0.55
 ## Maior torção do tronco ao atirar andando (rad); além disso ela vira o corpo.
 const MAX_TWIST := 1.4
 var _shot_left := 0.0
+## Golpe/tiro em andamento: o herói termina a animação antes de começar outra, e durante ela
+## fica virado para o alvo (não vira de costas se o dedo sair do botão ou o joystick mudar).
+var _attack_left := 0.0
+var _attack_target: Node3D
+## Toque no botão perto do fim do golpe: guardado para sair assim que o golpe acabar.
+var _attack_buffer := 0.0
+var _attack_was_held := false
+const ATTACK_BUFFER := 0.35
 
 ## Veneno, raízes e lentidão (ver StatusEffects).
 var status := StatusEffects.new()
@@ -229,7 +237,8 @@ func _physics_process(delta: float) -> void:
 	velocity.z = direction.z * speed
 	velocity.y = 0.0 if is_on_floor() else velocity.y - _gravity * delta
 
-	if direction.length() > 0.1:
+	_attack_left -= delta
+	if direction.length() > 0.1 and _attack_left <= 0.0:
 		_facing = direction.normalized()
 
 	_form_cooldown -= delta
@@ -251,14 +260,19 @@ func _physics_process(delta: float) -> void:
 	_update_marker()
 
 	_attack_cooldown -= delta
-	var attacking := controls_enabled and combat_enabled and status.can_attack() and (touch_attack or Input.is_action_pressed("attack"))
-	if attacking:
-		if _target:
-			var to_target := _target.global_position - global_position
-			to_target.y = 0.0
-			if to_target.length() > 0.01:
-				_facing = to_target.normalized()
-		if _attack_cooldown <= 0.0:
+	_attack_buffer -= delta
+	var held := controls_enabled and combat_enabled and status.can_attack() and (touch_attack or Input.is_action_pressed("attack"))
+	if held and not _attack_was_held and _attack_left > 0.0:
+		_attack_buffer = ATTACK_BUFFER  # toque novo com o golpe ainda no meio
+	_attack_was_held = held
+	if _attack_left > 0.0:
+		# Golpe em andamento: continua virado para quem estava atacando (ou para onde mirava).
+		var who: Node3D = _attack_target if is_instance_valid(_attack_target) else _target
+		_face(who)
+	elif held or _attack_buffer > 0.0:
+		_face(_target)
+		if _attack_cooldown <= 0.0 and status.can_attack():
+			_attack_buffer = 0.0
 			_attack()
 			_attack_cooldown = weapon_stats.cooldown()
 
@@ -282,26 +296,46 @@ func _find_target() -> Node3D:
 	return best
 
 
+func _face(who: Node3D) -> void:
+	if who == null or not is_instance_valid(who):
+		return
+	var to := who.global_position - global_position
+	to.y = 0.0
+	if to.length() > 0.01:
+		_facing = to.normalized()
+
+
+## Um golpe ou tiro. Com modelo animado, cada ataque toca a animação inteira no tempo da arma
+## (o tempo entre ataques) e o dano sai no quadro do impacto (lança) ou da soltura da corda (arco).
 func _attack() -> void:
 	_lunge = 1.0
-	var release: float = HeroGear.RELEASE.get(hero_id, -1.0)
-	if weapon_stats.is_ranged() and _animator and release >= 0.0:
-		# Arco: a animação inteira por tiro, e a flecha sai no quadro em que ela solta a corda.
-		var duration := weapon_stats.cooldown() * 0.98
-		_shot_left = duration
-		if _animator.attack_sync(duration, _ground_speed() > 0.15):
-			get_tree().create_timer(duration * release, false).timeout.connect(_release_shot)
-		else:
-			_release_shot()
+	_attack_target = _target
+	var duration := weapon_stats.cooldown() * 0.98
+	var anim_name := ""
+	if _animator and HeroGear.has_timing(hero_id):
+		anim_name = _animator.attack_sync(duration, _ground_speed() > 0.15)
+	if anim_name != "":
+		_attack_left = duration
+		if weapon_stats.is_ranged():
+			_shot_left = duration
+		var hit_at := HeroGear.impact(hero_id, anim_name)
+		get_tree().create_timer(duration * hit_at, false).timeout.connect(_deliver_attack)
 	else:
 		if _animator:
 			_animator.attack(_ground_speed() > 0.15)
-		if weapon_stats.is_ranged():
-			_release_shot()
-		else:
-			_melee_swing()
+		_deliver_attack()
 	if kit:
 		kit.on_attack_done()
+
+
+## O momento do dano: a flecha sai ou a lança acerta.
+func _deliver_attack() -> void:
+	if health.is_dead or not is_inside_tree():
+		return
+	if weapon_stats.is_ranged():
+		_release_shot()
+	else:
+		_melee_swing()
 
 
 ## Atirando andando (arco): as pernas vão para onde ela anda (ou para trás, se ela recua)
@@ -335,8 +369,9 @@ func _release_shot() -> void:
 		at = Vector3(h.x, ARROW_HEIGHT, h.z) + _facing * 0.25
 	# Mira no alvo a partir de onde a flecha sai (saindo da mão, não do centro do corpo).
 	var dir := _facing
-	if is_instance_valid(_target):
-		var to := _target.global_position - at
+	var aim: Node3D = _attack_target if is_instance_valid(_attack_target) else _target
+	if is_instance_valid(aim):
+		var to := aim.global_position - at
 		to.y = 0.0
 		if to.length() > 0.3:
 			dir = to.normalized()

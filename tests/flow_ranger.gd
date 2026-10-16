@@ -65,7 +65,7 @@ func _process(_d: float) -> bool:
 		_enemy._constrict_left = 10.0  # parado, para a harpia achar fácil
 		check(_kit.try_ultimate(), "Chamado da Harpia funciona")
 	if _f == 120:
-		check(_enemy.health.health < _hp_before or not is_instance_valid(_enemy), "a harpia mergulhou e feriu o bicho")
+		check(not is_instance_valid(_enemy) or _enemy.health.health < _hp_before, "a harpia mergulhou e feriu o bicho")
 		# Flecha sincronizada: não sai no toque, sai na soltura da corda (73% da animação).
 		for p in get_nodes_in_group("player_projectiles"):
 			p.free()

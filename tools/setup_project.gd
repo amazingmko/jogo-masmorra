@@ -127,9 +127,10 @@ func _make_items() -> void:
 
 	var S := GameEnums.Slot
 	var P := GameEnums.PrimaryStat
-	# Tanque: lança de alcance maior, golpes mais lentos e menos dano (a força dele é aguentar).
+	# Tanque: lança de alcance maior, golpes lentos e pesados (a força dele é aguentar).
+	# Cada golpe toca a animação inteira (~1,2 s); o dano por segundo é o mesmo de antes (60 x 1,3).
 	_weapon("lanca_ipe", "Lança de Ipê", "Lança de madeira de lei com ponta de pedra verde. Alcance bom, golpes firmes.", "lanca", P.STRENGTH,
-		{"damage": 60, "attack_speed": 1.3, "attack_range": 2.3})
+		{"damage": 92, "attack_speed": 0.85, "attack_range": 2.3})
 	# Um tiro por animação inteira (puxar e soltar a corda): menos tiros, cada um mais forte.
 	_weapon("arco_simples", "Arco Simples", "Arco de madeira de lei. Cada flecha sai na hora em que a corda solta.", "arco", P.AGILITY,
 		{"damage": 80, "attack_speed": 1.6, "attack_range": 11.0, "projectile_speed": 20.0})

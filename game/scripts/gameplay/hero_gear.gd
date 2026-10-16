@@ -42,11 +42,20 @@ const GEAR := {
 }
 
 
-## Disparo à distância: em que fração da animação de ataque a flecha sai (a mão solta a corda).
-## Medido na animação (distância entre as mãos salta na soltura). Sem valor, sai na hora do toque.
-const RELEASE := {
-	&"mateira": 0.73,
+## Em que fração de cada animação de ataque o dano sai: o quadro do impacto da lança ou o da
+## soltura da corda do arco. Medido na animação (pico de velocidade da mão). Herói sem tabela
+## ataca na hora do toque.
+const IMPACT := {
+	&"icamiaba": {"ataque1": 0.43, "ataque2": 0.5, "ataque3": 0.5},
+	&"mateira": {"ataque1": 0.73},
 }
+static func has_timing(hero_id: StringName) -> bool:
+	return IMPACT.has(hero_id)
+
+
+static func impact(hero_id: StringName, anim_name: String) -> float:
+	var table: Dictionary = IMPACT.get(hero_id, {})
+	return float(table.get(anim_name, 0.5))
 
 
 ## Postura de arqueiro: na animação de disparo o quadril fica de lado e a flecha sai a este
