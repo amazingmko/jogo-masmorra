@@ -83,7 +83,20 @@ var _constrict_left := 0.0
 ## Provocado pelo tanque: só avança (não recua) e bate mais fraco.
 var _provoked_left := 0.0
 const PROVOKE_DAMAGE := 0.75
+var _provoke_factor := PROVOKE_DAMAGE
 var _constrict_immune := 0.0
+## Efeitos dos talentos do herói: atordoado (não anda nem decide), lento, envenenado e marcas
+## que aumentam o dano recebido ({nome: [bônus, segundos]}).
+var _stun_left := 0.0
+var _slow_left := 0.0
+var _slow_factor := 1.0
+var _poison_left := 0.0
+var _poison_dps := 0.0
+var _poison_acc := 0.0
+var _poison_tick := 0.0
+var _marks := {}
+## Dano a mais que recebe enquanto está provocado (Grito das Amazonas).
+var provoked_vulnerability := 0.0
 var _mouth_material: StandardMaterial3D
 var _recent_timer := 0.0
 var _own_telegraphs: Array[Telegraph] = []
@@ -152,10 +165,18 @@ func _physics_process(delta: float) -> void:
 	_dodge_cd -= delta
 	_constrict_left -= delta
 	_constrict_immune -= delta
+	_stun_left -= delta
+	_slow_left -= delta
+	_tick_poison(delta)
+	for m in _marks.keys():
+		_marks[m][1] -= delta
+		if _marks[m][1] <= 0.0:
+			_marks.erase(m)
 	if _provoked_left > 0.0:
 		_provoked_left -= delta
 		if _provoked_left <= 0.0:
-			damage_multiplier /= PROVOKE_DAMAGE
+			damage_multiplier /= _provoke_factor
+			provoked_vulnerability = 0.0
 	if _exposed_left > 0.0:
 		_exposed_left -= delta
 		if _exposed_left <= 0.0 and _mouth_material:
@@ -173,7 +194,7 @@ func _physics_process(delta: float) -> void:
 
 	match state:
 		State.MOVE:
-			if _constrict_left > 0.0:
+			if _constrict_left > 0.0 or _stun_left > 0.0:
 				_set_horizontal(Vector3.ZERO)
 			elif not _awake:
 				# De tocaia: parado, esperando o herói chegar perto.
@@ -247,6 +268,7 @@ func take_hit(amount: int, crit: bool, from_direction: Vector3) -> void:
 	elif data.hide_damage_mult < 1.0:
 		amount = maxi(int(round(amount * data.hide_damage_mult)), 1)
 		number_color = Color("b9b2a3")
+	amount = maxi(int(round(amount * (1.0 + damage_taken_bonus()))), 1)
 	health.take_damage(amount)
 	_recent_damage += amount
 	_recent_timer = 1.2
@@ -419,7 +441,7 @@ func _haste() -> float:
 
 
 func _move_speed() -> float:
-	return data.move_speed * _speed_jitter * (1.25 if enraged else 1.0) * (1.15 if elite else 1.0) \
+	return data.move_speed * _speed_jitter * (_slow_factor if _slow_left > 0.0 else 1.0) * (1.25 if enraged else 1.0) * (1.15 if elite else 1.0) \
 		* (1.0 + 0.08 * threat + 0.45 * _rage())
 
 
@@ -680,13 +702,16 @@ func _start(a: EnemyAttack, from_rally: bool = false) -> void:
 
 ## Provocar (tanque): vem para cima do herói sem recuar, aparece se estava escondido e bate mais fraco.
 ## Chefe: metade do tempo.
-func provoke(seconds: float) -> void:
+## damage_factor: quanto do dano ele mantém enquanto provocado (Voz da Tribo baixa isso).
+func provoke(seconds: float, damage_factor := PROVOKE_DAMAGE) -> void:
 	if state == State.DEAD:
 		return
 	if is_boss:
 		seconds *= 0.5
-	if _provoked_left <= 0.0:
-		damage_multiplier *= PROVOKE_DAMAGE
+	if _provoked_left > 0.0:
+		damage_multiplier /= _provoke_factor
+	_provoke_factor = damage_factor
+	damage_multiplier *= _provoke_factor
 	_provoked_left = seconds
 	_recent_timer = maxf(_recent_timer, seconds)  # a onça sai da camuflagem
 	if not _awake:
@@ -710,6 +735,80 @@ func constrict(seconds: float, label := "apertado") -> void:
 	_constrict_left = seconds
 	_constrict_immune = seconds + 2.0
 	Fx.float_text(get_parent(), global_position + Vector3(0, 2.0 * data.body_scale, 0), label, Color("9fd86b"))
+
+
+## Atordoado (Terceiro Golpe): não anda nem decide atacar. Chefe: bem menos.
+## Não interrompe um ataque já avisado no chão.
+func stun(seconds: float) -> void:
+	if state == State.DEAD:
+		return
+	if is_boss:
+		seconds *= 0.3
+	if _stun_left <= 0.0:
+		Fx.float_text(get_parent(), global_position + Vector3(0, 2.0 * data.body_scale, 0), "atordoado", Color("ffd34d"))
+	_stun_left = maxf(_stun_left, seconds)
+
+
+## Lento (Chão Tremido): factor = fração da velocidade que sobra.
+func slow(factor: float, seconds: float) -> void:
+	if state == State.DEAD:
+		return
+	_slow_factor = minf(factor, _slow_factor) if _slow_left > 0.0 else factor
+	_slow_left = maxf(_slow_left, seconds)
+
+
+## Veneno (Espinhos, Timbó): dano por segundo; reaplicar fica com o mais forte e renova.
+func poison(dps: float, seconds: float) -> void:
+	if state == State.DEAD or dps <= 0.0:
+		return
+	_poison_dps = maxf(_poison_dps, dps) if _poison_left > 0.0 else dps
+	_poison_left = maxf(_poison_left, seconds)
+
+
+func _tick_poison(delta: float) -> void:
+	if _poison_left <= 0.0:
+		return
+	_poison_left -= delta
+	_poison_acc += _poison_dps * delta
+	_poison_tick -= delta
+	if _poison_tick > 0.0 and _poison_left > 0.0:
+		return
+	_poison_tick = 0.5  # o número aparece a cada meio segundo
+	var amount := int(_poison_acc)
+	if amount <= 0:
+		return
+	_poison_acc -= amount
+	amount = maxi(int(round(amount * (1.0 + damage_taken_bonus()))), 1)
+	health.take_damage(amount, false, true)
+	Fx.damage_number(get_parent(), global_position + Vector3(0, 1.7 * data.body_scale, 0), amount, false, Color("8be06b"))
+
+
+## Marca que aumenta o dano recebido por um tempo (Presa Marcada). Mesmo nome: renova.
+func mark(mark_name: String, bonus: float, seconds: float) -> void:
+	if state == State.DEAD:
+		return
+	_marks[mark_name] = [bonus, seconds]
+
+
+func damage_taken_bonus() -> float:
+	var total := provoked_vulnerability if _provoked_left > 0.0 else 0.0
+	for m in _marks:
+		total += float(_marks[m][0])
+	return total
+
+
+## Empurrão (ou puxão, com a direção para o herói): anda `distance` metros e para.
+func push(dir: Vector3, distance: float) -> void:
+	if state == State.DEAD or is_boss:
+		return
+	dir.y = 0.0
+	if dir.length() < 0.01:
+		return
+	_knockback = dir.normalized() * sqrt(60.0 * maxf(distance, 0.0))
+
+
+func is_constricted() -> bool:
+	return _constrict_left > 0.0
 
 
 ## Chamado por outro do bando: ataca junto, com um tiquinho de atraso para não sair igual.

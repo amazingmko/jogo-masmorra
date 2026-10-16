@@ -36,6 +36,8 @@ var run_difficulty: int = 0
 var run_full_rewards: bool = true
 ## Só para testes: soma segundos ao relógio.
 var debug_time_offset: int = 0
+## Só para testes (botão que só aparece na versão de desenvolvimento): pontos de talento extras.
+var debug_talent_points: int = 0
 
 
 func _ready() -> void:
@@ -68,7 +70,7 @@ func add_coins(amount: int) -> void:
 func progress(hero_id: StringName) -> Dictionary:
 	var key := String(hero_id)
 	if not heroes.has(key):
-		heroes[key] = {"level": 1, "xp": 0, "equipped": {}}
+		heroes[key] = {"level": 1, "xp": 0, "equipped": {}, "talents": {}}
 	return heroes[key]
 
 
@@ -132,7 +134,49 @@ func wearer_of(uid: String) -> StringName:
 
 
 func stats_for(hero_id: StringName, buffs: Array = []) -> HeroStats:
-	return HeroStats.compute(ItemDB.get_hero(hero_id), level_of(hero_id), equipped_items(hero_id), ItemDB.catalog, buffs)
+	return HeroStats.compute(ItemDB.get_hero(hero_id), level_of(hero_id), equipped_items(hero_id), ItemDB.catalog, buffs, talents_of(hero_id))
+
+
+# ---------- talentos ----------
+
+## Pontos gastos na árvore do herói: {"couro_anta": 2, ...}.
+func talents_of(hero_id: StringName) -> Dictionary:
+	var p := progress(hero_id)
+	if not p.has("talents"):
+		p["talents"] = {}
+	return p.talents
+
+
+func talent_rank(hero_id: StringName, id: String) -> int:
+	return Talents.rank(talents_of(hero_id), id)
+
+
+func talent_value(hero_id: StringName, id: String) -> float:
+	return Talents.value(talents_of(hero_id), id, hero_id)
+
+
+## Pontos ainda livres (1 a cada 2 níveis, mais os de teste).
+func talent_points_free(hero_id: StringName) -> int:
+	return Talents.points_for_level(level_of(hero_id)) + debug_talent_points - Talents.spent(talents_of(hero_id))
+
+
+## Põe um ponto. Devolve "" se deu certo, ou o motivo.
+func add_talent(hero_id: StringName, id: String) -> String:
+	var reason := Talents.can_add(talents_of(hero_id), hero_id, id, level_of(hero_id) + debug_talent_points * Talents.LEVELS_PER_POINT)
+	if reason != "":
+		return reason
+	var t := talents_of(hero_id)
+	t[id] = Talents.rank(t, id) + 1
+	hero_progress_changed.emit(hero_id)
+	save()
+	return ""
+
+
+## Redistribuir: devolve todos os pontos (grátis).
+func reset_talents(hero_id: StringName) -> void:
+	progress(hero_id)["talents"] = {}
+	hero_progress_changed.emit(hero_id)
+	save()
 
 
 # ---------- energia ----------
@@ -258,6 +302,7 @@ func to_dict() -> Dictionary:
 		"highest_cleared": highest_cleared,
 		"selected_difficulty": selected_difficulty,
 		"craft_streaks": craft_streaks.duplicate(),
+		"debug_talent_points": debug_talent_points,
 	}
 
 
@@ -271,6 +316,7 @@ func from_dict(data: Dictionary) -> void:
 			unlocked_heroes.append(h)
 	selected_hero = StringName(data.get("selected_hero", "icamiaba"))
 	heroes.clear()
+	debug_talent_points = maxi(int(data.get("debug_talent_points", 0)), 0)
 	var saved: Dictionary = data.get("heroes", {})
 	for key in saved:
 		var p: Dictionary = saved[key]
@@ -278,7 +324,9 @@ func from_dict(data: Dictionary) -> void:
 		var saved_eq: Dictionary = p.get("equipped", {})
 		for slot_key in saved_eq:
 			eq[str(int(slot_key))] = String(saved_eq[slot_key])
-		heroes[String(key)] = {"level": int(p.get("level", 1)), "xp": int(p.get("xp", 0)), "equipped": eq}
+		var level := int(p.get("level", 1))
+		var talents := Talents.sanitize(p.get("talents", {}), StringName(key), level + debug_talent_points * Talents.LEVELS_PER_POINT)
+		heroes[String(key)] = {"level": level, "xp": int(p.get("xp", 0)), "equipped": eq, "talents": talents}
 	energy = clampi(int(data.get("energy", MAX_ENERGY)), 0, MAX_ENERGY)
 	energy_at = int(data.get("energy_at", 0))
 	highest_cleared = int(data.get("highest_cleared", -1))

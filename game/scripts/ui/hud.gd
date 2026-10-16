@@ -102,7 +102,10 @@ func _update_kit_buttons() -> void:
 	if form_button.visible:
 		var cd := kit.skill_cooldown_ratio()
 		form_button.color = kit.skill_color()
-		form_button.set_state(1.0 - cd if cd > 0.0 else -1.0, cd > 0.0, kit.skill_name().to_upper())
+		var skill_text := kit.skill_name().to_upper()
+		if kit.max_charges() > 1:
+			skill_text += " ×%d" % kit.charges()
+		form_button.set_state(1.0 - cd if cd > 0.0 else -1.0, cd > 0.0, skill_text)
 	if ultimate_button.visible:
 		var ready := kit.ultimate_ready()
 		var label := kit.ultimate_name().to_upper() if ready else "%d%%" % int(kit.charge)

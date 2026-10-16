@@ -16,6 +16,8 @@ const CHARGE_PER_DAMAGE_PCT := 0.5
 var player: Player
 var charge := 0.0
 var _skill_cd := 0.0
+## Cargas da habilidade (Bolsa de Cipó dá 2). A recarga devolve uma carga por vez.
+var _charges := 1
 
 
 static func for_hero(hero: HeroData) -> HeroKit:
@@ -62,11 +64,21 @@ func has_ultimate() -> bool:
 
 ## 0 = pronta; 1 = acabou de usar.
 func skill_cooldown_ratio() -> float:
+	if _charges > 0:
+		return 0.0
 	return clampf(_skill_cd / maxf(skill_cooldown(), 0.01), 0.0, 1.0)
 
 
 func skill_ready() -> bool:
-	return has_skill() and _skill_cd <= 0.0 and not player.health.is_dead
+	return has_skill() and _charges > 0 and not player.health.is_dead
+
+
+func max_charges() -> int:
+	return 1
+
+
+func charges() -> int:
+	return _charges
 
 
 func ultimate_ready() -> bool:
@@ -80,7 +92,9 @@ func try_skill() -> bool:
 		return false
 	if not _use_skill():
 		return false
-	_skill_cd = skill_cooldown()
+	_charges -= 1
+	if _skill_cd <= 0.0:
+		_skill_cd = skill_cooldown()
 	changed.emit()
 	return true
 
@@ -118,12 +132,20 @@ func add_charge(amount: float) -> void:
 func _process(delta: float) -> void:
 	if _skill_cd > 0.0:
 		_skill_cd -= delta
+		if _skill_cd <= 0.0:
+			_charges = mini(_charges + 1, max_charges())
+			if _charges < max_charges():
+				_skill_cd = skill_cooldown()
+			changed.emit()
+	elif _charges < max_charges():
+		_skill_cd = skill_cooldown()  # ganhou uma carga a mais (talento novo)
 
 
 ## Começo de uma run nova.
 func on_run_start() -> void:
 	charge = 0.0
 	_skill_cd = 0.0
+	_charges = max_charges()
 	changed.emit()
 
 
@@ -162,3 +184,52 @@ func modify_projectile(_p: Projectile) -> void:
 ## Chamado depois de cada golpe/disparo do herói.
 func on_attack_done() -> void:
 	pass
+
+
+# ---------- ganchos dos talentos ----------
+
+## Graus a mais no cone do golpe corpo a corpo (metade para cada lado).
+func melee_cone_bonus() -> float:
+	return 0.0
+
+
+## Multiplicador do golpe pela posição no combo (0, 1, 2...).
+func melee_multiplier(_combo_step: int) -> float:
+	return 1.0
+
+
+## Depois de cada inimigo atingido pelo golpe corpo a corpo.
+func on_melee_hit(_enemy: Node3D, _combo_step: int) -> void:
+	pass
+
+
+## Ângulos (radianos) das flechas de um disparo: [0.0] = uma flecha só.
+func arrow_spread() -> Array:
+	return [0.0]
+
+
+## Crítico garantido neste disparo (gasta o efeito).
+func consume_sure_crit() -> bool:
+	return false
+
+
+## Velocidade que sobra ao atirar andando.
+func shoot_move_factor(base: float) -> float:
+	return base
+
+
+func on_shield_broken() -> void:
+	pass
+
+
+func on_death_saved() -> void:
+	pass
+
+
+## Pontos num talento do herói.
+func t(id: String) -> int:
+	return player.talent(id) if player else 0
+
+
+func tv(id: String) -> float:
+	return player.talent_value(id) if player else 0.0

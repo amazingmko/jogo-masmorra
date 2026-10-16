@@ -94,6 +94,12 @@ var _attack_target: Node3D
 ## Toque no botão perto do fim do golpe: guardado para sair assim que o golpe acabar.
 var _attack_buffer := 0.0
 var _attack_was_held := false
+## Posição do golpe dentro do combo (0, 1, 2...): o 3º golpe tem efeito próprio em talentos.
+var _combo_step := 0
+var _swings := 0
+## Último golpe que o herói levou (para talentos que devolvem dano): dano bruto e de onde veio.
+var last_hit_amount := 0
+var last_hit_from := Vector3.ZERO
 const ATTACK_BUFFER := 0.35
 
 ## Veneno, raízes e lentidão (ver StatusEffects).
@@ -206,6 +212,8 @@ func receive_attack(amount: int, effect: int, effect_duration: float, effect_pow
 	if health.is_dead:
 		return
 	var landed := true
+	last_hit_amount = amount
+	last_hit_from = _from
 	if amount > 0:
 		landed = health.take_damage(amount, true, ignore_invuln) > 0
 	if landed:
@@ -232,7 +240,7 @@ func _physics_process(delta: float) -> void:
 	var speed := move_speed * status.move_factor() * (kit.speed_factor() if kit else 1.0)
 	_shot_left -= delta
 	if _shot_left > 0.0:
-		speed *= SHOOT_MOVE_FACTOR
+		speed *= kit.shoot_move_factor(SHOOT_MOVE_FACTOR) if kit else SHOOT_MOVE_FACTOR
 	velocity.x = direction.x * speed
 	velocity.z = direction.z * speed
 	velocity.y = 0.0 if is_on_floor() else velocity.y - _gravity * delta
@@ -314,6 +322,8 @@ func _attack() -> void:
 	var anim_name := ""
 	if _animator and HeroGear.has_timing(hero_id):
 		anim_name = _animator.attack_sync(duration, _ground_speed() > 0.15)
+	_swings += 1
+	_combo_step = (int(anim_name.trim_prefix("ataque")) - 1) if anim_name.begins_with("ataque") else (_swings - 1) % 3
 	if anim_name != "":
 		_attack_left = duration
 		if weapon_stats.is_ranged():
@@ -375,13 +385,18 @@ func _release_shot() -> void:
 		to.y = 0.0
 		if to.length() > 0.3:
 			dir = to.normalized()
-	var projectile := Projectile.create(dir, weapon_stats, hero.element, crit_chance, _rng)
-	projectile.arrow = is_arrow
-	if kit:
-		kit.modify_projectile(projectile)
-	get_parent().add_child(projectile)
-	projectile.global_position = at
-	projectile.origin = at
+	var spread: Array = kit.arrow_spread() if kit else [0.0]
+	var guaranteed_crit := kit.consume_sure_crit() if kit else false
+	for angle in spread:
+		var projectile := Projectile.create(dir.rotated(Vector3.UP, float(angle)), weapon_stats, hero.element, crit_chance, _rng)
+		projectile.arrow = is_arrow
+		if kit:
+			kit.modify_projectile(projectile)
+		if guaranteed_crit:
+			projectile.crit_chance = 1.0
+		get_parent().add_child(projectile)
+		projectile.global_position = at
+		projectile.origin = at
 
 
 func _melee_swing() -> void:
@@ -393,11 +408,15 @@ func _melee_swing() -> void:
 		to_enemy.y = 0.0
 		var dist := to_enemy.length()
 		# Acerta quem está no alcance e num cone de ~140° à frente (ou colado no herói).
-		if dist <= reach + 0.4 and (dist < 0.6 or _facing.angle_to(to_enemy) <= deg_to_rad(70)):
+		var cone := 70.0 + (kit.melee_cone_bonus() if kit else 0.0)
+		if dist <= reach + 0.4 and (dist < 0.6 or _facing.angle_to(to_enemy) <= deg_to_rad(cone)):
 			var hit := Damage.roll(weapon_stats.damage, hero.element, enemy.data.element, crit_chance, _rng)
 			if kit:
 				hit.amount = kit.modify_outgoing(hit.amount)  # passivas (ex.: Revide)
+				hit.amount = int(round(hit.amount * kit.melee_multiplier(_combo_step)))
 			enemy.take_hit(hit.amount, hit.crit, to_enemy)
+			if kit:
+				kit.on_melee_hit(enemy, _combo_step)
 			if form != Form.NONE and float(FORMS[form].constrict) > 0.0:
 				enemy.constrict(float(FORMS[form].constrict))
 
@@ -438,12 +457,28 @@ func _on_death_saved() -> void:
 	Fx.float_text(get_parent(), global_position + Vector3(0, 3.0, 0), "MUIRAQUITÃ!", Color("6fdc7b"))
 	Vfx.muiraquita(self)
 	Fx.flash(_material, _base_color, Color("6fdc7b"))
+	if kit:
+		kit.on_death_saved()
 
 
 ## Animação de um poder da classe (o tronco, se estiver andando).
 ## fallback: usada se o modelo ainda não tiver a animação própria do poder.
 func facing() -> Vector3:
 	return _facing
+
+
+## Pontos do herói num talento (0 = não tem).
+func talent(id: String) -> int:
+	return GameState.talent_rank(hero_id, id)
+
+
+## Valor do talento no nível atual (ex.: 3 pontos de Couro de Anta = 12).
+func talent_value(id: String) -> float:
+	return GameState.talent_value(hero_id, id)
+
+
+func is_moving() -> bool:
+	return _ground_speed() > 0.15
 
 
 func play_kit_animation(anim_name: String, duration := 0.5, fallback := "bloqueio") -> void:
@@ -473,6 +508,8 @@ func on_enemy_killed(elite: bool) -> void:
 
 func _on_shield_broken() -> void:
 	Fx.float_text(get_parent(), global_position + Vector3(0, 2.9, 0), "SEM ESCUDO! +%d%% de dano" % int(EXPOSED_BONUS * 100), Color("ff9f43"))
+	if kit:
+		kit.on_shield_broken()
 
 
 # ---------- marcador de alvo ----------

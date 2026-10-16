@@ -22,6 +22,12 @@ var far_distance := 6.0
 var origin := Vector3.ZERO
 ## Desenho de flecha (arco) em vez de bola (magia).
 var arrow := false
+## Talentos: quantos inimigos atravessa (o dano cai para pierce_factor a cada um),
+## dano extra do crítico e o que acontece em quem é atingido.
+var pierce := 0
+var pierce_factor := 0.6
+var crit_damage_bonus := 0.0
+var _hit := {}
 
 var _traveled := 0.0
 var _spent := false
@@ -123,12 +129,21 @@ func _on_body_entered(body: Node3D) -> void:
 	if _spent:
 		return
 	if body.is_in_group("enemies"):
-		_spent = true
+		if _hit.has(body.get_instance_id()):
+			return
+		_hit[body.get_instance_id()] = true
 		var crit := crit_chance
 		if far_crit_bonus > 0.0 and origin.distance_to(body.global_position) >= far_distance:
 			crit += far_crit_bonus
 		var hit := Damage.roll(damage, element, body.data.element, crit, rng)
+		if hit.crit and crit_damage_bonus > 0.0:
+			hit.amount = int(round(hit.amount * (1.0 + crit_damage_bonus)))
 		body.take_hit(hit.amount, hit.crit, direction)
+		if pierce > 0:
+			pierce -= 1
+			damage = maxi(int(round(damage * pierce_factor)), 1)
+			return
+		_spent = true
 		queue_free()
 	elif not body.is_in_group("player"):
 		_spent = true

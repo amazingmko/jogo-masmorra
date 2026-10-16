@@ -24,6 +24,9 @@ signal death_saved
 @export var armor_regen_amount: int = 1
 ## Fração do dano bloqueada pela Armadura (0 a 0.75).
 var damage_reduction: float = 0.0
+## Bônus temporários dos talentos (somados à redução da armadura e ao bloqueio).
+var extra_reduction: float = 0.0
+var extra_block: float = 0.0
 ## Chance de bloquear um golpe direto (só tanques). Veneno e mega magia não são bloqueáveis.
 var block_chance: float = 0.0
 ## Quanto do golpe o bloqueio segura.
@@ -75,8 +78,9 @@ func take_damage(amount: int, grant_invuln: bool = true, ignore_invuln: bool = f
 		_invulnerable = maxf(_invulnerable, invulnerability_time)
 		hit_blocked.emit(0)
 		return 0
-	amount = maxi(int(round(amount * (1.0 - damage_reduction))), 1)
-	var was_blocked := grant_invuln and not ignore_invuln and block_chance > 0.0 and _rng.randf() < block_chance
+	amount = maxi(int(round(amount * (1.0 - clampf(damage_reduction + extra_reduction, 0.0, 0.85)))), 1)
+	var block := block_chance + extra_block if block_chance > 0.0 else 0.0
+	var was_blocked := grant_invuln and not ignore_invuln and block > 0.0 and _rng.randf() < block
 	if was_blocked:
 		amount = maxi(int(round(amount * (1.0 - BLOCK_REDUCTION))), 1)
 	if is_exposed():

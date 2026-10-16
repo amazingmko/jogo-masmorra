@@ -23,7 +23,8 @@ var totals := {}
 
 
 ## equipped: {slot(int): instance(Dictionary)}. buffs: Array[BuffData].
-static func compute(hero: HeroData, level: int, equipped: Dictionary, catalog: ItemCatalog, buffs: Array = []) -> HeroStats:
+## talents: pontos da árvore do herói (Talents) — só os atributos simples entram aqui.
+static func compute(hero: HeroData, level: int, equipped: Dictionary, catalog: ItemCatalog, buffs: Array = [], talents: Dictionary = {}) -> HeroStats:
 	var s := HeroStats.new()
 	var primary_key: String = GameEnums.PRIMARY_KEYS[hero.primary_stat]
 	var sum := {}
@@ -61,6 +62,7 @@ static func compute(hero: HeroData, level: int, equipped: Dictionary, catalog: I
 	s.damage_reduction = clampf(float(s.armor) / (float(s.armor) + 200.0), 0.0, 0.75)
 	if hero.hero_class == GameEnums.HeroClass.TANK:
 		s.block_chance = clampf(hero.block_chance + float(sum.get("block", 0)) / 100.0, 0.0, MAX_BLOCK)
+	Talents.apply_stats(s, hero.id, talents)
 	return s
 
 

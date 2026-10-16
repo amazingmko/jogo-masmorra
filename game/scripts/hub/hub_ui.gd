@@ -35,6 +35,9 @@ var _craft_prof: StringName = &""
 var _craft_item: StringName = &""
 var _craft_msg := ""
 var _craft_msg_color := TEXT
+## Árvore de talentos aberta (pelo Quadro de Heróis) e o último aviso dela.
+var _talent_hero: StringName = &""
+var _talent_msg := ""
 
 
 func _ready() -> void:
@@ -104,6 +107,8 @@ func _refresh_open_panel() -> void:
 			_fill_heroes()
 		&"artesao":
 			_fill_artisan()
+		&"talentos":
+			_fill_talents()
 
 
 func _fill_portal() -> void:
@@ -203,6 +208,16 @@ func _fill_heroes() -> void:
 		card.add_child(_label("Nível %d · %d/%d XP" % [p.level, p.xp, Progression.xp_to_next(p.level)], 16, MUTED))
 		card.add_child(_label("%s · %s" % [GameEnums.PRIMARY_NAMES[hero.primary_stat], GameEnums.ARMOR_NAMES[hero.armor_type()]], 18))
 		card.add_child(_label(hero.description, 15, MUTED, true))
+		if Talents.has_tree(hero.id):
+			var free := GameState.talent_points_free(hero.id)
+			var tb := _button("Talentos" + (" (%d livre%s)" % [free, "s" if free != 1 else ""] if free > 0 else ""), 17, OK_COLOR if free > 0 else TEXT)
+			var tid := hero.id
+			tb.pressed.connect(func() -> void:
+				_talent_hero = tid
+				_talent_msg = ""
+				_open_station = &"talentos"
+				_refresh_open_panel())
+			card.add_child(tb)
 		if hero.id == _player.hero_id:
 			card.add_child(_label("Selecionado", 18, GOLD))
 		else:
@@ -214,6 +229,93 @@ func _fill_heroes() -> void:
 				_refresh_top_bar()
 				_refresh_open_panel())
 			card.add_child(pick)
+
+
+## Árvore de talentos: 3 ramos lado a lado; cada talento é um botão (toque = +1 ponto).
+func _fill_talents() -> void:
+	var hero := ItemDB.get_hero(_talent_hero)
+	if hero == null:
+		return
+	var talents := GameState.talents_of(hero.id)
+	var free := GameState.talent_points_free(hero.id)
+	_modal_title.text = "Talentos — %s" % hero.display_name
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 12)
+	_modal_body.add_child(top)
+	var info := _label("Pontos livres: %d  ·  gastos: %d  ·  1 ponto a cada 2 níveis (nível %d)" % [free, Talents.spent(talents), GameState.level_of(hero.id)], 17, OK_COLOR if free > 0 else MUTED)
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(info)
+	if OS.is_debug_build():
+		var dbg := _button("Teste: +5 pontos", 15, MUTED)
+		dbg.pressed.connect(func() -> void:
+			GameState.debug_talent_points += 5
+			GameState.save()
+			_refresh_open_panel())
+		top.add_child(dbg)
+	var reset := _button("Redistribuir (grátis)", 16)
+	reset.disabled = Talents.spent(talents) == 0
+	reset.pressed.connect(func() -> void:
+		GameState.reset_talents(hero.id)
+		_player.refresh_stats()
+		_talent_msg = "Pontos devolvidos."
+		_refresh_open_panel())
+	top.add_child(reset)
+	var back := _button("Voltar", 16)
+	back.pressed.connect(func() -> void:
+		_open_station = &"herois"
+		_refresh_open_panel())
+	top.add_child(back)
+	if _talent_msg != "":
+		_modal_body.add_child(_label(_talent_msg, 15, GOLD))
+
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.custom_minimum_size = Vector2(0, 420)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_modal_body.add_child(scroll)
+	var columns := HBoxContainer.new()
+	columns.add_theme_constant_override("separation", 12)
+	columns.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(columns)
+	for branch in Talents.branches(hero.id):
+		var in_branch := Talents.spent_in_branch(talents, branch)
+		var col := VBoxContainer.new()
+		col.add_theme_constant_override("separation", 6)
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var box := _card_panel(GOLD if in_branch > 0 else Color(1, 1, 1, 0.25))
+		box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		box.add_child(col)
+		columns.add_child(box)
+		col.add_child(_label("%s (%d)" % [branch.name, in_branch], 21, GOLD))
+		col.add_child(_label(branch.role, 14, MUTED))
+		for row in Talents.ROW_REQUIREMENT.size():
+			var open := Talents.row_open(talents, branch, row)
+			var head := "Fileira %d" % (row + 1) if row < 3 else "Talento máximo"
+			if not open:
+				head += " — abre com %d pontos aqui" % Talents.ROW_REQUIREMENT[row]
+			col.add_child(_label(head, 13, MUTED if open else BAD_COLOR.darkened(0.2)))
+			for t in branch.talents:
+				if int(t.row) != row:
+					continue
+				col.add_child(_talent_button(hero.id, t, talents, open, free))
+
+
+func _talent_button(hero_id: StringName, t: Dictionary, talents: Dictionary, open: bool, free: int) -> Control:
+	var r := Talents.rank(talents, t.id)
+	var maxed := r >= int(t.max)
+	var color := GOLD if maxed else (OK_COLOR if r > 0 else (TEXT if open else MUTED))
+	var b := _button("%s  %d/%d\n%s" % [t.name, r, int(t.max), Talents.describe(t, r)], 14, color, true)
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.disabled = maxed or not open or free <= 0
+	if int(t.row) == 3:
+		b.add_theme_stylebox_override("normal", _selected_style(GOLD.darkened(0.4)) if r == 0 else _selected_style(GOLD))
+	var id: String = t.id
+	b.pressed.connect(func() -> void:
+		var why := GameState.add_talent(hero_id, id)
+		_talent_msg = why if why != "" else "%s: %d/%d" % [t.name, r + 1, int(t.max)]
+		_player.refresh_stats()
+		_refresh_open_panel())
+	return b
 
 
 func _fill_artisan() -> void:
@@ -467,6 +569,7 @@ func _fill_bag() -> void:
 	lines.append("Sem escudo: +%d%% de dano recebido" % int(Player.EXPOSED_BONUS * 100))
 	left.add_child(_label("\n".join(lines), 16))
 	var kit := HeroKit.for_hero(hero)
+	kit.player = _player  # textos com os talentos do herói
 	var powers := kit.describe()
 	kit.free()
 	if not powers.is_empty():
