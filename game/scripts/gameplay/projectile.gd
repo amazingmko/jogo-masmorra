@@ -27,6 +27,10 @@ var arrow := false
 var pierce := 0
 var pierce_factor := 0.6
 var crit_damage_bonus := 0.0
+## Ricochete (Encantado): quantos inimigos a mais ele quica depois de acertar.
+var bounces := 0
+## Chamado a cada inimigo atingido: on_hit.call(inimigo, projétil). Poderes da classe usam.
+var on_hit := Callable()
 var _hit := {}
 
 var _traveled := 0.0
@@ -108,6 +112,29 @@ func _build_arrow() -> void:
 	Vfx.particles(self, Vector3.ZERO, "faisca", 6, 0.25, Color(1, 1, 1, 0.5), 0.15, Vector2(0.0, 0.2), 180.0, 0.0, true, false)
 
 
+## Ricochete: vira para o inimigo mais perto que ainda não levou este disparo.
+func _bounce_from(body: Node3D) -> bool:
+	var best: Node3D = null
+	var best_d := 7.0
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e == body or _hit.has(e.get_instance_id()) or e.health.is_dead:
+			continue
+		var d: float = e.global_position.distance_to(body.global_position)
+		if d < best_d:
+			best_d = d
+			best = e
+	if best == null:
+		return false
+	bounces -= 1
+	var to := best.global_position - global_position
+	to.y = 0.0
+	direction = to.normalized()
+	_traveled = 0.0
+	max_distance = best_d + 2.0
+	damage = maxi(int(round(damage * 0.8)), 1)
+	return true
+
+
 func _cyl(top: float, bottom: float, h: float) -> CylinderMesh:
 	var c := CylinderMesh.new()
 	c.top_radius = top
@@ -139,6 +166,10 @@ func _on_body_entered(body: Node3D) -> void:
 		if hit.crit and crit_damage_bonus > 0.0:
 			hit.amount = int(round(hit.amount * (1.0 + crit_damage_bonus)))
 		body.take_hit(hit.amount, hit.crit, direction)
+		if on_hit.is_valid():
+			on_hit.call(body, self)
+		if bounces > 0 and _bounce_from(body):
+			return
 		if pierce > 0:
 			pierce -= 1
 			damage = maxi(int(round(damage * pierce_factor)), 1)
