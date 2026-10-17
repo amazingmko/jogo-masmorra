@@ -62,6 +62,7 @@ static func impact(hero_id: StringName, anim_name: String) -> float:
 ## ângulo (radianos) à frente do peito. Usado para girar o tronco quando ela atira andando.
 const AIM_STANCE := {
 	&"mateira": 0.14,  # ~8°: andando, o braço do arco já aponta quase para a frente das pernas
+	&"icamiaba": 0.0,  # golpe de lança: o tronco gira para o alvo, as pernas seguem o movimento
 }
 
 

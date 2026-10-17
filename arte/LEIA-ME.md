@@ -34,7 +34,8 @@ Exemplo pronto: a Icamiaba. Repetir igual para os outros heróis.
 4. **Armas**: imagem (ChatGPT/Gemini) → Tripo, sem retopologia → GLB em `arte/bruto/armas/<arma>_<heroi>.glb`.
 5. Preparar para o jogo (feito pelo Claude):
    - FBX → GLB: `FBX2glTF -b -i arquivo.fbx -o arquivo` (npm i fbx2gltf)
-   - juntar: `node tools/mixamo_merge.mjs <pasta dos .glb> game/art/herois/<heroi>.glb [opções]` (Mateira: `armadilha=0.9:2.9 ataque1=golpe1@0.5:1.0+golpe2@0:0.45 -golpe2`, e a soltura da flecha em `HeroGear.RELEASE`) (escala, nomes, sem deslocamento, material fosco; corte opcional de animações longas, ex.: Mateira `armadilha=0.9:2.9`)
+   - juntar: `node tools/mixamo_merge.mjs <pasta dos .glb> game/art/herois/<heroi>.glb [opções]` (Mateira: `armadilha=0.9:2.9 ataque1=golpe1@0.5:1.0+golpe2@0:0.45 -golpe2`, e o quadro do dano/soltura em `HeroGear.IMPACT`) (escala, nomes, sem deslocamento, material fosco; corte opcional de animações longas, ex.: Mateira `armadilha=0.9:2.9`)
+   - golpes com passos (os pés patinam com o quadril travado): `node tools/hip_motion.mjs <pasta dos .glb> game/art/herois/<heroi>.glb livre=golpe1:ataque1 raiz=golpe3:ataque3` (Icamiaba: `livre=golpe1:ataque1 livre=golpe2:ataque2 raiz=golpe3:ataque3`). "livre" = o golpe vai e volta; "raiz" = o golpe avança e o jogo move o herói junto
    - armas: reduzir para ~2.500 triângulos e textura 512 → `game/art/armas/`
    - encaixe nas mãos: tabela `GEAR` em `game/scripts/gameplay/hero_gear.gd`
    - conferir: `tests/shot_anims.gd -- model=... hero=<heroi> shot=...`

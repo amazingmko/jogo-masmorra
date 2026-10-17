@@ -17,6 +17,7 @@ var _far_hp0 := 0
 var _near_d0 := 0.0
 var _trap_target
 var _trap_hp0 := 0
+var _step_pos := {}
 var T = load("res://game/scripts/systems/talents.gd")
 
 
@@ -122,7 +123,8 @@ func _process(_d: float) -> bool:
 		p.free()
 		check(is_equal_approx(_kit.shoot_move_factor(0.55), 0.85), "Atirar Correndo: mantém 85% da velocidade")
 		_kit.charge = 100.0
-		check(_kit.try_ultimate() and companions[0].is_furious(), "Fúria da Harpia: a ultimate enfurece a companheira")
+		check(_kit.try_ultimate() and _harpies().size() == 1 and _harpies()[0].is_furious(), "Fúria da Harpia: a ultimate enfurece a companheira (sem segunda harpia)")
+		check(_harpies()[0]._dive_damage() == _harpies()[0].damage * 2, "Fúria da Harpia: dano em dobro")
 		# Armadilha de Timbó: solta o bicho e envenena em volta.
 		for e in get_nodes_in_group("floor_effects"):
 			if e.get_script().get_global_name() == &"VineTrap":
@@ -138,9 +140,69 @@ func _process(_d: float) -> bool:
 		trap.global_position = Vector3(_trap_target.global_position.x, 0.0, _trap_target.global_position.z)
 	if _f == 150:
 		check(_trap_target._poison_left > 0.0 and _trap_target.health.health < _trap_hp0, "Timbó: veneno depois de soltar o bicho")
+		_main.debug_jump_to_floor(2)
+	if _f == 155:
+		check(_companions() == 1, "Revoada: a companheira continua no andar seguinte")
+		_main.new_run()
+	if _f == 160:
+		check(_companions() == 1, "Revoada: a companheira continua numa run nova")
+		for e in get_nodes_in_group("enemies"):
+			e.queue_free()
+		_main.spawn_training_dummies()
+	if _f == 162:
+		var dummies := get_nodes_in_group("enemies").filter(func(e): return e.training_dummy)
+		check(dummies.size() == 3 and dummies[0].health.max_health > 50000, "tecla T: 3 bonecos de treino com vida enorme")
+		_harpies()[0].fury(0.3)
+		check(_harpies()[0]._body.scale.x > 1.2, "Fúria da Harpia: fica maior e dourada")
+	if _f == 200:
+		check(not _harpies()[0].is_furious() and is_equal_approx(_harpies()[0]._body.scale.x, 1.0), "Fúria da Harpia: acaba e ela volta ao normal")
+	if _f == 1200:
+		check(_companions() == 1, "Revoada: a companheira continua depois de 17 s de combate")
+		# Icamiaba golpeando andando: anda mais devagar e o tronco gira para o alvo (sem patinar).
+		_gs.selected_hero = &"icamiaba"
+		_player.set_hero(_db.get_hero(&"icamiaba"))
+		_kit = _player.kit
+	if _f == 1205:
+		var dummy = get_nodes_in_group("enemies")[0]
+		_main._hud.joystick.value = Vector2(1, 0)
+		_player._target = dummy
+		_player._attack()
+	if _f == 1215:
+		var v := Vector2(_player.velocity.x, _player.velocity.z).length()
+		check(v < _player.move_speed * 0.6, "Icamiaba golpeando andando: passo mais lento (%.1f de %.1f m/s)" % [v, _player.move_speed])
+		check(_player._animator._aim_active, "Icamiaba golpeando andando: pernas seguem o movimento, tronco vira para o alvo")
+		_main._hud.joystick.value = Vector2.ZERO
+		for e in get_nodes_in_group("enemies"):
+			e.queue_free()
+	if _f == 1300:
+		# Parada e sem alvo: golpes 1 e 2 no lugar; o giro (golpe 3) avança com o passo do golpe.
+		_main._hud.attack_button.is_pressed = true
+		_player._swings = 0
+		_player._animator._combo = 0
+		_step_pos = {}
+	if _f > 1300 and _f < 1600:
+		var step: int = _player._combo_step
+		if not _step_pos.has(step) and _player._attack_left > 0.0:
+			_step_pos[step] = _player.global_position
+	if _f == 1600:
+		_main._hud.attack_button.is_pressed = false
+		var p0: Vector3 = _step_pos.get(0, Vector3.ZERO)
+		var p2: Vector3 = _step_pos.get(2, Vector3.ZERO)
+		var moved_12: float = p0.distance_to(_step_pos.get(1, p0)) if _step_pos.has(1) else -1.0
+		check(_step_pos.has(2), "três golpes seguidos parada")
+		check(moved_12 < 0.3, "golpes 1 e 2 sem sair do lugar (%.2f m)" % moved_12)
+		check(_player.global_position.distance_to(p2) > 1.5, "giro (golpe 3) avança com o golpe: %.1f m, sem patinar" % _player.global_position.distance_to(p2))
 		print("fim: ", "TUDO OK" if _ok else "COM FALHAS")
 		quit(0 if _ok else 1)
 	return false
+
+
+func _harpies() -> Array:
+	return get_nodes_in_group("floor_effects").filter(func(n): return n.get_script().get_global_name() == &"Harpy" and not n.is_queued_for_deletion())
+
+
+func _companions() -> int:
+	return _harpies().filter(func(n): return n.companion).size()
 
 
 func _test_rules() -> void:

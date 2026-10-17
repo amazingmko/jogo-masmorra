@@ -87,6 +87,25 @@ func _unhandled_input(event: InputEvent) -> void:
 			new_run()
 		KEY_G:
 			_hud.show_toast("Jogo salvo." if GameState.save() else "Falha ao salvar.")
+		KEY_T:
+			if OS.is_debug_build():
+				spawn_training_dummies()
+
+
+## Só na versão de desenvolvimento (tecla T): 3 bonecos de treino perto do herói. Andam e
+## reagem como inimigos de verdade (atordoar, puxar, prender...), mas não machucam, não
+## desviam e têm vida enorme, para dar tempo de ver os talentos funcionando.
+func spawn_training_dummies() -> void:
+	var data := ItemDB.get_enemy(&"queixada")
+	for i in 3:
+		var dummy := Enemy.create(data, 2000.0, 0.0)
+		dummy.is_summon = true
+		dummy.training_dummy = true
+		add_child(dummy)
+		var angle := TAU * i / 3.0
+		dummy.global_position = _player.global_position + Vector3(cos(angle), 0, sin(angle)) * (3.0 + 3.0 * i) + Vector3(0, 0.1, 0)
+		dummy.reset_physics_interpolation()
+	_hud.show_toast("Bonecos de treino: não machucam e quase não morrem (somem ao trocar de andar)", Color("8fd3ff"))
 
 
 # ---------- run e andares ----------
@@ -139,8 +158,9 @@ func _next_floor() -> void:
 	_hud.minimap.show_layout(layout)
 	_hud.set_wave("Andar %d/%d · %s%s" % [floor_number, FLOORS, Difficulty.name_of(difficulty),
 		"" if full_rewards else " · sem energia"])
-	_hud.show_toast("Andar %d — encontre o %s" % [floor_number,
-		"chefe" if floor_number == FLOORS else "portal azul"], Color("4db8ff"))
+	_hud.show_toast("Andar %d — encontre o %s%s" % [floor_number,
+		"chefe" if floor_number == FLOORS else "portal azul",
+		"  (teste: tecla T cria bonecos de treino)" if OS.is_debug_build() else ""], Color("4db8ff"))
 	GameState.save()
 
 

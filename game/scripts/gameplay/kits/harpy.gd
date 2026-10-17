@@ -12,11 +12,14 @@ const ORBIT_HEIGHT := 3.2
 var owner_player: Player
 var duration := 8.0
 var damage := 50
-## Revoada: acompanha sempre, com parte do dano (companion_factor); a Fúria dobra o dano cheio.
+## Revoada: acompanha sempre, com parte do dano (companion_factor); a Fúria dá o dano cheio em dobro.
 var companion := false
 var companion_factor := 0.4
 var _fury_left := 0.0
+var _fury_fx: CPUParticles3D
+var _fury_mats: Array[StandardMaterial3D] = []
 const FURY_MULT := 2.0
+const FURY_COLOR := Color("ffb02e")
 
 var _t := 0.0
 var _next_dive := 0.4
@@ -56,6 +59,8 @@ func _process(delta: float) -> void:
 	_t += delta
 	if _fury_left > 0.0:
 		_fury_left -= delta
+		if _fury_left <= 0.0:
+			_end_fury()
 	var flap := sin(_t * (22.0 if _diving else 9.0)) * 0.6
 	_wings[0].rotation.z = flap
 	_wings[1].rotation.z = -flap
@@ -69,7 +74,7 @@ func _process(delta: float) -> void:
 	if not companion and _t >= duration:
 		_leave()
 		return
-	_next_dive -= delta * (1.5 if _fury_left > 0.0 else 1.0)
+	_next_dive -= delta * (1.6 if _fury_left > 0.0 else 1.0)
 	if _next_dive <= 0.0:
 		var prey := _pick_prey()
 		if prey:
@@ -99,9 +104,11 @@ func _dive(prey: Node3D) -> void:
 	look_at(hit_at, Vector3.UP, true)
 	var t := create_tween()
 	t.tween_property(self, "global_position", hit_at, 0.22).set_ease(Tween.EASE_IN)
+	var prey_ref: WeakRef = weakref(prey)  # o bicho pode morrer no meio do mergulho
 	t.tween_callback(func() -> void:
-		if is_instance_valid(prey) and prey.has_method("take_hit"):
-			prey.take_hit(_dive_damage(), false, (prey.global_position - owner_player.global_position).normalized())
+		var target: Node3D = prey_ref.get_ref()
+		if is_instance_valid(target) and is_instance_valid(owner_player) and target.has_method("take_hit"):
+			target.take_hit(_dive_damage(), false, (target.global_position - owner_player.global_position).normalized())
 			Vfx.particles(get_parent(), hit_at, "faisca", 10, 0.35, Color("e8f5ff"), 0.4, Vector2(2.0, 4.0), 180.0, 0.0))
 	t.tween_property(self, "global_position", hit_at + Vector3(0, ORBIT_HEIGHT, 0), 0.3).set_ease(Tween.EASE_OUT)
 	t.tween_callback(func() -> void:
@@ -117,17 +124,39 @@ func _dive_damage() -> int:
 	return damage
 
 
-## Fúria da Harpia (Revoada): dano em dobro e mergulhos mais rápidos por um tempo.
+## Fúria da Harpia (Revoada): dano cheio em dobro e mergulhos mais rápidos por um tempo.
+## Visível: a harpia fica dourada, maior e solta faíscas enquanto durar.
 func fury(seconds: float) -> void:
-	_fury_left = seconds
-	Vfx.particles(self, Vector3.ZERO, "faisca", 16, 0.6, Color("ffd34d"), 0.35, Vector2(1.0, 2.5), 180.0, 0.0)
+	var starting := _fury_left <= 0.0
+	_fury_left = maxf(_fury_left, seconds)
+	if not starting:
+		return
+	_body.scale = Vector3.ONE * 1.35
+	for m in _body.find_children("*", "MeshInstance3D", true, false):
+		var mat := (m as MeshInstance3D).material_override as StandardMaterial3D
+		if mat:
+			mat.emission_enabled = true
+			mat.emission = FURY_COLOR
+			mat.emission_energy_multiplier = 0.6
+			_fury_mats.append(mat)
+	_fury_fx = Vfx.particles(self, Vector3.ZERO, "faisca", 24, 0.5, FURY_COLOR, 0.35, Vector2(0.5, 1.5), 180.0, 0.0, true, false)
+	Vfx.particles(get_parent(), global_position, "faisca", 20, 0.6, FURY_COLOR, 0.45, Vector2(2.0, 4.0), 180.0, 0.0)
+
+
+func _end_fury() -> void:
+	_body.scale = Vector3.ONE
+	for mat in _fury_mats:
+		mat.emission_enabled = false
+	_fury_mats.clear()
+	if is_instance_valid(_fury_fx):
+		_fury_fx.queue_free()
 
 
 func is_furious() -> bool:
 	return _fury_left > 0.0
 
 
-## Vínculo: fica mais tempo (sozinha) ou a Fúria dura mais (Revoada).
+## Vínculo: cada abate a mantém mais tempo (sozinha) ou estende a Fúria (Revoada).
 func extend(seconds: float) -> void:
 	if companion:
 		if _fury_left > 0.0:

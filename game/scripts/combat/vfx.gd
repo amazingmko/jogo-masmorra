@@ -151,9 +151,10 @@ static func provoked_mark(enemy: Node3D, seconds: float, height: float) -> void:
 	var bob := s.create_tween().set_loops()
 	bob.tween_property(s, "position:y", height + 0.15, 0.35).set_trans(Tween.TRANS_SINE)
 	bob.tween_property(s, "position:y", height, 0.35).set_trans(Tween.TRANS_SINE)
-	enemy.get_tree().create_timer(seconds, false).timeout.connect(func() -> void:
-		if is_instance_valid(s):
-			s.queue_free())
+	# O tempo corre num tween do próprio símbolo: se o bicho sumir antes, nada fica pendurado.
+	var life := s.create_tween()
+	life.tween_interval(seconds)
+	life.tween_callback(s.queue_free)
 
 
 ## Muralha de Casco: cúpula com as placas do casco, borda verde, faíscas subindo.
@@ -180,8 +181,10 @@ static func shell_dome(owner: Node3D, radius: float, seconds: float) -> MeshInst
 	var sparks := particles(mesh, Vector3(0, 0.1, 0), "faisca", 18, 1.4, Color("8dffb0"), 0.35, Vector2(0.6, 1.4), 25.0, 0.4, true, false, radius * 0.9)
 	var grow := mesh.create_tween()
 	grow.tween_property(mesh, "scale", Vector3.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	owner.get_tree().create_timer(maxf(seconds - 0.35, 0.1), false).timeout.connect(func() -> void:
-		if not is_instance_valid(mesh):
+	var life := mesh.create_tween()
+	life.tween_interval(maxf(seconds - 0.35, 0.1))
+	life.tween_callback(func() -> void:
+		if not is_instance_valid(owner) or not owner.is_inside_tree():
 			return
 		sparks.emitting = false
 		var at := mesh.global_position

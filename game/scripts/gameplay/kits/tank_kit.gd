@@ -106,9 +106,9 @@ func _throw_spear(enemy: Node3D) -> void:
 	var from := player.global_position + Vector3(0, 1.2, 0)
 	var spear := MeshInstance3D.new()
 	var mesh := CylinderMesh.new()
-	mesh.top_radius = 0.03
-	mesh.bottom_radius = 0.03
-	mesh.height = 1.4
+	mesh.top_radius = 0.05
+	mesh.bottom_radius = 0.05
+	mesh.height = 1.7
 	spear.mesh = mesh
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color("8a5a2b")
@@ -118,16 +118,20 @@ func _throw_spear(enemy: Node3D) -> void:
 	var to := enemy.global_position + Vector3(0, 0.8, 0)
 	spear.look_at(to, Vector3.UP)
 	spear.rotate_object_local(Vector3.RIGHT, PI * 0.5)
+	Vfx.particles(spear, Vector3.ZERO, "faisca", 10, 0.3, COLOR, 0.3, Vector2(0.0, 0.3), 180.0, 0.0, true, false)
 	var tw := spear.create_tween()
-	tw.tween_property(spear, "global_position", to, 0.18)
+	tw.tween_property(spear, "global_position", to, clampf(from.distance_to(to) / 25.0, 0.2, 0.5))
+	var enemy_ref: WeakRef = weakref(enemy)  # pode morrer antes da lança chegar
 	tw.tween_callback(func() -> void:
 		spear.queue_free()
-		if not is_instance_valid(enemy) or not is_instance_valid(player):
+		var target: Node3D = enemy_ref.get_ref()
+		if not is_instance_valid(target) or not is_instance_valid(player):
 			return
 		var dmg := int(round(player.weapon_stats.damage * tv("lanca_certeira") / 100.0))
-		var dir: Vector3 = player.global_position - enemy.global_position
-		enemy.take_hit(dmg, false, -dir)
-		enemy.push(dir, maxf(dir.length() - 1.6, 0.0))
+		var dir: Vector3 = player.global_position - target.global_position
+		target.take_hit(dmg, false, -dir)
+		target.push(dir, maxf(dir.length() - 1.6, 0.0))
+		Fx.float_text(player.get_parent(), target.global_position + Vector3(0, 2.2, 0), "PUXADO!", COLOR)
 		Vfx.particles(player.get_parent(), to, "faisca", 10, 0.35, COLOR, 0.35, Vector2(2.0, 4.0), 180.0, 0.0))
 
 
