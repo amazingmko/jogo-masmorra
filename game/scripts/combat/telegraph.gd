@@ -27,6 +27,9 @@ var safe_zones: Array[Vector3] = []
 var safe_radius := 1.7
 ## Só visual (ex.: mira de disparo): não causa dano.
 var visual_only := false
+## O golpe sai de quem atacou (garra, cone, grito): parede, pilar, pedra ou tronco no meio protegem.
+## Falso para o que cai do alto (ouriços, árvores) e para a mega magia (que tem as zonas seguras).
+var blockable := false
 
 var _t := 0.0
 var _resolved := false
@@ -154,7 +157,7 @@ func _resolve() -> void:
 	var hit := false
 	if not visual_only:
 		var player := _player()
-		if player and contains(player.global_position):
+		if player and contains(player.global_position) and (not blockable or Layers.clear_path(get_world_3d(), global_position, player.global_position)):
 			var amount := damage + int(round(damage_percent * player.health.max_health))
 			player.receive_attack(amount, effect, effect_duration, effect_power, global_position, shape == Shape.MEGA)
 			hit = true

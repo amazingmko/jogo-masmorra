@@ -17,7 +17,7 @@ static func apply(world: WorldEnvironment, sun: DirectionalLight3D) -> void:
 	env.background_color = Color("0d140c")
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color("5d7a5a")
-	env.ambient_light_energy = 0.55
+	env.ambient_light_energy = 0.85
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.tonemap_exposure = 1.05
 	env.fog_enabled = true
@@ -29,7 +29,7 @@ static func apply(world: WorldEnvironment, sun: DirectionalLight3D) -> void:
 	env.adjustment_contrast = 1.05
 	sun.light_color = Color("ffe9b8")
 	sun.light_energy = 1.15
-	sun.shadow_opacity = 0.75
+	sun.shadow_opacity = 0.6
 
 
 func _ready() -> void:

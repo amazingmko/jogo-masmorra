@@ -86,7 +86,7 @@ func _use_skill() -> bool:
 			if t("chao_tremido") > 0:
 				enemy.slow(1.0 - tv("chao_tremido") / 100.0, 3.0)
 			hit += 1
-			if d > far_d:
+			if d > far_d and Layers.clear_path(player.get_world_3d(), origin, enemy.global_position):
 				far_d = d
 				farthest = enemy
 	Vfx.provoke(player.get_parent(), origin, radius)
@@ -291,7 +291,7 @@ func _spin() -> void:
 	for enemy in player.get_tree().get_nodes_in_group("enemies"):
 		var to: Vector3 = enemy.global_position - player.global_position
 		to.y = 0.0
-		if to.length() <= reach:
+		if to.length() <= reach and Layers.clear_path(player.get_world_3d(), player.global_position, enemy.global_position):
 			var hit := Damage.roll(player.weapon_stats.damage, player.hero.element, enemy.data.element, player.crit_chance, player._rng)
 			enemy.take_hit(hit.amount, hit.crit, to)
 	Fx.shockwave(player.get_parent(), player.global_position, reach, COLOR)

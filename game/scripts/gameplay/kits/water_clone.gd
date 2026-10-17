@@ -53,7 +53,7 @@ func _explode() -> void:
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		var to: Vector3 = enemy.global_position - global_position
 		to.y = 0.0
-		if to.length() <= RADIUS:
+		if to.length() <= RADIUS and Layers.clear_path(get_world_3d(), global_position, enemy.global_position):
 			enemy.take_hit(damage, false, to)
 			if enemy.has_method("soak"):
 				enemy.soak(soak_time)

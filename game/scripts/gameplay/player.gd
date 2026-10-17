@@ -435,7 +435,8 @@ func _melee_swing() -> void:
 		var dist := to_enemy.length()
 		# Acerta quem está no alcance e num cone de ~140° à frente (ou colado no herói).
 		var cone := 70.0 + (kit.melee_cone_bonus() if kit else 0.0)
-		if dist <= reach + 0.4 and (dist < 0.6 or _facing.angle_to(to_enemy) <= deg_to_rad(cone)):
+		if dist <= reach + 0.4 and (dist < 0.6 or _facing.angle_to(to_enemy) <= deg_to_rad(cone)) \
+				and Layers.clear_path(get_world_3d(), global_position, enemy.global_position):
 			var hit := Damage.roll(weapon_stats.damage, hero.element, enemy.data.element, crit_chance, _rng)
 			if kit:
 				hit.amount = kit.modify_outgoing(hit.amount)  # passivas (ex.: Revide)
@@ -689,6 +690,8 @@ func _apply_model(new_hero: HeroData) -> void:
 		_fill_light.light_energy = 0.9
 		_fill_light.light_color = Color("fff1dc")
 		_fill_light.shadow_enabled = false
+		# Só clareia a heroína: antes, pedras e plantas clareavam quando ela chegava perto.
+		_fill_light.light_cull_mask = Layers.HERO_VISUAL
 		add_child(_fill_light)
 	HeroGear.attach(_model, new_hero.id)
 	_collect_meshes(_model)
@@ -707,6 +710,7 @@ func _apply_model(new_hero: HeroData) -> void:
 func _collect_meshes(node: Node) -> void:
 	if node is MeshInstance3D:
 		_model_meshes.append(node)
+		(node as MeshInstance3D).layers = 1 | Layers.HERO_VISUAL
 	for child in node.get_children():
 		_collect_meshes(child)
 
