@@ -28,6 +28,8 @@ static func for_hero(hero: HeroData) -> HeroKit:
 			return RangerKit.new()
 		GameEnums.HeroClass.DRUID:
 			return DruidKit.new()
+		GameEnums.HeroClass.MAGE:
+			return MageKit.new()
 	return HeroKit.new()
 
 
@@ -219,6 +221,16 @@ func shoot_move_factor(base: float) -> float:
 
 
 func on_shield_broken() -> void:
+	pass
+
+
+## Logo antes de cada golpe/disparo (ex.: a Onça salta até o alvo).
+func before_attack() -> void:
+	pass
+
+
+## Druida trocou de forma.
+func on_form_changed(_form: int) -> void:
 	pass
 
 

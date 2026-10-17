@@ -99,6 +99,12 @@ var _marks := {}
 var provoked_vulnerability := 0.0
 ## Boneco de treino (só para testes): não desvia nem machuca, e quase não morre.
 var training_dummy := false
+## Encharcado (Encantado): fica pingando; poderes do Encantado batem mais nele.
+var _soaked_left := 0.0
+var _drip: CPUParticles3D
+## Arremessado pela Pororoca: se bater na parede enquanto voa, leva este dano.
+var _slam_damage := 0
+var _slam_left := 0.0
 var _mouth_material: StandardMaterial3D
 var _recent_timer := 0.0
 var _own_telegraphs: Array[Telegraph] = []
@@ -169,6 +175,10 @@ func _physics_process(delta: float) -> void:
 	_constrict_immune -= delta
 	_stun_left -= delta
 	_slow_left -= delta
+	if _soaked_left > 0.0:
+		_soaked_left -= delta
+		if _soaked_left <= 0.0 and is_instance_valid(_drip):
+			_drip.queue_free()
 	_tick_poison(delta)
 	for m in _marks.keys():
 		_marks[m][1] -= delta
@@ -196,7 +206,7 @@ func _physics_process(delta: float) -> void:
 
 	match state:
 		State.MOVE:
-			if _constrict_left > 0.0 or _stun_left > 0.0:
+			if _constrict_left > 0.0 or _stun_left > 0.0 or (_slam_left > 0.0 and _knockback.length() > 2.0):
 				_set_horizontal(Vector3.ZERO)
 			elif not _awake:
 				# De tocaia: parado, esperando o herói chegar perto.
@@ -250,6 +260,10 @@ func _physics_process(delta: float) -> void:
 		velocity += _knockback
 	_knockback = _knockback.move_toward(Vector3.ZERO, 30.0 * delta)
 	move_and_slide()
+	if _slam_left > 0.0:
+		_slam_left -= delta
+		if _knockback.length() > 1.5 and _hit_obstacle():
+			_slam()
 
 
 func take_hit(amount: int, crit: bool, from_direction: Vector3) -> void:
@@ -809,6 +823,51 @@ func push(dir: Vector3, distance: float) -> void:
 	if dir.length() < 0.01:
 		return
 	_knockback = dir.normalized() * sqrt(60.0 * maxf(distance, 0.0))
+
+
+## Encharcado pelo Encantado (Encharcar): pinga água por alguns segundos.
+func soak(seconds: float) -> void:
+	if state == State.DEAD:
+		return
+	_soaked_left = maxf(_soaked_left, seconds)
+	if not is_instance_valid(_drip):
+		_drip = Vfx.particles(self, Vector3(0, 1.2 * data.body_scale, 0), "faisca", 8, 0.6, Color(0.45, 0.75, 1.0, 0.9),
+			0.18, Vector2(0.2, 0.6), 30.0, -6.0, false, false)
+
+
+func is_soaked() -> bool:
+	return _soaked_left > 0.0
+
+
+## Pororoca: empurra com força; se bater na parede no caminho, leva `damage` (dobro se encharcado).
+func hurl(dir: Vector3, distance: float, damage: int) -> void:
+	if state == State.DEAD:
+		return
+	_slam_damage = damage
+	_slam_left = 1.0
+	if is_boss:
+		return
+	dir.y = 0.0
+	if dir.length() > 0.01:
+		_knockback = dir.normalized() * sqrt(60.0 * maxf(distance, 0.0))
+
+
+## Bateu em parede, pilar ou pedra neste quadro (colisão de lado, não o chão)?
+func _hit_obstacle() -> bool:
+	for i in get_slide_collision_count():
+		var c := get_slide_collision(i)
+		if absf(c.get_normal().y) < 0.5 and c.get_collider() is StaticBody3D:
+			return true
+	return false
+
+
+func _slam() -> void:
+	_slam_left = 0.0
+	var amount := _slam_damage * (2 if is_soaked() else 1)
+	_knockback = Vector3.ZERO
+	take_hit(amount, is_soaked(), Vector3.ZERO)
+	Fx.float_text(get_parent(), global_position + Vector3(0, 2.2 * data.body_scale, 0), "PAREDE!", Color("4db8ff"))
+	Vfx.particles(get_parent(), global_position + Vector3(0, 0.8, 0), "faisca", 14, 0.5, Color(0.6, 0.85, 1.0), 0.4, Vector2(2.0, 4.0), 180.0, -4.0)
 
 
 func is_constricted() -> bool:

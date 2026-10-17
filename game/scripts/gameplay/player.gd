@@ -24,7 +24,8 @@ const FORMS := {
 		"guard": 0.0, "regen": 0.015, "constrict": 0.0, "color": Color("f2a7c3")},
 }
 const FORM_ORDER := [Form.ONCA, Form.SUCURI, Form.BOTO]
-const FORM_COOLDOWN := 0.8
+## Trocar de forma tem recarga: o Instinto (1º golpe depois de trocar) não pode ser repetido sem parar.
+const FORM_COOLDOWN := 4.0
 
 const CLASS_COLORS := {
 	GameEnums.HeroClass.TANK: Color("e8c26a"),
@@ -333,6 +334,8 @@ func _face(who: Node3D) -> void:
 ## Um golpe ou tiro. Com modelo animado, cada ataque toca a animação inteira no tempo da arma
 ## (o tempo entre ataques) e o dano sai no quadro do impacto (lança) ou da soltura da corda (arco).
 func _attack() -> void:
+	if kit:
+		kit.before_attack()
 	_lunge = 1.0
 	_attack_target = _target
 	var duration := weapon_stats.cooldown() * 0.98
@@ -500,6 +503,11 @@ func talent_value(id: String) -> float:
 	return GameState.talent_value(hero_id, id)
 
 
+## Inimigo que a mira automática escolheu agora (ou null).
+func current_target() -> Node3D:
+	return _target if is_instance_valid(_target) else null
+
+
 func is_moving() -> bool:
 	return _ground_speed() > 0.15
 
@@ -608,6 +616,8 @@ func set_form(new_form: Form) -> void:
 	_attack_cooldown = minf(_attack_cooldown, 0.2)
 	refresh_stats()
 	_apply_form_visual()
+	if kit:
+		kit.on_form_changed(new_form)
 	if is_inside_tree():
 		Fx.float_text(get_parent(), global_position + Vector3(0, 2.2, 0), FORMS[form].name, FORMS[form].color)
 	form_changed.emit(FORMS[form].name)
