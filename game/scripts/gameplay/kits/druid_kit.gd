@@ -168,7 +168,7 @@ func _burst(new_form: int) -> void:
 	for enemy in player.get_tree().get_nodes_in_group("enemies"):
 		var to: Vector3 = enemy.global_position - origin
 		to.y = 0.0
-		if to.length() > BURST_RADIUS:
+		if to.length() > BURST_RADIUS or not Layers.clear_path(player.get_world_3d(), origin, enemy.global_position):
 			continue
 		match new_form:
 			Player.Form.ONCA:

@@ -241,7 +241,8 @@ func _physics_process(delta: float) -> void:
 		State.CHARGING:
 			_set_horizontal(_aim_dir * _attack.speed)
 			_charge_left -= _attack.speed * delta
-			if player_alive and not _charge_hit and dist <= 1.0 + 0.5 * data.body_scale + _attack.radius * 0.3:
+			if player_alive and not _charge_hit and dist <= 1.0 + 0.5 * data.body_scale + _attack.radius * 0.3 \
+					and Layers.clear_path(get_world_3d(), global_position, _player.global_position):
 				_charge_hit = true
 				_player.receive_attack(int(round(_attack.damage * damage_multiplier)), _attack.effect,
 					_attack.effect_duration, _attack.effect_power, global_position)
@@ -685,6 +686,7 @@ func _start(a: EnemyAttack, from_rally: bool = false) -> void:
 	match a.kind:
 		EnemyAttack.Kind.MELEE:
 			var melee := Telegraph.for_attack(a, global_position, _aim_dir, damage_multiplier)
+			melee.blockable = true  # garra/mordida/grito saem dele: obstáculo no meio protege
 			if a.heal_percent_max_health > 0.0:
 				melee.resolved.connect(_on_feeding_hit.bind(a))
 			_spawn_telegraph(melee, haste)

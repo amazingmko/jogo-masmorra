@@ -66,6 +66,8 @@ func _process(_d: float) -> bool:
 		check(is_equal_approx(_kit.skill_cooldown(), 9.0), "Fôlego Curto: Provocar recarrega em 9 s")
 		check(is_equal_approx(_kit.melee_multiplier(2), 1.5) and is_equal_approx(_kit.melee_multiplier(0), 1.0), "Terceiro Golpe: só o 3º golpe bate +50%")
 		check(is_equal_approx(_kit.melee_cone_bonus(), 15.0), "Golpe Largo: +30° no golpe (15° para cada lado)")
+		var start_room = _main.builder.rooms[_main.layout.start_index]
+		_player.global_position = start_room.center() + Vector3(-5.5, 0.1, 0)  # o alvo distante fica dentro da clareira
 		_far = _enemy_at(Vector3(10.5, 0.1, 0))
 		_near = _enemy_at(Vector3(0, 0.1, 2.0))
 	if _f == 10:
