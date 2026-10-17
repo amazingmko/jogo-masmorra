@@ -123,7 +123,8 @@ func _process(_d: float) -> bool:
 		p.free()
 		check(is_equal_approx(_kit.shoot_move_factor(0.55), 0.85), "Atirar Correndo: mantém 85% da velocidade")
 		_kit.charge = 100.0
-		check(_kit.try_ultimate() and _harpies().size() == 2, "Revoada: a ultimate chama uma segunda Harpia (%d no ar)" % _harpies().size())
+		check(_kit.try_ultimate() and _harpies().size() == 1 and _harpies()[0].is_furious(), "Fúria da Harpia: a ultimate enfurece a companheira (sem segunda harpia)")
+		check(_harpies()[0]._dive_damage() == _harpies()[0].damage * 2, "Fúria da Harpia: dano em dobro")
 		# Armadilha de Timbó: solta o bicho e envenena em volta.
 		for e in get_nodes_in_group("floor_effects"):
 			if e.get_script().get_global_name() == &"VineTrap":
@@ -151,6 +152,10 @@ func _process(_d: float) -> bool:
 	if _f == 162:
 		var dummies := get_nodes_in_group("enemies").filter(func(e): return e.training_dummy)
 		check(dummies.size() == 3 and dummies[0].health.max_health > 50000, "tecla T: 3 bonecos de treino com vida enorme")
+		_harpies()[0].fury(0.3)
+		check(_harpies()[0]._body.scale.x > 1.2, "Fúria da Harpia: fica maior e dourada")
+	if _f == 200:
+		check(not _harpies()[0].is_furious() and is_equal_approx(_harpies()[0]._body.scale.x, 1.0), "Fúria da Harpia: acaba e ela volta ao normal")
 	if _f == 1200:
 		check(_companions() == 1, "Revoada: a companheira continua depois de 17 s de combate")
 		# Icamiaba golpeando andando: anda mais devagar e o tronco gira para o alvo (sem patinar).

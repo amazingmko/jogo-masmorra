@@ -20,7 +20,7 @@ const COLOR := Color("8be06b")
 
 var _rush_left := 0.0
 var _harpy: Harpy       # a do Chamado (ou a companheira, com Revoada)
-var _second: Harpy      # Revoada: a segunda Harpia que a ultimate chama
+const FURY_TIME := 8.0
 var _still := 0.0
 var _sure_crit_shown := false
 var _shots := 0
@@ -70,7 +70,7 @@ func ultimate_name() -> String:
 func describe() -> PackedStringArray:
 	return PackedStringArray([
 		"Armadilha de Cipó (habilidade, %s s%s): o primeiro bicho que pisar fica preso por %s s." % [_num(skill_cooldown()), ", 2 cargas" if max_charges() > 1 else "", _num(_hold_time())],
-		("Revoada (ultimate): uma segunda Harpia chega e mergulha junto por %s s." % _num(_harpy_time())) if t("revoada") > 0 else ("Chamado da Harpia (ultimate): o gavião-real mergulha nos inimigos por %s s, começando pelo mais ferido." % _num(_harpy_time())),
+		("Fúria da Harpia (ultimate): a Harpia que a acompanha mergulha com dano em dobro e mais rápido por %d s." % FURY_TIME) if t("revoada") > 0 else ("Chamado da Harpia (ultimate): o gavião-real mergulha nos inimigos por %s s, começando pelo mais ferido." % _num(_harpy_time())),
 		"Olho de Caçadora (passiva): +%d%% de crítico contra inimigos a mais de %s m." % [int(round(_far_crit() * 100)), _num(_far_distance())],
 		"Rastro Leve (passiva): depois de cada abate, corre 15%% mais rápido por %s s." % _num(RUSH_TIME + tv("rastro_longo")),
 	])
@@ -111,13 +111,12 @@ func _spawn_harpy(companion: bool) -> Harpy:
 
 func _use_ultimate() -> void:
 	if t("revoada") > 0:
-		# Revoada: a companheira continua, e a ultimate chama uma segunda Harpia.
+		# Revoada: a ultimate enfurece a Harpia que já a acompanha.
 		if not _alive(_harpy):
 			_harpy = _spawn_harpy(true)
-		if _alive(_second):
-			_second.queue_free()
-		_second = _spawn_harpy(false)
-		Fx.float_text(player.get_parent(), player.global_position + Vector3(0, 3.0, 0), "REVOADA!", Color("e8f5ff"))
+		_harpy.damage = _harpy_damage()
+		_harpy.fury(FURY_TIME)
+		Fx.float_text(player.get_parent(), player.global_position + Vector3(0, 3.0, 0), "FÚRIA DA HARPIA!", Color("ffd34d"))
 	else:
 		_harpy = _spawn_harpy(false)
 		Fx.float_text(player.get_parent(), player.global_position + Vector3(0, 3.0, 0), "CHAMADO DA HARPIA!", Color("e8f5ff"))
@@ -163,9 +162,8 @@ func on_kill(elite: bool) -> void:
 	_rush_left = RUSH_TIME + tv("rastro_longo")  # Rastro Leve
 	# Vínculo: abate com a Harpia ativa a mantém por mais tempo.
 	if t("vinculo") > 0:
-		var active: Harpy = _second if _alive(_second) else _harpy
-		if _alive(active) and not active.companion:
-			active.extend(tv("vinculo"))
+		if _alive(_harpy):
+			_harpy.extend(tv("vinculo"))
 
 
 func speed_factor() -> float:

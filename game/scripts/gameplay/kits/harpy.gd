@@ -12,9 +12,14 @@ const ORBIT_HEIGHT := 3.2
 var owner_player: Player
 var duration := 8.0
 var damage := 50
-## Revoada: acompanha sempre, com parte do dano (companion_factor).
+## Revoada: acompanha sempre, com parte do dano (companion_factor); a Fúria dá o dano cheio em dobro.
 var companion := false
 var companion_factor := 0.4
+var _fury_left := 0.0
+var _fury_fx: CPUParticles3D
+var _fury_mats: Array[StandardMaterial3D] = []
+const FURY_MULT := 2.0
+const FURY_COLOR := Color("ffb02e")
 
 var _t := 0.0
 var _next_dive := 0.4
@@ -52,6 +57,10 @@ func _process(delta: float) -> void:
 		queue_free()
 		return
 	_t += delta
+	if _fury_left > 0.0:
+		_fury_left -= delta
+		if _fury_left <= 0.0:
+			_end_fury()
 	var flap := sin(_t * (22.0 if _diving else 9.0)) * 0.6
 	_wings[0].rotation.z = flap
 	_wings[1].rotation.z = -flap
@@ -65,7 +74,7 @@ func _process(delta: float) -> void:
 	if not companion and _t >= duration:
 		_leave()
 		return
-	_next_dive -= delta
+	_next_dive -= delta * (1.6 if _fury_left > 0.0 else 1.0)
 	if _next_dive <= 0.0:
 		var prey := _pick_prey()
 		if prey:
@@ -108,14 +117,51 @@ func _dive(prey: Node3D) -> void:
 
 
 func _dive_damage() -> int:
+	if _fury_left > 0.0:
+		return maxi(int(round(damage * FURY_MULT)), 1)
 	if companion:
 		return maxi(int(round(damage * companion_factor)), 1)
 	return damage
 
 
-## Vínculo: cada abate a mantém mais tempo (a companheira já fica para sempre).
+## Fúria da Harpia (Revoada): dano cheio em dobro e mergulhos mais rápidos por um tempo.
+## Visível: a harpia fica dourada, maior e solta faíscas enquanto durar.
+func fury(seconds: float) -> void:
+	var starting := _fury_left <= 0.0
+	_fury_left = maxf(_fury_left, seconds)
+	if not starting:
+		return
+	_body.scale = Vector3.ONE * 1.35
+	for m in _body.find_children("*", "MeshInstance3D", true, false):
+		var mat := (m as MeshInstance3D).material_override as StandardMaterial3D
+		if mat:
+			mat.emission_enabled = true
+			mat.emission = FURY_COLOR
+			mat.emission_energy_multiplier = 0.6
+			_fury_mats.append(mat)
+	_fury_fx = Vfx.particles(self, Vector3.ZERO, "faisca", 24, 0.5, FURY_COLOR, 0.35, Vector2(0.5, 1.5), 180.0, 0.0, true, false)
+	Vfx.particles(get_parent(), global_position, "faisca", 20, 0.6, FURY_COLOR, 0.45, Vector2(2.0, 4.0), 180.0, 0.0)
+
+
+func _end_fury() -> void:
+	_body.scale = Vector3.ONE
+	for mat in _fury_mats:
+		mat.emission_enabled = false
+	_fury_mats.clear()
+	if is_instance_valid(_fury_fx):
+		_fury_fx.queue_free()
+
+
+func is_furious() -> bool:
+	return _fury_left > 0.0
+
+
+## Vínculo: cada abate a mantém mais tempo (sozinha) ou estende a Fúria (Revoada).
 func extend(seconds: float) -> void:
-	if not companion:
+	if companion:
+		if _fury_left > 0.0:
+			_fury_left += seconds
+	else:
 		duration += seconds
 
 
