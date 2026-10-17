@@ -15,12 +15,12 @@ var _materials := {}
 func _init() -> void:
 	_materials = {
 		# Terra Firme: chão de terra escura, paredes de mata fechada, pilares como troncos.
-		"floor": _mat(Color("3d3a2c")),
-		"floor_boss": _mat(Color("2e3324")),
-		"floor_den": _mat(Color("4a2420")),
-		"wall": _mat(Color("2f4a2c")),
+		"floor": _ground(Color.WHITE),
+		"floor_boss": _ground(Color(0.8, 0.9, 0.8)),
+		"floor_den": _ground(Color(1.15, 0.7, 0.62)),
+		"wall": _mat(Color("1f3a1e")),
 		"pillar": _mat(Color("5c4331")),
-		"corridor": _mat(Color("35321f")),
+		"corridor": _ground(Color(0.92, 0.92, 0.9)),
 		"barrier": _mat(Color("b8434a")),
 	}
 
@@ -98,6 +98,9 @@ func _build_corridor(parent: Node3D, a: Vector2i, b: Vector2i) -> void:
 	var width := DungeonRoom.DOOR_W
 	var t := DungeonRoom.WALL_T
 	var h := DungeonRoom.WALL_H
+	var decor_rng := RandomNumberGenerator.new()
+	decor_rng.seed = hash(a) ^ hash(b)
+	RoomDecor.corridor(parent, center, horizontal, gap, decor_rng)
 	if horizontal:
 		box(parent, Vector3(floor_len, 0.5, width), center + Vector3(0, -0.25, 0), _materials.corridor)
 		for side in [-1.0, 1.0]:
@@ -106,6 +109,29 @@ func _build_corridor(parent: Node3D, a: Vector2i, b: Vector2i) -> void:
 		box(parent, Vector3(width, 0.5, floor_len), center + Vector3(0, -0.25, 0), _materials.corridor)
 		for side in [-1.0, 1.0]:
 			box(parent, Vector3(t, h, gap), center + Vector3(side * (width * 0.5 + t * 0.5), h * 0.5, 0), _materials.wall)
+
+
+## Chão de terra com musgo e folhas (shader em coordenadas do mundo: sem emendas).
+static func _ground(tone: Color) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = load("res://game/shaders/chao_mata.gdshader")
+	m.set_shader_parameter("ruido", _noise(0.9, 2))
+	m.set_shader_parameter("detalhe", _noise(3.5, 3))
+	m.set_shader_parameter("tom", Vector3(tone.r, tone.g, tone.b))
+	return m
+
+
+static func _noise(freq: float, octaves: int) -> NoiseTexture2D:
+	var n := FastNoiseLite.new()
+	n.frequency = freq / 100.0 * 4.0
+	n.fractal_octaves = octaves
+	var t := NoiseTexture2D.new()
+	t.width = 256
+	t.height = 256
+	t.seamless = true
+	t.noise = n
+	t.generate_mipmaps = true
+	return t
 
 
 static func _mat(color: Color) -> StandardMaterial3D:

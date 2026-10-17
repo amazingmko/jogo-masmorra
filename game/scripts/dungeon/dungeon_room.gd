@@ -30,6 +30,8 @@ var _barriers: Array[StaticBody3D] = []
 var _materials: Dictionary
 ## Covil Furioso: sala rara, só com furiosos, com um baú grande no fim.
 var is_den := false
+## Semente da decoração (plantas, pedras): a mesma sala sai sempre igual.
+var _decor_seed := 0
 
 
 ## dirs: direções (da grade) que têm porta. materials: cores compartilhadas do DungeonBuilder.
@@ -42,6 +44,7 @@ func setup(room_index: int, info: Dictionary, dirs: Array[Vector2i], mats: Dicti
 	_materials = mats
 	name = "Sala%d" % room_index
 	is_den = bool(info.get("den", false))
+	_decor_seed = rng.randi()
 	cleared = type != DungeonLayout.RoomType.COMBAT and type != DungeonLayout.RoomType.BOSS
 	if type == DungeonLayout.RoomType.COMBAT or type == DungeonLayout.RoomType.BOSS:
 		for spot in PILLAR_SPOTS:
@@ -50,14 +53,19 @@ func setup(room_index: int, info: Dictionary, dirs: Array[Vector2i], mats: Dicti
 
 
 func _ready() -> void:
-	var floor_mat: StandardMaterial3D = _materials.floor_boss if type == DungeonLayout.RoomType.BOSS else _materials.floor
+	var floor_mat: Material = _materials.floor_boss if type == DungeonLayout.RoomType.BOSS else _materials.floor
 	if is_den:
 		floor_mat = _materials.floor_den
 	DungeonBuilder.box(self, Vector3(SIZE + WALL_T * 2.0, 0.5, SIZE + WALL_T * 2.0), Vector3(0, -0.25, 0), floor_mat)
 	for dir in DungeonLayout.DIRS:
 		_build_side(dir)
+	var decor_rng := RandomNumberGenerator.new()
+	decor_rng.seed = _decor_seed
 	for p in pillars:
-		DungeonBuilder.box(self, Vector3(1.2, 2.0, 1.2), p, _materials.pillar)
+		var pillar := DungeonBuilder.box(self, Vector3(1.2, 2.0, 1.2), p, _materials.pillar)
+		pillar.get_child(1).visible = false  # a caixa só dá a colisão; o que se vê é a sumaúma
+		RoomDecor.trunk(self, p, decor_rng)
+	RoomDecor.populate(self, decor_rng, _door_dirs)
 	_build_trigger()
 
 

@@ -71,6 +71,12 @@ func _ready() -> void:
 	_hud.restart_requested.connect(_back_to_hub)
 	GameState.leveled_up.connect(_on_leveled_up)
 	_player.died.connect(_on_player_died)
+	# Atmosfera da Terra Firme (luz, neblina, vagalumes e folhas em volta da heroína).
+	BiomeAmbience.apply($WorldEnvironment, $Sun)
+	var ambience := BiomeAmbience.new()
+	ambience.name = "Ambiente"
+	ambience.target = _player
+	add_child(ambience)
 	new_run()
 
 
