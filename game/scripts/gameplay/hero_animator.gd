@@ -29,6 +29,8 @@ var _since_fire := 99.0
 var _act_name := ""
 var _act_left := 0.0
 var _act_filtered := false
+## Quadril (Mixamo): entra no golpe andando, para o corpo girar com o golpe (lança, giro).
+var _hips_path := NodePath()
 ## Atirar andando: tronco girado para o alvo (SpineTwist) e pernas para frente ou para trás.
 var _twist: SpineTwist
 var _aim_active := false
@@ -112,6 +114,10 @@ func _build_tree(model: Node) -> void:
 	_act.filter_enabled = false
 	for path in _upper_paths():
 		_act.set_filter_path(path, true)
+	var idle := _anim.get_animation("idle")
+	for t in idle.get_track_count():
+		if String(idle.track_get_path(t)).ends_with("Hips"):
+			_hips_path = NodePath(str(idle.track_get_path(t)))
 	bt.add_node("act", _act, Vector2(900, 100))
 	bt.connect_node("act", 0, "loco")
 	bt.connect_node("act", 1, "act_ts")
@@ -189,7 +195,7 @@ func update(delta: float, ground_speed: float, move_speed: float) -> void:
 		var want := 1.0 if _aim_active and _act_filtered and is_acting() else 0.0
 		_twist.weight = move_toward(_twist.weight, want, delta * 8.0)
 		if _aim_active:
-			_twist.angle = _aim_angle
+			_twist.angle = lerp_angle(_twist.angle, _aim_angle, clampf(delta * 10.0, 0.0, 1.0))
 	if _aim_active and ground_speed > 0.15:
 		# Mirando andando: passo de caminhada (para trás quando ela recua atirando).
 		var s := clampf(ground_speed / WALK_SPEED, 0.8, 2.2)
@@ -204,6 +210,9 @@ func update(delta: float, ground_speed: float, move_speed: float) -> void:
 
 func _fire(anim_name: String, duration: float, moving: bool) -> void:
 	var length := _anim.get_animation(anim_name).length
+	if not _hips_path.is_empty():
+		# Golpe andando: o quadril vem do golpe (o corpo gira com a lança); dano/bloqueio só no tronco.
+		_act.set_filter_path(_hips_path, anim_name.begins_with("ataque"))
 	_act.filter_enabled = moving
 	_act_filtered = moving
 	_tree.set("parameters/acts/transition_request", anim_name)

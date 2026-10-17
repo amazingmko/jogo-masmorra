@@ -8,13 +8,14 @@ var _ok := true
 var _main
 var _player
 var _hero := 0
-const HEROES := [&"icamiaba", &"mateira"]
+const HEROES := [&"icamiaba", &"mateira", &"icamiaba"]  # o 3º: Icamiaba andando
 var _starts: Array[int] = []
 var _last_left := 0.0
 var _enemy
 var _backwards := 0
 var _shots := 0
 var _np := 0
+var _combo_seen: Array = []
 
 
 func check(cond: bool, label: String) -> void:
@@ -45,8 +46,10 @@ func _process(_d: float) -> bool:
 		_enemy._dodge_cd = 999.0
 		# Toques rápidos: 2 quadros apertado, 2 solto.
 		_main._hud.attack_button.is_pressed = (_f / 2) % 2 == 0
-		if _hero == 1:
-			_main._hud.joystick.value = Vector2(1, 0)  # recua (alvo fica para trás, à esquerda)
+		if _hero == 2 and _player._attack_left > 0.0 and not _combo_seen.has(_player._animator._act_name):
+			_combo_seen.append(_player._animator._act_name)
+		if _hero >= 1:
+			_main._hud.joystick.value = Vector2(1, 0) if (_hero == 1 or (_f / 60) % 2 == 0) else Vector2(-1, 0)  # recua / vai e volta (alvo fica para trás, à esquerda)
 		var left: float = _player._attack_left
 		if left > _last_left + 0.05:
 			_starts.append(_f)
@@ -69,8 +72,11 @@ func _process(_d: float) -> bool:
 		var min_gap := 9999
 		for i in range(1, _starts.size()):
 			min_gap = mini(min_gap, _starts[i] - _starts[i - 1])
-		check(_starts.size() >= 3, "%s: atacou várias vezes com toques rápidos (%d golpes)" % [HEROES[_hero], _starts.size()])
-		check(min_gap >= int(dur) - 1, "%s: nenhum golpe recomeça antes de terminar (menor intervalo %d quadros; animação %d)" % [HEROES[_hero], min_gap, int(dur)])
+		var label := "icamiaba andando" if _hero == 2 else String(HEROES[_hero])
+		check(_starts.size() >= 3, "%s: atacou várias vezes com toques rápidos (%d golpes)" % [label, _starts.size()])
+		check(min_gap >= int(dur) - 1, "%s: nenhum golpe recomeça antes de terminar (menor intervalo %d quadros; animação %d)" % [label, min_gap, int(dur)])
+		if _hero == 2:
+			check(_combo_seen.size() == 3, "icamiaba andando: os 3 golpes do combo aparecem (%s)" % str(_combo_seen))
 		if _hero == 1:
 			check(_shots >= 3 and _backwards == 0, "mateira recuando: nenhuma flecha de costas (%d de %d)" % [_backwards, _shots])
 		_hero += 1

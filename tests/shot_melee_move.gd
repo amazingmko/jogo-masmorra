@@ -40,7 +40,7 @@ func _process(_d: float) -> bool:
 		if not _still:
 			_main._hud.joystick.value = Vector2(1, 0)  # anda para a direita; o alvo está acima
 		_main._hud.attack_button.is_pressed = true
-	var frames: Array = [20, 32, 44, 56, 92, 104, 116, 128] if _still else [60, 70, 80, 90]
+	var frames: Array = [20, 32, 44, 56, 92, 104, 116, 128] if _still else [60, 68, 76, 84, 92, 100, 108, 116]
 	if _f in frames:
 		root.get_viewport().get_texture().get_image().save_png("%s_%d.png" % [_shot, _f])
 	if _f > frames[-1]:

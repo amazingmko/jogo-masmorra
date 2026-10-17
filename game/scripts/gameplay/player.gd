@@ -97,6 +97,7 @@ var _attack_was_held := false
 ## Posição do golpe dentro do combo (0, 1, 2...): o 3º golpe tem efeito próprio em talentos.
 var _combo_step := 0
 var _swings := 0
+var _aim_reverse := false
 ## Último golpe que o herói levou (para talentos que devolvem dano): dano bruto e de onde veio.
 var last_hit_amount := 0
 var last_hit_from := Vector3.ZERO
@@ -375,7 +376,14 @@ func _aim_while_moving(aim_angle: float) -> float:
 	var move_angle := atan2(move.x, move.y)
 	var fwd := wrapf(aim_angle - move_angle - stance, -PI, PI)
 	var back := wrapf(aim_angle - (move_angle + PI) - stance, -PI, PI)
-	var reverse := absf(back) < absf(fwd)
+	# Pernas para trás só quando compensa bem: sem isso, com o alvo de lado, ela alterna
+	# frente/trás a cada quadro e o corpo "treme".
+	var reverse := _aim_reverse
+	if absf(back) < absf(fwd) - 0.35:
+		reverse = true
+	elif absf(fwd) < absf(back) - 0.35:
+		reverse = false
+	_aim_reverse = reverse
 	var legs := move_angle + (PI if reverse else 0.0)
 	var twist := clampf(back if reverse else fwd, -MAX_TWIST, MAX_TWIST)
 	_animator.set_aim(true, twist, reverse)
