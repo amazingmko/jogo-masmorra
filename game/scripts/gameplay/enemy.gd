@@ -1002,9 +1002,13 @@ func _enter_recover() -> void:
 
 
 func _fire(a: EnemyAttack, dir: Vector3) -> void:
+	var at := global_position + Vector3(0, 0.9, 0) + dir.normalized() * (0.6 * data.body_scale)
+	if Layers.shot_blocked(get_world_3d(), global_position, at):
+		Vfx.particles(get_parent(), at, "faisca", 6, 0.25, Color(1, 1, 1, 0.6), 0.2, Vector2(0.5, 1.5), 180.0, -4.0)
+		return
 	var p := EnemyProjectile.create(a, dir, damage_multiplier)
 	get_parent().add_child(p)
-	p.global_position = global_position + Vector3(0, 0.9, 0) + dir.normalized() * (0.6 * data.body_scale)
+	p.global_position = at
 
 
 func _spawn_telegraph(t: Telegraph, haste: float, visual_duration: float = -1.0) -> void:

@@ -53,9 +53,12 @@ func setup(room_index: int, info: Dictionary, dirs: Array[Vector2i], mats: Dicti
 	_decor_seed = rng.randi()
 	cleared = type != DungeonLayout.RoomType.COMBAT and type != DungeonLayout.RoomType.BOSS
 	if type == DungeonLayout.RoomType.COMBAT or type == DungeonLayout.RoomType.BOSS:
-		for spot in PILLAR_SPOTS:
-			if rng.randf() < 0.45:
-				pillars.append(Vector3(spot.x, 1.0, spot.y))
+		# sumaúmas: até 3 cantos sorteados, cada uma um pouco deslocada (salas não ficam iguais)
+		var spots := PILLAR_SPOTS.duplicate()
+		for spot in spots:
+			if rng.randf() < 0.42 and pillars.size() < 3:
+				var jitter := Vector2(rng.randf_range(-0.9, 0.9), rng.randf_range(-0.9, 0.9))
+				pillars.append(Vector3(spot.x + jitter.x, 1.0, spot.y + jitter.y))
 
 
 func _ready() -> void:
