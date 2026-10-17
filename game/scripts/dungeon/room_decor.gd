@@ -9,11 +9,12 @@ extends RefCounted
 ## Plantas repetidas usam MultiMesh (uma chamada de desenho por tipo e sala: leve no celular).
 
 const ART := "res://game/art/ambiente/%s.glb"
-## Tamanho final (altura, em metros) de cada peça.
-const HEIGHT := {
-	"arvore_borda": 7.0, "palmeira": 6.0, "sumauma": 3.2, "moita": 1.3,
-	"samambaia": 0.55, "bromelia": 0.45, "cogumelos": 0.3,
-	"pedra_musgo": 1.0, "tronco_caido": 0.8,
+## Tamanho final de cada peça, em metros: "h" = altura, "w" = maior lado no chão
+## (os modelos do Tripo vêm com proporções livres; o toco da sumaúma, por exemplo, é largo e baixo).
+const SIZE := {
+	"arvore_borda": ["h", 7.0], "palmeira": ["h", 6.0], "sumauma": ["w", 2.6], "moita": ["w", 1.7],
+	"samambaia": ["w", 0.85], "bromelia": ["w", 0.6], "cogumelos": ["h", 0.3],
+	"pedra_musgo": ["w", 1.4], "tronco_caido": ["w", 2.6],
 }
 
 static var _cache := {}
@@ -193,7 +194,9 @@ static func _piece(kind: String) -> Dictionary:
 			var mi: MeshInstance3D = found[0]
 			var mesh: Mesh = mi.mesh
 			var aabb := mesh.get_aabb()
-			var k: float = float(HEIGHT.get(kind, 1.0)) / maxf(aabb.size.y, 0.001)
+			var spec: Array = SIZE.get(kind, ["h", 1.0])
+			var measured: float = aabb.size.y if spec[0] == "h" else maxf(aabb.size.x, aabb.size.z)
+			var k: float = float(spec[1]) / maxf(measured, 0.001)
 			var base := Transform3D(Basis().scaled(Vector3.ONE * k), Vector3(-aabb.get_center().x * k, -aabb.position.y * k, -aabb.get_center().z * k))
 			piece = {"mesh": mesh, "base": base}
 		scene.free()
