@@ -11,14 +11,24 @@ const HERO_VISUAL := 2
 
 
 ## Nada sólido (parede, pilar, pedra, tronco) entre os dois pontos? Golpes e magias não atravessam
-## obstáculos. A linha passa a 1 m do chão (acima de raízes e plantas baixas).
+## obstáculos. Confere a 1 m do chão e a 0,45 m (pedras e troncos baixos também bloqueiam; as
+## plantas pequenas não têm colisão).
 static func clear_path(world: World3D, from: Vector3, to: Vector3) -> bool:
-	var a := Vector3(from.x, 1.0, from.z)
-	var b := Vector3(to.x, 1.0, to.z)
-	if a.distance_to(b) < 0.3:
+	if Vector2(from.x - to.x, from.z - to.z).length() < 0.3:
 		return true
-	var hit := world.direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(a, b, WORLD))
-	return hit.is_empty()
+	var space := world.direct_space_state
+	for h in [1.0, 0.45]:
+		var a := Vector3(from.x, h, from.z)
+		var b := Vector3(to.x, h, to.z)
+		if not space.intersect_ray(PhysicsRayQueryParameters3D.create(a, b, WORLD)).is_empty():
+			return false
+	return true
+
+
+## O disparo nasce à frente de quem atira: se o atirador está encostado num obstáculo, esse ponto
+## já fica dentro ou atrás dele. Confere o trecho do corpo até o ponto de saída.
+static func shot_blocked(world: World3D, shooter: Vector3, spawn: Vector3) -> bool:
+	return blocked(world, Vector3(shooter.x, spawn.y, shooter.z), spawn)
 
 
 ## Algo sólido no caminho de um disparo (na altura dele e rente ao chão, para pegar tronco e pedra baixos)?

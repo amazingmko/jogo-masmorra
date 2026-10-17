@@ -12,24 +12,92 @@ const ART := "res://game/art/ambiente/%s.glb"
 ## Tamanho final de cada peça, em metros: "h" = altura, "w" = maior lado no chão
 ## (os modelos do Tripo vêm com proporções livres; o toco da sumaúma, por exemplo, é largo e baixo).
 const SIZE := {
-	"arvore_borda": ["h", 7.0], "palmeira": ["h", 6.0], "sumauma": ["w", 2.6], "moita": ["w", 1.7],
+	"arvore_borda": ["h", 6.0], "palmeira": ["h", 5.5], "sumauma": ["w", 2.6], "moita": ["w", 1.7],
 	"samambaia": ["w", 0.85], "bromelia": ["w", 0.6], "cogumelos": ["h", 0.3],
 	"pedra_musgo": ["w", 1.4], "tronco_caido": ["w", 2.6],
 }
 
 static var _cache := {}
 
+## Árvores e palmeiras: copa (raio, em metros, na escala 1) e distância mínima entre troncos.
+const CANOPY := {"arvore_borda": 2.3, "palmeira": 1.8}
+const TREE_GAP := 4.0
+const PALM_SHARE := 0.45
+## A câmera fica ao sul e acima da heroína (10 m acima do peito, 7,5 m ao sul): uma copa na altura y
+## tampa quem está 0,75 × (y − 1) m ao norte dela. A copa vai de ~2,5 m até o topo (~6 m).
+const VIEW_SHIFT_MIN := 1.0
+const VIEW_SHIFT_MAX := 3.8
+
+## Registro do andar: onde dá para andar (clareiras e trilhas, em retângulos x/z) e os troncos já
+## plantados (para as árvores não nascerem coladas umas nas outras, nem tamparem a visão).
+static var _walk: Array[Rect2] = []
+static var _tall: Array[Vector3] = []
+
+
+static func begin_floor(layout: DungeonLayout) -> void:
+	_walk.clear()
+	_tall.clear()
+	var reach := DungeonRoom.SIZE * 0.5 + DungeonRoom.WALL_T * 0.5 + DungeonRoom.BORDER_OUT + 0.3
+	for i in layout.room_count():
+		var c := DungeonBuilder.cell_to_world(layout.rooms[i].cell)
+		_walk.append(Rect2(c.x - reach, c.z - reach, reach * 2.0, reach * 2.0))
+		for n in layout.rooms[i].links:
+			if n > i:
+				var d := DungeonBuilder.cell_to_world(layout.rooms[n].cell)
+				var w := DungeonRoom.DOOR_W * 0.5 + 1.3 + 0.6  # meia largura + curva máxima + folga
+				var lo := Vector2(minf(c.x, d.x), minf(c.z, d.z)) - Vector2(w, w)
+				var hi := Vector2(maxf(c.x, d.x), maxf(c.z, d.z)) + Vector2(w, w)
+				_walk.append(Rect2(lo, hi - lo))
+
+
+static func _walkable(x: float, z: float) -> bool:
+	for r in _walk:
+		if r.has_point(Vector2(x, z)):
+			return true
+	return false
+
+
+## A copa desta árvore (no mundo) tamparia algum lugar onde a heroína anda? E fica longe das outras?
+static func _tree_ok(world: Vector3, radius: float) -> bool:
+	for t in _tall:
+		if Vector2(t.x - world.x, t.z - world.z).length() < TREE_GAP:
+			return false
+	if _walk.is_empty():
+		return true
+	var x := -radius
+	while x <= radius + 0.01:
+		var z := -radius - VIEW_SHIFT_MAX
+		while z <= radius - VIEW_SHIFT_MIN + 0.01:
+			if _walkable(world.x + x, world.z + z):
+				return false
+			z += 0.7
+		x += 0.7
+	return true
+
+
+## Tenta plantar uma árvore ou palmeira perto de `world` (algumas tentativas com pequenos desvios).
+static func _plant_tall(rng: RandomNumberGenerator, world: Vector3, to_local: Vector3, trees: Array[Transform3D], palms: Array[Transform3D]) -> void:
+	var palm := rng.randf() < PALM_SHARE
+	var kind := "palmeira" if palm else "arvore_borda"
+	var s := rng.randf_range(0.8, 1.1) if palm else rng.randf_range(0.75, 1.1)
+	for attempt in 4:
+		var p := world + Vector3(rng.randf_range(-1.2, 1.2), 0, rng.randf_range(-1.2, 1.2)) * float(attempt)
+		if _tree_ok(p, CANOPY[kind] * s):
+			_tall.append(p)
+			(palms if palm else trees).append(_xf(rng, p - to_local, s))
+			return
+
 
 ## Monta a decoração da sala. rng: sorteio próprio da sala (a mesma semente = a mesma sala).
 static func populate(room: DungeonRoom, rng: RandomNumberGenerator, door_dirs: Array[Vector2i]) -> void:
 	var half := DungeonRoom.SIZE * 0.5
-	var wall := half + DungeonRoom.WALL_T * 0.5
+	var origin := room.global_position
 	var bushes: Array[Transform3D] = []
 	var trees: Array[Transform3D] = []
 	var palms: Array[Transform3D] = []
 	var ferns_edge: Array[Transform3D] = []
 	# Borda da clareira: moitas em cima do contorno (escondem a colisão), samambaias na beirada de
-	# dentro e árvores/palmeiras por trás. Do lado da câmera (sul) só moitas baixas, sem árvore.
+	# dentro e, por trás, árvores e palmeiras espaçadas, só onde a copa não tampa a luta.
 	for line in room.border_lines:
 		for i in line.size():
 			var p: Vector3 = line[i]
@@ -39,51 +107,132 @@ static func populate(room: DungeonRoom, rng: RandomNumberGenerator, door_dirs: A
 			bushes.append(_xf(rng, bush, rng.randf_range(0.55, 0.75) if south else rng.randf_range(0.9, 1.35)))
 			if rng.randf() < 0.5:
 				ferns_edge.append(_xf(rng, p - outward * rng.randf_range(0.5, 0.9), rng.randf_range(0.8, 1.3)))
-			# árvore só na metade de cima: a copa alta, perto da câmera, tamparia a luta
-			if p.z < half * 0.2 and rng.randf() < 0.5:
-				var tree_pos := p + outward * rng.randf_range(1.6, 3.8) + Vector3(rng.randf_range(-0.6, 0.6), 0, rng.randf_range(-0.6, 0.6))
-				if rng.randf() < 0.3:
-					palms.append(_xf(rng, tree_pos, rng.randf_range(0.85, 1.15)))
-				else:
-					trees.append(_xf(rng, tree_pos, rng.randf_range(0.8, 1.2)))
+			if rng.randf() < 0.55:
+				var tree_pos := p + outward * rng.randf_range(2.0, 4.5)
+				_plant_tall(rng, origin + tree_pos, origin, trees, palms)
 	_multimesh(room, "moita", bushes, false)
 	_multimesh(room, "arvore_borda", trees, false)
 	_multimesh(room, "palmeira", palms, false)
 	_multimesh(room, "samambaia", ferns_edge, false)
 
-	# Chão: plantas pequenas, mais perto das paredes (o meio fica limpo para lutar).
+	# Obstáculos com colisão (pedras e tronco caído) só nas salas de luta, perto das paredes, sem
+	# encostar nas sumaúmas nem uns nos outros. Às vezes vêm em dupla (pedra grande + pequena).
+	var taken: Array = []  # [posição, raio]
+	for pillar in room.pillars:
+		taken.append([Vector3(pillar.x, 0, pillar.z), 1.4])
+	if room.type == DungeonLayout.RoomType.COMBAT:
+		var rocks := rng.randi_range(0, 2)
+		for i in rocks:
+			var s := rng.randf_range(0.75, 1.3)
+			var p := _free_spot(rng, half - 1.8, 4.2, 0.75 * s, taken, door_dirs, half)
+			if p == Vector3.INF:
+				continue
+			_solid(room, "pedra_musgo", _xf(rng, p, s), Vector3(1.2, 1.0, 1.2))
+			room.pillars.append(Vector3(p.x, 1.0, p.z))
+			taken.append([p, 0.75 * s])
+		if rng.randf() < 0.5:
+			var p := _free_spot(rng, half - 2.0, 4.5, 1.35, taken, door_dirs, half)
+			if p != Vector3.INF:
+				var xf := Transform3D(Basis(Vector3.UP, rng.randf() * TAU), p)
+				_solid(room, "tronco_caido", xf, Vector3(2.6, 0.7, 0.8))
+				room.pillars.append(Vector3(p.x, 1.0, p.z))
+				taken.append([p, 1.35])
+
+	# Chão: plantas pequenas, mais perto das paredes (o meio fica limpo para lutar), fora das peças.
 	var small := {"samambaia": [], "bromelia": [], "cogumelos": []}
 	var count := 26 if room.type != DungeonLayout.RoomType.BOSS else 34
 	for i in count:
 		var p := _edge_point(rng, half - 0.6, 3.0)
 		var roll := rng.randf()
 		var kind := "samambaia" if roll < 0.6 else ("bromelia" if roll < 0.85 else "cogumelos")
+		var inside := false
+		for t in taken:
+			if Vector2(p.x - t[0].x, p.z - t[0].z).length() < float(t[1]) + 0.25:
+				inside = true
+		if inside:
+			# encostadinha na pedra/tronco fica bonito (cogumelo e samambaia ao pé), dentro não
+			continue
 		small[kind].append(_xf(rng, p, rng.randf_range(0.7, 1.4)))
 	for kind in small:
 		var list: Array[Transform3D] = []
 		list.assign(small[kind])
 		_multimesh(room, kind, list, false)
 
-	# Obstáculos com colisão (pedras e tronco caído) só nas salas de luta, perto das paredes.
-	if room.type == DungeonLayout.RoomType.COMBAT:
-		for i in rng.randi_range(0, 2):
-			var p := _edge_point(rng, half - 1.8, 4.2)
-			if _near_door(p, door_dirs, half):
+
+## Ponto livre perto da parede: fora do meio, longe das portas e com folga das peças já postas.
+static func _free_spot(rng: RandomNumberGenerator, limit: float, min_from_center: float, radius: float,
+		taken: Array, door_dirs: Array[Vector2i], half: float) -> Vector3:
+	for attempt in 10:
+		var p := _edge_point(rng, limit, min_from_center)
+		if _near_door(p, door_dirs, half):
+			continue
+		var ok := true
+		for t in taken:
+			if Vector2(p.x - t[0].x, p.z - t[0].z).length() < radius + float(t[1]) + 1.0:
+				ok = false
+				break
+		if ok:
+			return p
+	return Vector3.INF
+
+
+## Mata entre as clareiras e trilhas: árvores e palmeiras onde a copa não tampa ninguém, moitas e
+## samambaias no chão. Em blocos do tamanho de uma sala (cada bloco é desenhado só quando aparece).
+static func forest(parent: Node3D, rng: RandomNumberGenerator) -> void:
+	if _walk.is_empty():
+		return
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	for r in _walk:
+		lo = lo.min(r.position)
+		hi = hi.max(r.end)
+	lo -= Vector2(7, 7)
+	hi += Vector2(7, 7)
+	var chunks := {}  # bloco -> {tipo: [Transform3D]}
+	var step := 2.4
+	var x := lo.x
+	while x <= hi.x:
+		var z := lo.y
+		while z <= hi.y:
+			var p := Vector3(x + rng.randf_range(-0.9, 0.9), 0, z + rng.randf_range(-0.9, 0.9))
+			z += step
+			# plantas baixas podem chegar perto da clareira (não tampam nada); árvores, só mais longe
+			if _near_walk(p.x, p.z, -0.4):
 				continue
-			_solid(room, "pedra_musgo", _xf(rng, p, rng.randf_range(0.8, 1.3)), Vector3(1.2, 1.0, 1.2))
-			room.pillars.append(Vector3(p.x, 1.0, p.z))
-		if rng.randf() < 0.5:
-			var p := _edge_point(rng, half - 2.0, 4.5)
-			if not _near_door(p, door_dirs, half):
-				var xf := Transform3D(Basis(Vector3.UP, rng.randf() * TAU), p)
-				_solid(room, "tronco_caido", xf, Vector3(2.6, 0.7, 0.8))
-				room.pillars.append(Vector3(p.x, 1.0, p.z))
+			var key := Vector2i(floori(p.x / DungeonBuilder.CELL), floori(p.z / DungeonBuilder.CELL))
+			if not chunks.has(key):
+				chunks[key] = {"arvore_borda": [], "palmeira": [], "moita": [], "samambaia": []}
+			var c: Dictionary = chunks[key]
+			var trees: Array[Transform3D] = []
+			var palms: Array[Transform3D] = []
+			if rng.randf() < 0.6 and not _near_walk(p.x, p.z, 1.2):
+				_plant_tall(rng, p, Vector3.ZERO, trees, palms)
+			c.arvore_borda.append_array(trees)
+			c.palmeira.append_array(palms)
+			if rng.randf() < 0.4:
+				c.moita.append(_xf(rng, p + Vector3(rng.randf_range(-0.8, 0.8), 0, rng.randf_range(-0.8, 0.8)), rng.randf_range(0.9, 1.5)))
+			if rng.randf() < 0.3:
+				c.samambaia.append(_xf(rng, p + Vector3(rng.randf_range(-1.4, 1.4), 0, rng.randf_range(-1.4, 1.4)), rng.randf_range(0.9, 1.5)))
+		x += step
+	for key in chunks:
+		for kind in chunks[key]:
+			var list: Array[Transform3D] = []
+			list.assign(chunks[key][kind])
+			_multimesh(parent, kind, list, false)
+
+
+static func _near_walk(x: float, z: float, margin: float) -> bool:
+	for r in _walk:
+		if r.grow(margin).has_point(Vector2(x, z)):
+			return true
+	return false
 
 
 ## Sumaúma no lugar do pilar (a colisão continua a do pilar).
 static func trunk(parent: Node3D, pos: Vector3, rng: RandomNumberGenerator) -> void:
 	var node := _instance("sumauma")
-	node.transform = _xf(rng, Vector3(pos.x, 0.0, pos.z), rng.randf_range(0.95, 1.1))
+	node.name = "sumauma_%d" % parent.get_child_count()
+	node.transform = _xf(rng, Vector3(pos.x, 0.0, pos.z), rng.randf_range(0.85, 1.15))
 	parent.add_child(node)
 
 
@@ -92,6 +241,7 @@ static func trail(parent: Node3D, left: PackedVector3Array, right: PackedVector3
 	var bushes: Array[Transform3D] = []
 	var ferns: Array[Transform3D] = []
 	var trees: Array[Transform3D] = []
+	var palms: Array[Transform3D] = []
 	for pair in [[left, -1.0], [right, 1.0]]:
 		var line: PackedVector3Array = pair[0]
 		var out: Vector3 = side * float(pair[1])
@@ -101,12 +251,12 @@ static func trail(parent: Node3D, left: PackedVector3Array, right: PackedVector3
 			bushes.append(_xf(rng, p + out * rng.randf_range(0.4, 0.7), rng.randf_range(0.55, 0.75) if south else rng.randf_range(0.9, 1.3)))
 			if rng.randf() < 0.6:
 				ferns.append(_xf(rng, p - out * 0.35, rng.randf_range(0.7, 1.1)))
-			# árvores só do lado norte das trilhas de leste-oeste (nas de norte-sul ficariam na frente da câmera)
-			if out.z < -0.5 and rng.randf() < 0.5:
-				trees.append(_xf(rng, p + out * rng.randf_range(2.0, 3.5), rng.randf_range(0.8, 1.1)))
+			if rng.randf() < 0.5:
+				_plant_tall(rng, p + out * rng.randf_range(2.2, 4.5), Vector3.ZERO, trees, palms)
 	_multimesh(parent, "moita", bushes, false)
 	_multimesh(parent, "samambaia", ferns, false)
 	_multimesh(parent, "arvore_borda", trees, false)
+	_multimesh(parent, "palmeira", palms, false)
 
 
 # ---------- peças ----------
@@ -148,8 +298,10 @@ static func _multimesh(parent: Node3D, kind: String, transforms: Array[Transform
 		var v := tint_rng.randf_range(0.82, 1.08)
 		mm.set_instance_color(i, Color(v, v * tint_rng.randf_range(0.95, 1.05), v))
 	var node := MultiMeshInstance3D.new()
-	node.name = "Decor_" + kind
+	node.name = "Decor_%s_%d" % [kind, parent.get_child_count()]  # nome único (trilhas e mata dividem o pai)
+	node.set_meta("kind", kind)
 	node.multimesh = mm
+	node.set_meta("xforms", transforms)  # posições das cópias (os testes sem tela não leem o MultiMesh)
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(node)
 

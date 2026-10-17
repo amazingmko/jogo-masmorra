@@ -28,6 +28,7 @@ func _init() -> void:
 func build(layout: DungeonLayout, parent: Node3D, rng: RandomNumberGenerator) -> void:
 	rooms.clear()
 	props.clear()
+	RoomDecor.begin_floor(layout)
 	for i in layout.room_count():
 		var info: Dictionary = layout.rooms[i]
 		var dirs: Array[Vector2i] = []
@@ -44,6 +45,9 @@ func build(layout: DungeonLayout, parent: Node3D, rng: RandomNumberGenerator) ->
 		for n in layout.rooms[i].links:
 			if n > i:
 				_build_corridor(parent, layout.rooms[i].cell, layout.rooms[n].cell)
+	var forest_rng := RandomNumberGenerator.new()
+	forest_rng.seed = rng.randi()
+	RoomDecor.forest(parent, forest_rng)
 	_build_ground(parent)
 
 

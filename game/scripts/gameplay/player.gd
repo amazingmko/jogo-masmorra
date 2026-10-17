@@ -412,6 +412,10 @@ func _release_shot() -> void:
 		if to.length() > 0.3:
 			dir = to.normalized()
 	var spread: Array = kit.arrow_spread() if kit else [0.0]
+	if Layers.shot_blocked(get_world_3d(), global_position, at):
+		# encostada no obstáculo: o disparo bate nele (e não sai do outro lado)
+		Vfx.particles(get_parent(), at, "faisca", 6, 0.25, Color(1, 1, 1, 0.6), 0.2, Vector2(0.5, 1.5), 180.0, -4.0)
+		return
 	var guaranteed_crit := kit.consume_sure_crit() if kit else false
 	for angle in spread:
 		var projectile := Projectile.create(dir.rotated(Vector3.UP, float(angle)), weapon_stats, hero.element, crit_chance, _rng)
