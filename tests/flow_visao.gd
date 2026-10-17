@@ -22,6 +22,12 @@ var _trees := 0
 var _close_trees := 0
 var _overlaps := 0
 var _plant_in_solid := 0
+var _water_floors := 0
+var _water_in_clearing := 0
+var _crossings := 0
+var _missing_bridge := 0
+var _wet_trees := 0
+var _wet_bushes := 0
 
 
 func check(cond: bool, label: String) -> void:
@@ -124,6 +130,7 @@ var _bodies: Array[Node] = []
 
 
 func _raycasts(m) -> void:
+	_water_checks(m)
 	# visão: da heroína (peito e cabeça) até a câmera
 	var space: PhysicsDirectSpaceState3D = m.get_world_3d().direct_space_state
 	if _seed_i == 0 and not _bodies.is_empty():
@@ -162,6 +169,46 @@ func _raycasts(m) -> void:
 	_bodies.clear()
 
 
+## Igarapé: existe, fica fora das clareiras, tem pinguela onde cruza trilha, sem planta dentro.
+func _water_checks(m) -> void:
+	var ig = m.builder.igarape
+	if ig == null or ig.path.size() < 2:
+		return
+	_water_floors += 1
+	var IG = load("res://game/scripts/dungeon/igarape.gd")
+	var clearing: float = 7.0 + 0.3 + 1.8   # meia sala + parede + borda que mais se afasta
+	for p in ig.path:
+		for room in m.builder.rooms:
+			var d: Vector3 = p - room.global_position
+			if maxf(absf(d.x), absf(d.z)) - IG.HALF_WIDTH < clearing:
+				_water_in_clearing += 1
+	var bridges: Array = ig.find_children("Pinguela*", "", true, false)
+	for line in m.builder.trails:
+		var crosses := false
+		var where := Vector3.ZERO
+		for q in line:
+			if IG.distance_to(ig.path, q) < IG.HALF_WIDTH:
+				crosses = true
+				where = q
+		if crosses:
+			_crossings += 1
+			var ok := false
+			for b in bridges:
+				if Vector2(b.global_position.x - where.x, b.global_position.z - where.z).length() < 2.0:
+					ok = true
+			if not ok:
+				_missing_bridge += 1
+	for mmi in m.get_node("Dungeon").find_children("Decor_*", "MultiMeshInstance3D", true, false):
+		var kind: String = mmi.get_meta("kind", "")
+		for local in mmi.get_meta("xforms"):
+			var p: Vector3 = (mmi.global_transform * local).origin
+			var d: float = IG.distance_to(ig.path, p)
+			if kind in TALL and d < IG.HALF_WIDTH + IG.MUD:
+				_wet_trees += 1
+			elif kind == "moita" and d < IG.HALF_WIDTH + 0.2:
+				_wet_bushes += 1
+
+
 func _report() -> void:
 	var frac := float(_occ) / maxf(_samples, 1)
 	print("pontos: %d, tampados: %d (%.1f%%) %s" % [_samples, _occ, frac * 100.0, _occ_where])
@@ -171,5 +218,10 @@ func _report() -> void:
 	check(_overlaps == 0, "nenhuma pedra/tronco/sumaúma encavalada (%d)" % _overlaps)
 	check(_plant_in_solid == 0, "nenhuma plantinha dentro de pedra/tronco (%d)" % _plant_in_solid)
 	check(_palms * 3 >= _trees, "palmeiras aparecem (pelo menos 1 para cada 3 árvores: %d / %d)" % [_palms, _trees])
+	print("igarapé em %d de %d andares, %d cruzamentos com trilha" % [_water_floors, SEEDS.size(), _crossings])
+	check(_water_floors == SEEDS.size(), "todo andar tem igarapé")
+	check(_water_in_clearing == 0, "a água nunca entra numa clareira (%d pontos)" % _water_in_clearing)
+	check(_missing_bridge == 0, "toda trilha que cruza o igarapé tem pinguela (%d sem)" % _missing_bridge)
+	check(_wet_trees == 0 and _wet_bushes == 0, "nenhuma árvore/palmeira/moita dentro d'água (%d / %d)" % [_wet_trees, _wet_bushes])
 	print("fim: ", "TUDO OK" if _ok else "COM FALHAS")
 	quit(0 if _ok else 1)

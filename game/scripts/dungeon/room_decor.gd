@@ -15,6 +15,7 @@ const SIZE := {
 	"arvore_borda": ["h", 6.0], "palmeira": ["h", 5.5], "sumauma": ["w", 2.6], "moita": ["w", 1.7],
 	"samambaia": ["w", 0.85], "bromelia": ["w", 0.6], "cogumelos": ["h", 0.3],
 	"pedra_musgo": ["w", 1.4], "tronco_caido": ["w", 2.6],
+	"bau": ["w", 1.6], "fonte": ["w", 2.6], "portal": ["w", 3.2],
 }
 
 static var _cache := {}
@@ -32,6 +33,18 @@ const VIEW_SHIFT_MAX := 3.8
 ## plantados (para as árvores não nascerem coladas umas nas outras, nem tamparem a visão).
 static var _walk: Array[Rect2] = []
 static var _tall: Array[Vector3] = []
+static var _water := PackedVector3Array()
+static var _water_reach := 0.0
+
+
+## Linha do igarapé do andar: nada de planta grande nascendo dentro d'água ou no barro.
+static func set_water(path: PackedVector3Array, reach: float) -> void:
+	_water = path
+	_water_reach = reach
+
+
+static func _wet(p: Vector3, extra: float) -> bool:
+	return _water.size() >= 2 and Igarape.distance_to(_water, p) < _water_reach + extra
 
 
 static func begin_floor(layout: DungeonLayout) -> void:
@@ -59,6 +72,8 @@ static func _walkable(x: float, z: float) -> bool:
 
 ## A copa desta árvore (no mundo) tamparia algum lugar onde a heroína anda? E fica longe das outras?
 static func _tree_ok(world: Vector3, radius: float) -> bool:
+	if _wet(world, 0.8):
+		return false
 	for t in _tall:
 		if Vector2(t.x - world.x, t.z - world.z).length() < TREE_GAP:
 			return false
@@ -104,7 +119,8 @@ static func populate(room: DungeonRoom, rng: RandomNumberGenerator, door_dirs: A
 			var outward := Vector3(p.x, 0, p.z).normalized()
 			var south := p.z > half * 0.6
 			var bush := p + outward * rng.randf_range(0.2, 0.5)
-			bushes.append(_xf(rng, bush, rng.randf_range(0.55, 0.75) if south else rng.randf_range(0.9, 1.35)))
+			if not _wet(origin + bush, 0.0):
+				bushes.append(_xf(rng, bush, rng.randf_range(0.55, 0.75) if south else rng.randf_range(0.9, 1.35)))
 			if rng.randf() < 0.5:
 				ferns_edge.append(_xf(rng, p - outward * rng.randf_range(0.5, 0.9), rng.randf_range(0.8, 1.3)))
 			if rng.randf() < 0.55:
@@ -197,7 +213,7 @@ static func forest(parent: Node3D, rng: RandomNumberGenerator) -> void:
 			var p := Vector3(x + rng.randf_range(-0.9, 0.9), 0, z + rng.randf_range(-0.9, 0.9))
 			z += step
 			# plantas baixas podem chegar perto da clareira (não tampam nada); árvores, só mais longe
-			if _near_walk(p.x, p.z, -0.4):
+			if _near_walk(p.x, p.z, -0.4) or _wet(p, 1.2):
 				continue
 			var key := Vector2i(floori(p.x / DungeonBuilder.CELL), floori(p.z / DungeonBuilder.CELL))
 			if not chunks.has(key):
@@ -248,6 +264,8 @@ static func trail(parent: Node3D, left: PackedVector3Array, right: PackedVector3
 		for i in range(1, line.size() - 1):
 			var p: Vector3 = line[i]
 			var south := out.z > 0.5
+			if _wet(p, 0.4):
+				continue  # onde a trilha cruza o igarapé: a pinguela, sem moita em cima
 			bushes.append(_xf(rng, p + out * rng.randf_range(0.4, 0.7), rng.randf_range(0.55, 0.75) if south else rng.randf_range(0.9, 1.3)))
 			if rng.randf() < 0.6:
 				ferns.append(_xf(rng, p - out * 0.35, rng.randf_range(0.7, 1.1)))
