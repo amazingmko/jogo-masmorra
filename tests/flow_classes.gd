@@ -97,6 +97,7 @@ func _process(_d: float) -> bool:
 	if _f == 55:
 		_a = _dummy(_wall_dir * 4.0 + Vector3(0, 0.1, 0))  # entre ela e a parede
 		_a.soak(10.0)
+		_a.stun(0.4)  # parado onde foi posto (andando até ela, às vezes a onda não o levava até a parede)
 		_hp = _a.health.health
 		_kit.charge = 100.0
 		check(_kit.try_ultimate(), "Pororoca funciona")
