@@ -27,35 +27,29 @@ static func populate(room: DungeonRoom, rng: RandomNumberGenerator, door_dirs: A
 	var bushes: Array[Transform3D] = []
 	var trees: Array[Transform3D] = []
 	var palms: Array[Transform3D] = []
-	for dir in DungeonLayout.DIRS:
-		var along := Vector3(absf(dir.y), 0, absf(dir.x))
-		var out := Vector3(dir.x, 0, dir.y)
-		var has_door := door_dirs.has(dir)
-		# Moitas em cima da parede (a parede vira mata fechada), sem tampar o vão da porta.
-		var t := -half - 0.4
-		while t <= half + 0.4:
-			if not (has_door and absf(t) < DungeonRoom.DOOR_W * 0.5 + 0.3):
-				var pos := out * (wall + rng.randf_range(-0.15, 0.25)) + along * (t + rng.randf_range(-0.3, 0.3))
-				# do lado da câmera (sul), moitas baixas para não esconder a heroína
-				var low := dir == Vector2i(0, 1)
-				pos.y = DungeonRoom.WALL_H * (rng.randf_range(0.35, 0.5) if low else rng.randf_range(0.55, 0.85))
-				bushes.append(_xf(rng, pos, rng.randf_range(0.5, 0.7) if low else rng.randf_range(0.9, 1.4)))
-			t += rng.randf_range(0.9, 1.3)
-		# Árvores altas por fora (não do lado da câmera, para não tampar a heroína).
-		if dir == Vector2i(0, 1):
-			continue
-		for i in rng.randi_range(2, 4):
-			var s := rng.randf_range(-half, half)
-			if has_door and absf(s) < DungeonRoom.DOOR_W:
-				continue
-			var pos := out * (wall + rng.randf_range(1.2, 3.2)) + along * s
-			if rng.randf() < 0.35:
-				palms.append(_xf(rng, pos, rng.randf_range(0.85, 1.15)))
-			else:
-				trees.append(_xf(rng, pos, rng.randf_range(0.8, 1.2)))
+	var ferns_edge: Array[Transform3D] = []
+	# Borda da clareira: moitas em cima do contorno (escondem a colisão), samambaias na beirada de
+	# dentro e árvores/palmeiras por trás. Do lado da câmera (sul) só moitas baixas, sem árvore.
+	for line in room.border_lines:
+		for i in line.size():
+			var p: Vector3 = line[i]
+			var outward := Vector3(p.x, 0, p.z).normalized()
+			var south := p.z > half * 0.6
+			var bush := p + outward * rng.randf_range(0.2, 0.5)
+			bushes.append(_xf(rng, bush, rng.randf_range(0.55, 0.75) if south else rng.randf_range(0.9, 1.35)))
+			if rng.randf() < 0.5:
+				ferns_edge.append(_xf(rng, p - outward * rng.randf_range(0.5, 0.9), rng.randf_range(0.8, 1.3)))
+			# árvore só na metade de cima: a copa alta, perto da câmera, tamparia a luta
+			if p.z < half * 0.2 and rng.randf() < 0.5:
+				var tree_pos := p + outward * rng.randf_range(1.6, 3.8) + Vector3(rng.randf_range(-0.6, 0.6), 0, rng.randf_range(-0.6, 0.6))
+				if rng.randf() < 0.3:
+					palms.append(_xf(rng, tree_pos, rng.randf_range(0.85, 1.15)))
+				else:
+					trees.append(_xf(rng, tree_pos, rng.randf_range(0.8, 1.2)))
 	_multimesh(room, "moita", bushes, false)
 	_multimesh(room, "arvore_borda", trees, true)
 	_multimesh(room, "palmeira", palms, true)
+	_multimesh(room, "samambaia", ferns_edge, false)
 
 	# Chão: plantas pequenas, mais perto das paredes (o meio fica limpo para lutar).
 	var small := {"samambaia": [], "bromelia": [], "cogumelos": []}
@@ -93,19 +87,26 @@ static func trunk(parent: Node3D, pos: Vector3, rng: RandomNumberGenerator) -> v
 	parent.add_child(node)
 
 
-## Moitas dos dois lados de um corredor.
-static func corridor(parent: Node3D, center: Vector3, horizontal: bool, length: float, rng: RandomNumberGenerator) -> void:
-	var list: Array[Transform3D] = []
-	var along := Vector3.RIGHT if horizontal else Vector3.BACK
-	var side_dir := Vector3.BACK if horizontal else Vector3.RIGHT
-	for side in [-1.0, 1.0]:
-		var t := -length * 0.5
-		while t <= length * 0.5:
-			var pos: Vector3 = center + along * t + side_dir * side * (DungeonRoom.DOOR_W * 0.5 + DungeonRoom.WALL_T * 0.5)
-			pos.y = DungeonRoom.WALL_H * rng.randf_range(0.55, 0.85)
-			list.append(_xf(rng, pos, rng.randf_range(0.9, 1.3)))
-			t += rng.randf_range(0.9, 1.3)
-	_multimesh(parent, "moita", list, false)
+## Trilha: moitas pelas duas bordas, samambaias na beirada e algumas árvores por trás.
+static func trail(parent: Node3D, left: PackedVector3Array, right: PackedVector3Array, side: Vector3, rng: RandomNumberGenerator) -> void:
+	var bushes: Array[Transform3D] = []
+	var ferns: Array[Transform3D] = []
+	var trees: Array[Transform3D] = []
+	for pair in [[left, -1.0], [right, 1.0]]:
+		var line: PackedVector3Array = pair[0]
+		var out: Vector3 = side * float(pair[1])
+		for i in range(1, line.size() - 1):
+			var p: Vector3 = line[i]
+			var south := out.z > 0.5
+			bushes.append(_xf(rng, p + out * rng.randf_range(0.4, 0.7), rng.randf_range(0.55, 0.75) if south else rng.randf_range(0.9, 1.3)))
+			if rng.randf() < 0.6:
+				ferns.append(_xf(rng, p - out * 0.35, rng.randf_range(0.7, 1.1)))
+			# árvores só do lado norte das trilhas de leste-oeste (nas de norte-sul ficariam na frente da câmera)
+			if out.z < -0.5 and rng.randf() < 0.5:
+				trees.append(_xf(rng, p + out * rng.randf_range(2.0, 3.5), rng.randf_range(0.8, 1.1)))
+	_multimesh(parent, "moita", bushes, false)
+	_multimesh(parent, "samambaia", ferns, false)
+	_multimesh(parent, "arvore_borda", trees, true)
 
 
 # ---------- peças ----------

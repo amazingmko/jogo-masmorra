@@ -44,6 +44,19 @@ func build(layout: DungeonLayout, parent: Node3D, rng: RandomNumberGenerator) ->
 		for n in layout.rooms[i].links:
 			if n > i:
 				_build_corridor(parent, layout.rooms[i].cell, layout.rooms[n].cell)
+	_build_ground(parent)
+
+
+## Um chão só, contínuo, debaixo de todo o andar (clareiras, trilhas e a mata entre elas).
+func _build_ground(parent: Node3D) -> void:
+	var lo := Vector3(INF, 0, INF)
+	var hi := Vector3(-INF, 0, -INF)
+	for r in rooms:
+		lo = Vector3(minf(lo.x, r.position.x), 0, minf(lo.z, r.position.z))
+		hi = Vector3(maxf(hi.x, r.position.x), 0, maxf(hi.z, r.position.z))
+	var margin := CELL
+	var size := Vector3(hi.x - lo.x + margin * 2.0, 0.5, hi.z - lo.z + margin * 2.0)
+	box(parent, size, (lo + hi) * 0.5 + Vector3(0, -0.25, 0), _materials.floor)
 
 
 static func cell_to_world(cell: Vector2i) -> Vector3:
@@ -88,27 +101,48 @@ func _add_prop(room: DungeonRoom, parent: Node3D) -> void:
 	props[room.index] = prop
 
 
+## Trilha entre duas clareiras: faz uma curva (sorteada), com a borda de mata e colisão
+## invisível dos dois lados. Começa e termina exatamente nos vãos das portas.
 func _build_corridor(parent: Node3D, a: Vector2i, b: Vector2i) -> void:
 	var wa := cell_to_world(a)
 	var wb := cell_to_world(b)
-	var center := (wa + wb) * 0.5
-	var horizontal := a.y == b.y
-	var gap := CELL - DungeonRoom.SIZE - DungeonRoom.WALL_T * 2.0  # espaço entre as paredes das salas
-	var floor_len := gap + DungeonRoom.WALL_T * 2.0
-	var width := DungeonRoom.DOOR_W
-	var t := DungeonRoom.WALL_T
-	var h := DungeonRoom.WALL_H
-	var decor_rng := RandomNumberGenerator.new()
-	decor_rng.seed = hash(a) ^ hash(b)
-	RoomDecor.corridor(parent, center, horizontal, gap, decor_rng)
-	if horizontal:
-		box(parent, Vector3(floor_len, 0.5, width), center + Vector3(0, -0.25, 0), _materials.corridor)
-		for side in [-1.0, 1.0]:
-			box(parent, Vector3(gap, h, t), center + Vector3(0, h * 0.5, side * (width * 0.5 + t * 0.5)), _materials.wall)
-	else:
-		box(parent, Vector3(width, 0.5, floor_len), center + Vector3(0, -0.25, 0), _materials.corridor)
-		for side in [-1.0, 1.0]:
-			box(parent, Vector3(t, h, gap), center + Vector3(side * (width * 0.5 + t * 0.5), h * 0.5, 0), _materials.wall)
+	var dir := (wb - wa).normalized()
+	var side := Vector3(-dir.z, 0, dir.x)
+	var edge := DungeonRoom.SIZE * 0.5 + DungeonRoom.WALL_T * 0.5
+	var start := wa + dir * edge
+	var finish := wb - dir * edge
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(a) ^ (hash(b) << 1)
+	var bend := rng.randf_range(-1.3, 1.3)
+	var steps := 8
+	var left := PackedVector3Array()
+	var right := PackedVector3Array()
+	var center_line := PackedVector3Array()
+	for i in steps + 1:
+		var k := float(i) / steps
+		var c := start.lerp(finish, k) + side * bend * sin(k * PI)
+		var w := DungeonRoom.DOOR_W * 0.5 + 0.35 * sin(k * PI) * rng.randf_range(0.5, 1.0)
+		center_line.append(c)
+		left.append(c - side * w)
+		right.append(c + side * w)
+	var body := StaticBody3D.new()
+	body.collision_layer = Layers.WORLD
+	body.collision_mask = 0
+	parent.add_child(body)
+	for line in [left, right]:
+		for i in line.size() - 1:
+			var p0: Vector3 = line[i]
+			var p1: Vector3 = line[i + 1]
+			var col := CollisionShape3D.new()
+			var shape := BoxShape3D.new()
+			shape.size = Vector3(p0.distance_to(p1) + 0.3, 2.0, DungeonRoom.WALL_T)
+			col.shape = shape
+			# a parede fica por fora da trilha (meia espessura para fora)
+			var outward: Vector3 = side * (-1.0 if line == left else 1.0) * DungeonRoom.WALL_T * 0.5
+			col.position = (p0 + p1) * 0.5 + outward + Vector3(0, 1.0, 0)
+			col.rotation.y = atan2(p1.x - p0.x, p1.z - p0.z) + PI * 0.5
+			body.add_child(col)
+	RoomDecor.trail(parent, left, right, side, rng)
 
 
 ## Chão de terra com musgo e folhas (shader em coordenadas do mundo: sem emendas).

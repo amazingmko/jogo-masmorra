@@ -1,7 +1,9 @@
 class_name DungeonRoom
 extends Node3D
-## Uma sala da masmorra: chão, paredes com vãos de porta, grades que fecham durante o combate
-## e um sensor que avisa quando o herói entra. Construída por código a partir da planta.
+## Uma sala da masmorra, desenhada como clareira na mata: a borda é irregular (árvores, moitas e
+## raízes, sem parede reta), com vãos de porta que viram cipós com espinhos durante a luta, e um
+## sensor que avisa quando o herói entra. A área de luta continua sendo o quadrado SIZE x SIZE;
+## a borda só se abre para fora dele (os inimigos nunca nascem dentro da mata).
 
 signal player_entered(room: DungeonRoom)
 
@@ -26,7 +28,11 @@ var wave_pending := false
 var pillars: Array[Vector3] = []
 
 var _door_dirs: Array[Vector2i] = []
-var _barriers: Array[StaticBody3D] = []
+var _barriers: Array[VineBarrier] = []
+## Contorno da clareira, um trecho por lado (sem o vão das portas), em coordenadas da sala.
+var border_lines: Array[PackedVector3Array] = []
+## Até onde a borda avança para fora do quadrado.
+const BORDER_OUT := 1.8
 var _materials: Dictionary
 ## Covil Furioso: sala rara, só com furiosos, com um baú grande no fim.
 var is_den := false
@@ -53,14 +59,20 @@ func setup(room_index: int, info: Dictionary, dirs: Array[Vector2i], mats: Dicti
 
 
 func _ready() -> void:
-	var floor_mat: Material = _materials.floor_boss if type == DungeonLayout.RoomType.BOSS else _materials.floor
-	if is_den:
-		floor_mat = _materials.floor_den
-	DungeonBuilder.box(self, Vector3(SIZE + WALL_T * 2.0, 0.5, SIZE + WALL_T * 2.0), Vector3(0, -0.25, 0), floor_mat)
-	for dir in DungeonLayout.DIRS:
-		_build_side(dir)
 	var decor_rng := RandomNumberGenerator.new()
 	decor_rng.seed = _decor_seed
+	# Chão do chefe e do covil: mesmo chão, com outro tom por cima.
+	if type == DungeonLayout.RoomType.BOSS or is_den:
+		var tint := MeshInstance3D.new()
+		var plane := PlaneMesh.new()
+		plane.size = Vector2(SIZE + 2.0, SIZE + 2.0)
+		tint.mesh = plane
+		tint.position.y = 0.01
+		tint.material_override = _materials.floor_den if is_den else _materials.floor_boss
+		tint.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(tint)
+	for dir in DungeonLayout.DIRS:
+		_build_border(dir, decor_rng)
 	for p in pillars:
 		var pillar := DungeonBuilder.box(self, Vector3(1.2, 2.0, 1.2), p, _materials.pillar)
 		pillar.get_child(1).visible = false  # a caixa só dá a colisão; o que se vê é a sumaúma
@@ -81,14 +93,12 @@ func contains(point: Vector3) -> bool:
 
 func close_doors() -> void:
 	for b in _barriers:
-		b.visible = true
-		b.get_child(0).set_deferred("disabled", false)
+		b.close()
 
 
 func open_doors() -> void:
 	for b in _barriers:
-		b.visible = false
-		b.get_child(0).set_deferred("disabled", true)
+		b.open()
 
 
 ## Ponto livre dentro da sala, longe de `avoid` e dos pilares.
@@ -110,29 +120,61 @@ func random_point(rng: RandomNumberGenerator, avoid: Vector3, min_dist: float) -
 
 # ---------- construção ----------
 
-func _build_side(dir: Vector2i) -> void:
+## Um lado da clareira: contorno irregular (só para fora do quadrado), colisão invisível seguindo
+## o contorno e, se houver porta, o vão com a barreira de cipós.
+func _build_border(dir: Vector2i, rng: RandomNumberGenerator) -> void:
 	var half := SIZE * 0.5
-	var full := SIZE + WALL_T * 2.0
-	var along := Vector3(absf(dir.y), 0, absf(dir.x))   # direção ao longo da parede
-	var out := Vector3(dir.x, 0, dir.y)                  # direção para fora da sala
-	var wall_center := out * (half + WALL_T * 0.5) + Vector3(0, WALL_H * 0.5, 0)
-	var thickness := Vector3(absf(dir.x), 0, absf(dir.y)) * WALL_T
-
-	if not _door_dirs.has(dir):
-		DungeonBuilder.box(self, along * full + thickness + Vector3(0, WALL_H, 0), wall_center, _materials.wall)
-		return
-
-	var seg := (full - DOOR_W) * 0.5
-	for side in [-1.0, 1.0]:
-		var pos: Vector3 = wall_center + along * side * (DOOR_W * 0.5 + seg * 0.5)
-		DungeonBuilder.box(self, along * seg + thickness + Vector3(0, WALL_H, 0), pos, _materials.wall)
-
-	# Grade da porta: começa aberta (invisível e sem colisão).
-	var barrier := DungeonBuilder.box(self, along * DOOR_W + thickness * 0.6 + Vector3(0, WALL_H, 0),
-		wall_center, _materials.barrier)
-	barrier.visible = false
-	barrier.get_child(0).disabled = true
-	_barriers.append(barrier)
+	var along := Vector3(absf(dir.y), 0, absf(dir.x))
+	var out := Vector3(dir.x, 0, dir.y)
+	var has_door := _door_dirs.has(dir)
+	var gap := DOOR_W * 0.5
+	var ts: Array[float] = []
+	var t := -half - 1.0
+	while t <= half + 1.0 + 0.01:
+		if not (has_door and absf(t) < gap):
+			ts.append(t)
+		t += 0.9
+	if has_door:
+		ts.append(-gap)
+		ts.append(gap)
+		ts.sort()
+	var lines: Array[PackedVector3Array] = [PackedVector3Array()]
+	var phase := rng.randf() * TAU
+	for i in ts.size():
+		var tt: float = ts[i]
+		if has_door and i > 0 and ts[i - 1] <= -gap + 0.001 and tt >= gap - 0.001:
+			lines.append(PackedVector3Array())  # o vão da porta
+		# Quanto a borda se afasta: ondulação suave + sorteio; perto da porta e dos cantos volta à linha.
+		var bulge := (0.5 + 0.5 * sin(tt * 0.55 + phase)) * BORDER_OUT * rng.randf_range(0.6, 1.0)
+		if has_door:
+			bulge *= clampf((absf(tt) - gap) / 2.0, 0.0, 1.0)
+		bulge *= clampf((half + 1.0 - absf(tt)) / 2.5, 0.25, 1.0)
+		lines[-1].append(out * (half + WALL_T * 0.5 + bulge) + along * tt)
+	var body := StaticBody3D.new()
+	body.collision_layer = Layers.WORLD
+	body.collision_mask = 0
+	add_child(body)
+	for line in lines:
+		if line.size() < 2:
+			continue
+		border_lines.append(line)
+		for i in line.size() - 1:
+			var a: Vector3 = line[i]
+			var b: Vector3 = line[i + 1]
+			var col := CollisionShape3D.new()
+			var shape := BoxShape3D.new()
+			shape.size = Vector3(a.distance_to(b) + 0.35, 2.0, WALL_T)
+			col.shape = shape
+			col.position = (a + b) * 0.5 + Vector3(0, 1.0, 0)
+			col.rotation.y = atan2(b.x - a.x, b.z - a.z) + PI * 0.5
+			body.add_child(col)
+	if has_door:
+		var barrier := VineBarrier.new()
+		barrier.setup(DOOR_W, WALL_T)
+		barrier.position = out * (half + WALL_T * 0.5)
+		barrier.rotation.y = atan2(along.x, along.z) - PI * 0.5
+		add_child(barrier)
+		_barriers.append(barrier)
 
 
 func _build_trigger() -> void:
