@@ -49,6 +49,7 @@ func _ready() -> void:
 		wing.position = Vector3(0.48 * side, 0, 0)
 		pivot.add_child(wing)
 		_wings.append(pivot)
+	Lighting.no_shadow_receive(_body)
 	Vfx.particles(self, Vector3.ZERO, "faisca", 8, 0.6, Color("e8f5ff"), 0.25, Vector2(0.2, 0.6), 180.0, 0.0, true, false)
 
 

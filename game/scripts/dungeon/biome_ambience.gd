@@ -16,19 +16,22 @@ static func apply(world: WorldEnvironment, sun: DirectionalLight3D) -> void:
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color("0d140c")
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("5d7a5a")
-	env.ambient_light_energy = 0.85
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.tonemap_exposure = 1.05
+	# Luz ambiente quase neutra (só um toque verde): com verde forte e o tonemap "filmic", as peças
+	# do cenário (pedras, troncos, plantas) ficavam escuras demais.
+	env.ambient_light_color = Color("8a9a80")
+	env.ambient_light_energy = 1.15
+	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
+	env.tonemap_exposure = 1.0
 	env.fog_enabled = true
-	env.fog_light_color = Color("223524")
-	env.fog_density = 0.012
+	env.fog_light_color = Color("2a3d2c")
+	env.fog_density = 0.005
+	env.fog_light_energy = 0.6
 	env.fog_sky_affect = 0.0
 	env.adjustment_enabled = true
 	env.adjustment_saturation = 1.08
 	env.adjustment_contrast = 1.05
 	sun.light_color = Color("ffe9b8")
-	sun.light_energy = 1.15
+	sun.light_energy = 1.7
 	sun.shadow_opacity = 0.6
 
 

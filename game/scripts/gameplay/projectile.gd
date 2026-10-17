@@ -146,6 +146,13 @@ func _cyl(top: float, bottom: float, h: float) -> CylinderMesh:
 
 func _physics_process(delta: float) -> void:
 	var step := speed * delta
+	# Obstáculos (pedra, tronco, sumaúma, borda da mata): raio no caminho deste quadro, na altura do
+	# disparo e rente ao chão (a área do disparo sozinha não enxerga corpos parados).
+	if Layers.blocked(get_world_3d(), global_position, global_position + direction * step):
+		_spent = true
+		Vfx.particles(get_parent(), global_position, "faisca", 6, 0.25, Color(1, 1, 1, 0.6), 0.2, Vector2(0.5, 1.5), 180.0, -4.0)
+		queue_free()
+		return
 	global_position += direction * step
 	_traveled += step
 	if _traveled >= max_distance:

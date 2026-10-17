@@ -148,6 +148,7 @@ func _next_floor() -> void:
 	_maybe_place_den()
 	builder = DungeonBuilder.new()
 	builder.build(layout, _dungeon, _rng)
+	Lighting.no_shadow_receive(_dungeon)  # o chão (shader) continua recebendo a sombra
 	for room in builder.rooms:
 		room.player_entered.connect(_on_room_entered)
 	for prop in builder.props.values():

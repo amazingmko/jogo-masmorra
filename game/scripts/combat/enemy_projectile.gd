@@ -56,6 +56,11 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	var step := speed * delta
+	# Pedra, tronco, sumaúma e borda da mata seguram o disparo (raio no caminho deste quadro).
+	if not _spent and Layers.blocked(get_world_3d(), global_position, global_position + direction * step):
+		_spent = true
+		queue_free()
+		return
 	global_position += direction * step
 	_traveled += step
 	if _traveled >= max_distance:

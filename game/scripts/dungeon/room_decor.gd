@@ -47,8 +47,8 @@ static func populate(room: DungeonRoom, rng: RandomNumberGenerator, door_dirs: A
 				else:
 					trees.append(_xf(rng, tree_pos, rng.randf_range(0.8, 1.2)))
 	_multimesh(room, "moita", bushes, false)
-	_multimesh(room, "arvore_borda", trees, true)
-	_multimesh(room, "palmeira", palms, true)
+	_multimesh(room, "arvore_borda", trees, false)
+	_multimesh(room, "palmeira", palms, false)
 	_multimesh(room, "samambaia", ferns_edge, false)
 
 	# Chão: plantas pequenas, mais perto das paredes (o meio fica limpo para lutar).
@@ -106,7 +106,7 @@ static func trail(parent: Node3D, left: PackedVector3Array, right: PackedVector3
 				trees.append(_xf(rng, p + out * rng.randf_range(2.0, 3.5), rng.randf_range(0.8, 1.1)))
 	_multimesh(parent, "moita", bushes, false)
 	_multimesh(parent, "samambaia", ferns, false)
-	_multimesh(parent, "arvore_borda", trees, true)
+	_multimesh(parent, "arvore_borda", trees, false)
 
 
 # ---------- peças ----------
@@ -176,6 +176,7 @@ static func _instance(kind: String) -> Node3D:
 	var mi := MeshInstance3D.new()
 	mi.mesh = piece.mesh
 	mi.transform = piece.base
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var holder := Node3D.new()
 	holder.name = kind
 	holder.add_child(mi)
@@ -203,6 +204,7 @@ static func _piece(kind: String) -> Dictionary:
 		scene.free()
 	if piece.is_empty():
 		piece = {"mesh": _placeholder(kind), "base": Transform3D()}
+	Lighting.mesh_no_shadow_receive(piece.mesh)
 	_cache[kind] = piece
 	return piece
 

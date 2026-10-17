@@ -695,6 +695,7 @@ func _apply_model(new_hero: HeroData) -> void:
 		add_child(_fill_light)
 	HeroGear.attach(_model, new_hero.id)
 	_collect_meshes(_model)
+	Lighting.no_shadow_receive(self)
 	var animator := HeroAnimator.new()
 	add_child(animator)
 	if animator.setup(_model):

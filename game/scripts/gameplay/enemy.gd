@@ -138,6 +138,7 @@ func _ready() -> void:
 	_build_visuals()
 	if elite:
 		_add_elite_marks()
+	Lighting.no_shadow_receive(self)
 	health = Health.new()
 	health.max_health = maxi(int(round(data.max_health * health_multiplier)), 1)
 	add_child(health)
