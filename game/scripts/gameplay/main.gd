@@ -56,6 +56,14 @@ var _alive := 0
 var _run_over := false
 var _run_id := 0
 var _stats := {}
+## Tela de carregamento curta a cada andar: esconde a montagem do andar e o "aquecimento" dos
+## efeitos (no 1º andar da sessão), que no celular dariam travadinhas.
+static var _warmed := false
+var _loading: CanvasLayer
+var _loading_fade: ColorRect
+var _loading_label: Label
+var _loading_frames := 0
+var _warmup: Warmup
 
 @onready var _player: Player = $Player
 @onready var _hud: Hud = $HUD
@@ -77,12 +85,63 @@ func _ready() -> void:
 	ambience.name = "Ambiente"
 	ambience.target = _player
 	add_child(ambience)
+	_build_loading()
 	new_run()
 
 
 func _process(_delta: float) -> void:
 	_player.touch_move = _hud.move_vector()
 	_player.touch_attack = _hud.attack_held()
+	_update_loading()
+
+
+# ---------- tela de carregamento ----------
+
+func _build_loading() -> void:
+	_loading = CanvasLayer.new()
+	_loading.layer = 50
+	_loading.name = "Carregando"
+	add_child(_loading)
+	_loading_fade = ColorRect.new()
+	_loading_fade.color = Color("0d140c")
+	_loading_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_loading_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_loading.add_child(_loading_fade)
+	_loading_label = Label.new()
+	_loading_label.set_anchors_preset(Control.PRESET_CENTER)
+	_loading_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_loading_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_loading_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_loading_label.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_loading_label.add_theme_font_size_override("font_size", 34)
+	_loading_label.add_theme_color_override("font_color", Color("cfe8b0"))
+	_loading_fade.add_child(_loading_label)
+	_loading.visible = false
+
+
+func _show_loading() -> void:
+	if _loading == null:
+		return
+	_loading.visible = true
+	_loading_fade.modulate.a = 1.0
+	_loading_label.text = "Andar %d" % floor_number
+	_loading_frames = 0
+	if not _warmed:
+		_warmed = true
+		_warmup = Warmup.start(self, _player)
+
+
+func _update_loading() -> void:
+	if _loading == null or not _loading.visible:
+		return
+	_loading_frames += 1
+	var warming := is_instance_valid(_warmup) and not _warmup.done()
+	if _loading_frames == 3 and not warming:
+		var t := create_tween()
+		t.tween_property(_loading_fade, "modulate:a", 0.0, 0.35)
+		t.tween_callback(func() -> void: _loading.visible = false)
+	elif _loading_frames > 3 and warming:
+		_loading_frames = 2  # espera o aquecimento acabar
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -140,6 +199,22 @@ func debug_jump_to_floor(target: int) -> void:
 	_next_floor()
 
 
+## Portal: a tela de carregamento aparece antes, e o andar novo é montado por trás dela
+## (sem a tela "congelar" no andar velho enquanto monta).
+func _portal_to_next_floor() -> void:
+	var run := _run_id
+	if _loading:
+		_loading.visible = true
+		_loading_fade.modulate.a = 0.0
+		_loading_label.text = "Andar %d" % (floor_number + 1)
+		var t := create_tween()
+		t.tween_property(_loading_fade, "modulate:a", 1.0, 0.15)
+		await t.finished
+		await get_tree().process_frame
+	if run == _run_id and not _run_over:
+		_next_floor()
+
+
 func _next_floor() -> void:
 	floor_number += 1
 	_clear_floor()
@@ -162,6 +237,7 @@ func _next_floor() -> void:
 	_player.reset_physics_interpolation()
 	_camera.snap()
 	_player.start_floor()
+	_show_loading()
 	_hud.minimap.show_layout(layout)
 	_hud.set_wave("Andar %d/%d · %s%s" % [floor_number, FLOORS, Difficulty.name_of(difficulty),
 		"" if full_rewards else " · sem energia"])
@@ -459,7 +535,7 @@ func _on_prop_activated(prop: RoomProp) -> void:
 			_hud.show_toast("A fonte restaurou sua vida.", Color("6fdc7b"))
 		RoomProp.Kind.PORTAL:
 			# Fora da colisão do portal: montar o andar novo dentro dela não é permitido.
-			_next_floor.call_deferred()
+			_portal_to_next_floor.call_deferred()
 
 
 # ---------- fim da run ----------

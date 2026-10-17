@@ -32,8 +32,16 @@ const VIEW_SHIFT_MAX := 3.8
 ## Registro do andar: onde dá para andar (clareiras e trilhas, em retângulos x/z) e os troncos já
 ## plantados (para as árvores não nascerem coladas umas nas outras, nem tamparem a visão).
 static var _walk: Array[Rect2] = []
+const GRID_PER_M := 2.0
+static var _grid := PackedByteArray()
+static var _grid_origin := Vector2.ZERO
+static var _grid_size := Vector2i.ZERO
 static var _tall: Array[Vector3] = []
 static var _water := PackedVector3Array()
+const WET_RANGE := 4.5
+static var _wet_grid := PackedFloat32Array()
+static var _wet_origin := Vector2.ZERO
+static var _wet_size := Vector2i.ZERO
 static var _water_reach := 0.0
 
 
@@ -41,10 +49,44 @@ static var _water_reach := 0.0
 static func set_water(path: PackedVector3Array, reach: float) -> void:
 	_water = path
 	_water_reach = reach
+	_wet_grid = PackedFloat32Array()
+	if path.size() < 2:
+		return
+	# distância até a água pré-calculada numa grade (meio metro), só perto do igarapé:
+	# a mata pergunta isso milhares de vezes por andar
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	for p in path:
+		lo = lo.min(Vector2(p.x, p.z))
+		hi = hi.max(Vector2(p.x, p.z))
+	lo -= Vector2.ONE * WET_RANGE
+	hi += Vector2.ONE * WET_RANGE
+	_wet_origin = lo
+	_wet_size = Vector2i(int(ceil((hi.x - lo.x) * GRID_PER_M)) + 1, int(ceil((hi.y - lo.y) * GRID_PER_M)) + 1)
+	_wet_grid.resize(_wet_size.x * _wet_size.y)
+	_wet_grid.fill(INF)
+	var r := int(ceil(WET_RANGE * GRID_PER_M))
+	for p in path:
+		var cx := int((p.x - lo.x) * GRID_PER_M)
+		var cz := int((p.z - lo.y) * GRID_PER_M)
+		for gz in range(maxi(cz - r, 0), mini(cz + r + 1, _wet_size.y)):
+			for gx in range(maxi(cx - r, 0), mini(cx + r + 1, _wet_size.x)):
+				var c := Vector2(lo.x + (gx + 0.5) / GRID_PER_M, lo.y + (gz + 0.5) / GRID_PER_M)
+				var d := c.distance_to(Vector2(p.x, p.z))
+				var i := gz * _wet_size.x + gx
+				if d < _wet_grid[i]:
+					_wet_grid[i] = d
 
 
 static func _wet(p: Vector3, extra: float) -> bool:
-	return _water.size() >= 2 and Igarape.distance_to(_water, p) < _water_reach + extra
+	if _wet_grid.is_empty():
+		return false
+	var gx := int((p.x - _wet_origin.x) * GRID_PER_M)
+	var gz := int((p.z - _wet_origin.y) * GRID_PER_M)
+	if gx < 0 or gz < 0 or gx >= _wet_size.x or gz >= _wet_size.y:
+		return false
+	# a grade erra no máximo ~0,4 m (meia diagonal da célula + espaçamento dos pontos): folga
+	return _wet_grid[gz * _wet_size.x + gx] < _water_reach + extra + 0.4
 
 
 static func begin_floor(layout: DungeonLayout) -> void:
@@ -61,13 +103,37 @@ static func begin_floor(layout: DungeonLayout) -> void:
 				var lo := Vector2(minf(c.x, d.x), minf(c.z, d.z)) - Vector2(w, w)
 				var hi := Vector2(maxf(c.x, d.x), maxf(c.z, d.z)) + Vector2(w, w)
 				_walk.append(Rect2(lo, hi - lo))
+	_build_grid()
 
 
 static func _walkable(x: float, z: float) -> bool:
+	var gx := int(floor((x - _grid_origin.x) * GRID_PER_M))
+	var gz := int(floor((z - _grid_origin.y) * GRID_PER_M))
+	if gx < 0 or gz < 0 or gx >= _grid_size.x or gz >= _grid_size.y:
+		return false
+	return _grid[gz * _grid_size.x + gx] == 1
+
+
+## Grade de "dá para andar aqui?" (2 células por metro): a consulta vira uma leitura só, em vez de
+## testar cada retângulo (as árvores fazem centenas de consultas cada).
+static func _build_grid() -> void:
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
 	for r in _walk:
-		if r.has_point(Vector2(x, z)):
-			return true
-	return false
+		lo = lo.min(r.position)
+		hi = hi.max(r.end)
+	_grid_origin = lo
+	_grid_size = Vector2i(int(ceil((hi.x - lo.x) * GRID_PER_M)) + 1, int(ceil((hi.y - lo.y) * GRID_PER_M)) + 1)
+	_grid = PackedByteArray()
+	_grid.resize(_grid_size.x * _grid_size.y)
+	for r in _walk:
+		var x0 := int(floor((r.position.x - lo.x) * GRID_PER_M))
+		var x1 := int(floor((r.end.x - lo.x) * GRID_PER_M))
+		var z0 := int(floor((r.position.y - lo.y) * GRID_PER_M))
+		var z1 := int(floor((r.end.y - lo.y) * GRID_PER_M))
+		for gz in range(maxi(z0, 0), mini(z1 + 1, _grid_size.y)):
+			for gx in range(maxi(x0, 0), mini(x1 + 1, _grid_size.x)):
+				_grid[gz * _grid_size.x + gx] = 1
 
 
 ## A copa desta árvore (no mundo) tamparia algum lugar onde a heroína anda? E fica longe das outras?
