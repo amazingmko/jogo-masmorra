@@ -130,6 +130,10 @@ var _mouth_glow: Node3D
 var _gait_phase := 0.0
 var _gait_amount := 0.0
 var _gait_per_meter := 3.0
+var _atk_anim := 0.0        # -1 preparando ... +1 golpe (vai para o shader)
+var _strike_t := -1.0       # tempo desde o golpe (-1 = sem golpe)
+var _last_yaw := 0.0
+var _roll := 0.0
 var _eye_material: StandardMaterial3D
 var _knockback := Vector3.ZERO
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
@@ -721,6 +725,9 @@ func _start(a: EnemyAttack, from_rally: bool = false) -> void:
 	_attack = a
 	_hunger = 0.0
 	state = State.WINDUP
+	_strike_t = -1.0
+	if _model:
+		_model.set_instance_shader_parameter("golpe", float(_golpe_for(a)))
 	var haste := (0.8 if enraged else 1.0) * (1.0 - 0.15 * _rage())
 	_timer = a.windup * haste
 	_cooldowns[a] = a.cooldown * (0.7 if enraged else 1.0)
@@ -1123,6 +1130,7 @@ func _start_mega(a: EnemyAttack) -> void:
 func _execute() -> void:
 	var a := _attack
 	_glow(false)
+	_strike_t = 0.0
 	if a.exposes_weak_spot > 0.0:
 		_exposed_left = a.exposes_weak_spot
 		_show_weak_spot(true)
@@ -1215,6 +1223,14 @@ func _on_died() -> void:
 		_drop_loot()
 	died.emit(self)
 	var tween := create_tween()
+	if _model and _pose:
+		# tomba de lado e afunda no chão
+		_model.set_instance_shader_parameter("andando", 0.0)
+		tween.tween_property(_pose, "rotation:z", PI * 0.5 * (1.0 if randf() < 0.5 else -1.0), 0.28).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tween.tween_interval(0.35)
+		tween.tween_property(_pose, "position:y", -1.2 * data.body_scale, 0.5)
+		tween.tween_callback(queue_free)
+		return
 	tween.tween_property(self, "scale", Vector3(1.2, 0.05, 1.2), 0.18)
 	tween.tween_callback(queue_free)
 
@@ -1310,7 +1326,7 @@ static func _bicho_material(art: Dictionary, fade: bool) -> ShaderMaterial:
 		_shader_opaque = load("res://game/shaders/bicho.gdshader")
 		_shader_fade = Shader.new()
 		_shader_fade.code = _shader_opaque.code.replace("render_mode diffuse_lambert,", "render_mode blend_mix, depth_draw_always, diffuse_lambert,") \
-			.replace("ROUGHNESS = 0.95;", "ROUGHNESS = 0.95;\n\tALPHA = cor.a * t.a;")
+			.replace("ROUGHNESS = 0.95;", "ROUGHNESS = 0.95;\n\tALPHA = cor.a * tx.a;")
 	var key := "mat_fade" if fade else "mat"
 	if art.has(key):
 		return art[key]
@@ -1337,6 +1353,7 @@ func _build_model() -> bool:
 	_model.mesh = art.mesh
 	_model.transform = art.base
 	_model.material_override = _bicho_material(art, data.stalker or data.ambush_range > 0.0)
+	_model.set_instance_shader_parameter("semente", randf() * 100.0)
 	_pose.add_child(_model)
 	var aabb: AABB = art.aabb
 	var size: Vector3 = aabb.size * float(art.k)
@@ -1377,9 +1394,10 @@ func _flash_hit() -> void:
 			if is_instance_valid(_model):
 				_model.set_instance_shader_parameter("pisca", v), 1.0, 0.0, 0.14)
 		if _pose:
-			_pose.scale = Vector3(1.08, 0.9, 1.08)
+			_pose.scale = Vector3(1.1, 0.86, 1.1)
+			_pose.position = Vector3.ZERO
 			var sq := create_tween()
-			sq.tween_property(_pose, "scale", Vector3.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			sq.tween_property(_pose, "scale", Vector3.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	else:
 		Fx.flash(_material, _tint)
 
@@ -1391,23 +1409,65 @@ func _show_weak_spot(on: bool) -> void:
 		_mouth_glow.visible = on
 
 
-## Andar do modelo: a fase anda com o passo e o modelo inclina no bote.
+## Movimento do ataque no shader (ver bicho.gdshader: 0 bote, 1 garrada, 2 pancada, 3 arremesso, 5 rugido).
+func _golpe_for(a: EnemyAttack) -> int:
+	var biped := _model != null and int(_art(data.id).modo) == 1
+	match a.kind:
+		EnemyAttack.Kind.MELEE:
+			if biped:
+				return 2 if a.radius >= 2.4 or (hash(a.id) % 2 == 0) else 1
+			return 2 if a.radius >= 2.8 else 0
+		EnemyAttack.Kind.CHARGE:
+			return 0
+		EnemyAttack.Kind.PROJECTILE, EnemyAttack.Kind.FAN:
+			return 3
+		EnemyAttack.Kind.NOVA, EnemyAttack.Kind.SUMMON, EnemyAttack.Kind.MEGA:
+			return 5 if biped else 2
+		EnemyAttack.Kind.GROUND_AOE:
+			return 2
+	return 0
+
+
+## Animação do modelo: andar (fase pelo passo), ataque com preparação e golpe, inclinar nas curvas.
 func _animate_model(delta: float) -> void:
 	if _model == null:
 		return
 	var speed := Vector2(velocity.x, velocity.z).length()
 	if state == State.DEAD:
 		speed = 0.0
-	_gait_amount = move_toward(_gait_amount, clampf(speed / 2.2, 0.0, 1.0), delta * 5.0)
+	_gait_amount = move_toward(_gait_amount, clampf(speed / 2.0, 0.0, 1.0), delta * 6.0)
 	_gait_phase = fmod(_gait_phase + speed * delta * _gait_per_meter, TAU * 100.0)
 	_model.set_instance_shader_parameter("fase", _gait_phase)
 	_model.set_instance_shader_parameter("andando", _gait_amount)
+	# ataque: prepara (vai até -1 durante o aviso), golpe rápido até +1, segura e volta
+	if state == State.WINDUP and _strike_t < 0.0:
+		var total: float = maxf(_attack.windup if _attack else 0.5, 0.15)
+		_atk_anim = move_toward(_atk_anim, -1.0, delta / (total * 0.7))
+	elif _strike_t >= 0.0:
+		_strike_t += delta
+		if _strike_t < 0.09:
+			_atk_anim = lerpf(_atk_anim, 1.0, clampf(delta * 28.0, 0.0, 1.0))
+		elif _strike_t < 0.22:
+			_atk_anim = 1.0
+		else:
+			_atk_anim = move_toward(_atk_anim, 0.0, delta * 2.8)
+			if _atk_anim <= 0.0:
+				_strike_t = -1.0
+	elif state == State.CHARGING:
+		_atk_anim = move_toward(_atk_anim, 0.7, delta * 6.0)
+	else:
+		_atk_anim = move_toward(_atk_anim, 0.0, delta * 3.0)
+	_model.set_instance_shader_parameter("ataque", _atk_anim)
 	if _pose:
+		# inclina para dentro da curva, como bicho correndo
+		var yaw := _body.rotation.y
+		var turn := wrapf(yaw - _last_yaw, -PI, PI) / maxf(delta, 0.001)
+		_last_yaw = yaw
+		_roll = lerpf(_roll, clampf(-turn * 0.04, -0.22, 0.22) * _gait_amount, clampf(delta * 6.0, 0.0, 1.0))
+		_pose.rotation.z = _roll
 		var lean := 0.0
-		if state == State.WINDUP:
-			lean = -0.18     # prepara o bote: inclina para trás
-		elif state == State.CHARGING:
-			lean = 0.15
+		if state == State.CHARGING:
+			lean = 0.12
 		_pose.rotation.x = lerpf(_pose.rotation.x, lean, clampf(delta * 10.0, 0.0, 1.0))
 
 
