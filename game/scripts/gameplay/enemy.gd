@@ -133,6 +133,10 @@ var _rig_action_left := 0.0
 var _rig_running := false
 var _rig_height := 1.0
 var _quad: QuadPose        # quadrúpede do Anything World: ataques mexendo os ossos
+var _arthro: ArthroPose    # aranha, formiga: andar e ataques por código
+var _serp: SerpentPose     # cobra: rastejar por código
+var _bone_len := 1.0       # comprimento do bicho (m), para o passo e o bote
+var _bone_phase := 0.0
 var _charge_fx_t := 0.0
 var _rig_impact_left := -1.0  # até o golpe da ação (depois dele, o resto toca no ritmo normal)
 var _rig_charge_left := -1.0  # mega magia: segurando a carga até soltar
@@ -1467,7 +1471,7 @@ func _show_weak_spot(on: bool) -> void:
 
 ## Movimento do ataque no shader (ver bicho.gdshader: 0 bote, 1 garrada, 2 pancada, 3 arremesso, 5 rugido).
 func _golpe_for(a: EnemyAttack) -> int:
-	var biped := (_anim != null and _quad == null) or (_model != null and int(_art(data.id).modo) == 1)
+	var biped := (_anim != null and not _bone_procedural()) or (_model != null and int(_art(data.id).modo) == 1)
 	match a.kind:
 		EnemyAttack.Kind.MELEE:
 			if biped:
@@ -1557,7 +1561,14 @@ const RIG_LOOPS := ["idle", "walk", "run"]
 ## Quadrúpedes do Anything World ("ossos"): só trazem parado/andar/correr; os ataques são feitos
 ## mexendo pescoço, cabeça e pata (QuadPose). "comprimento": tamanho do focinho ao rabo (m).
 const RIG_QUAD := {
-	&"queixada": {"comprimento": 1.45, "andar": 0.85, "correr": 2.8, "max_ritmo": 3.5, "ossos": true},
+	&"queixada": {"comprimento": 1.45, "andar": 0.85, "correr": 2.8, "max_ritmo": 3.5, "ossos": true, "caixa_ossos": true},
+	# esqueletos feitos por tools/autorig.py (ver o LEIA-ME em arte/): a onça usa as animações da
+	# queixada; aranha, formiga e cobra andam por código (ArthroPose, SerpentPose)
+	&"onca_pintada": {"comprimento": 2.5, "andar": 0.6, "correr": 2.6, "max_ritmo": 3.5, "ossos": true, "salto": true,
+		"golpes": {&"patada": 1, &"esturro": 5, &"mordida_cranio": 2}},
+	&"aranha_caranguejeira": {"comprimento": 1.9, "modo": "artropode", "passo": 0.55},
+	&"formiga_fogo": {"comprimento": 1.3, "modo": "artropode", "passo": 0.35, "formiga": true},
+	&"jararaca": {"comprimento": 1.7, "modo": "serpente"},
 }
 ## "andar"/"correr" na tabela acima: a velocidade (m/s) em que o pé apoiado fica parado no chão em
 ## cada animação (medida nos ossos do pé). O ritmo da animação segue a velocidade real, sem deslizar.
@@ -1565,6 +1576,10 @@ const RIG_QUAD := {
 const LOB_TIME := 0.45
 ## Mega magia: quanto antes do fim ele solta a carga.
 const CHARGE_RELEASE := 0.35
+
+
+func _bone_procedural() -> bool:
+	return _quad != null or _arthro != null or _serp != null
 
 
 func _rig_info() -> Dictionary:
@@ -1578,9 +1593,14 @@ func _build_rig() -> bool:
 	var scene: Node3D = load(path).instantiate()
 	var players := scene.find_children("*", "AnimationPlayer", true, false)
 	var meshes := scene.find_children("*", "MeshInstance3D", true, false)
-	if players.is_empty() or meshes.is_empty():
+	var procedural: bool = _rig_info().get("modo", "") in ["artropode", "serpente"]
+	if (players.is_empty() and not procedural) or meshes.is_empty():
 		scene.free()
 		return false
+	if players.is_empty():
+		# sem animação pronta: o andar é todo por código; o tocador fica vazio só para o resto
+		players = [AnimationPlayer.new()]
+		scene.add_child(players[0])
 	_pose = Node3D.new()
 	_body.add_child(_pose)
 	_pose.add_child(scene)
@@ -1594,7 +1614,7 @@ func _build_rig() -> bool:
 		n = n.get_parent()
 	var box: AABB = to_scene * (meshes[0] as MeshInstance3D).get_aabb()
 	var info: Dictionary = _rig_info()
-	if info.get("ossos", false):
+	if info.get("caixa_ossos", false):
 		# Anything World: a malha vem numa pose de encaixe diferente da do esqueleto, então a caixa
 		# é medida pelos ossos de descanso (cascos no chão; focinho e pelo somam ~25% no comprimento)
 		var sks := scene.find_children("*", "Skeleton3D", true, false)
@@ -1622,11 +1642,22 @@ func _build_rig() -> bool:
 	var aabb := AABB(box.position, box.size)  # (usada abaixo para a boca do Mapinguari)
 	var inner := 1.0
 	_anim = players[0]
-	if info.get("ossos", false):
-		var skels := scene.find_children("*", "Skeleton3D", true, false)
-		if not skels.is_empty():
-			_quad = QuadPose.new()
-			skels[0].add_child(_quad)
+	var skels := scene.find_children("*", "Skeleton3D", true, false)
+	if not skels.is_empty():
+		var modo: String = info.get("modo", "quad" if info.get("ossos", false) else "")
+		match modo:
+			"quad":
+				_quad = QuadPose.new()
+				skels[0].add_child(_quad)
+			"artropode":
+				_arthro = ArthroPose.new()
+				_arthro.formiga = info.get("formiga", false)
+				skels[0].add_child(_arthro)
+			"serpente":
+				_serp = SerpentPose.new()
+				skels[0].add_child(_serp)
+		if _quad or _arthro or _serp:
+			_bone_len = maxf(box.size.x, box.size.z) * k
 	for a in RIG_LOOPS:
 		if _anim.has_animation(a):
 			_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
@@ -1683,7 +1714,7 @@ func _animate_rig(delta: float) -> void:
 	if _anim == null or state == State.DEAD:
 		return
 	_update_lobs(delta)
-	if _quad:
+	if _bone_procedural():
 		_animate_quad(delta)
 	if _rig_charge_left >= 0.0:
 		_animate_charge(delta)
@@ -1743,13 +1774,42 @@ func _animate_quad(delta: float) -> void:
 				_strike_t = -1.0
 	else:
 		_atk_anim = move_toward(_atk_anim, 0.0, delta * 3.0)
-	_quad.ataque = _atk_anim
-	_quad.investindo = state == State.CHARGING
-	if _pose and _quad.golpe in [0, 2]:
+	var charging := state == State.CHARGING
+	var speed := Vector2(velocity.x, velocity.z).length()
+	var golpe := 0
+	if _quad:
+		_quad.ataque = _atk_anim
+		_quad.investindo = charging
+		golpe = _quad.golpe
+	else:
+		# passo pela distância andada: a pata/onda acompanha o chão
+		var stride: float = float(_rig_info().get("passo", 0.0))
+		var per_meter := TAU / maxf(stride * _bone_len, 0.05) if _arthro else TAU * SerpentPose.ONDAS / maxf(_bone_len * 1.6, 0.1)
+		_bone_phase += speed * delta * per_meter
+		var moving := clampf(speed / 1.2, 0.0, 1.0)
+		if _arthro:
+			_arthro.fase = _bone_phase
+			_arthro.andando = move_toward(_arthro.andando, moving, delta * 5.0)
+			_arthro.ataque = _atk_anim
+			_arthro.investindo = charging
+			golpe = _arthro.golpe
+		else:
+			_serp.fase = _bone_phase
+			_serp.andando = move_toward(_serp.andando, moving, delta * 4.0)
+			_serp.ataque = _atk_anim
+			_serp.investindo = charging
+	if _pose and golpe in [0, 2]:
 		var len: float = float(_rig_info().get("comprimento", 1.0))
 		_pose.position.z = (-0.08 * maxf(-_atk_anim, 0.0) + 0.2 * maxf(_atk_anim, 0.0)) * len
 	elif _pose:
 		_pose.position.z = 0.0
+	# bote da onça: um salto, não uma corrida
+	if _pose and _rig_info().get("salto", false):
+		var arc := 0.0
+		if charging and _attack and _attack.length > 0.0:
+			var done := 1.0 - clampf(_charge_left / _attack.length, 0.0, 1.0)
+			arc = sin(done * PI) * 0.35 * _bone_len
+		_pose.position.y = lerpf(_pose.position.y, arc, clampf(delta * 20.0, 0.0, 1.0))
 
 
 func _rig_entry(a: EnemyAttack) -> Array:
@@ -1760,8 +1820,12 @@ func _rig_entry(a: EnemyAttack) -> Array:
 ## Começa o ataque: a animação começa no ponto certo e no ritmo certo para o golpe cair exatamente
 ## no fim do aviso no chão (o aviso já está com a pressa de enfurecido).
 func _rig_attack(a: EnemyAttack) -> void:
-	if _quad:
-		_quad.golpe = 6 if a.kind == EnemyAttack.Kind.CHARGE else _golpe_for(a)
+	if _bone_procedural():
+		var g: int = _rig_info().get("golpes", {}).get(a.id, 6 if a.kind == EnemyAttack.Kind.CHARGE else _golpe_for(a))
+		if _quad:
+			_quad.golpe = g
+		if _arthro:
+			_arthro.golpe = g
 		_rig_lobs.clear()
 		return
 	var entry := _rig_entry(a)
@@ -1901,9 +1965,11 @@ func _rig_death() -> float:
 		_rig_action = "morte"
 		_anim.play("morte", 0.1, 1.3)
 		return minf(_anim.get_animation("morte").length / 1.3, 2.2)
-	if _quad and _pose:
+	if _bone_procedural() and _pose:
 		# sem animação de morte: tomba de lado e fica parado
-		_quad.ataque = 0.0
+		for m in [_quad, _arthro, _serp]:
+			if m:
+				m.active = false
 		_anim.pause()
 		var t := create_tween()
 		t.tween_property(_pose, "rotation:z", PI * 0.5 * (1.0 if randf() < 0.5 else -1.0), 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)

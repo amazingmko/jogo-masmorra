@@ -16,8 +16,10 @@ var _head := -1
 var _spine := -1      # coluna da frente (ombros)
 var _paw := -1        # pata da frente direita (topo)
 var _tail := -1
+var _tail_extra: Array[int] = []   # rabo comprido (onça): balança solto
 var _side := Vector3.RIGHT   # eixo lateral do bicho, no espaço do esqueleto
 var _sign := 1.0             # sinal que faz "ângulo positivo" erguer o focinho
+var _up_axis := Vector3.UP   # "cima" do bicho no espaço do esqueleto
 var _t := 0.0
 
 
@@ -66,6 +68,9 @@ func _process_modification_with_delta(delta: float) -> void:
 	_pitch(sk, _head, head)
 	_pitch(sk, _paw, paw)
 	_pitch(sk, _tail, tail)
+	for i in _tail_extra.size():
+		_yaw(sk, _tail_extra[i], sin(_t * 2.2 - i * 0.8) * 0.18)
+		_pitch(sk, _tail_extra[i], 0.08 + 0.1 * prep)
 
 
 func _find_bones(sk: Skeleton3D) -> void:
@@ -77,6 +82,10 @@ func _find_bones(sk: Skeleton3D) -> void:
 		_spine = sk.find_bone("body_top0")
 	_paw = sk.find_bone("leg_front_right_top0")
 	_tail = sk.find_bone("tail0")
+	for i in range(1, 6):
+		var b := sk.find_bone("tail%d" % i)
+		if b >= 0:
+			_tail_extra.append(b)
 	# eixos tirados da pose de descanso: frente = da pelve para a cabeça; lado = da pata direita
 	# para a esquerda. "Cima" = o que sobra; ângulo positivo leva a frente para cima.
 	var head_p := _rest_pos(sk, _head if _head >= 0 else _neck)
@@ -96,6 +105,8 @@ func _find_bones(sk: Skeleton3D) -> void:
 	var feet := _rest_pos(sk, sk.find_bone("leg_front_left_bot2"))
 	if (feet - head_p).dot(up) > 0.0:
 		_sign = -_sign
+		up = -up
+	_up_axis = up
 
 
 func _rest_pos(sk: Skeleton3D, bone: int) -> Vector3:
@@ -111,3 +122,15 @@ func _pitch(sk: Skeleton3D, bone: int, angle: float) -> void:
 	var axis_local := (pg.basis.inverse() * _side).normalized()
 	var rot := sk.get_bone_pose_rotation(bone)
 	sk.set_bone_pose_rotation(bone, Quaternion(axis_local, angle * _sign) * rot)
+
+
+func _yaw(sk: Skeleton3D, bone: int, angle: float) -> void:
+	if bone < 0 or absf(angle) < 0.001:
+		return
+	var up := _side.cross(Vector3.FORWARD).normalized()
+	# "cima" do bicho no espaço do esqueleto: perpendicular ao lado e à frente
+	up = _up_axis
+	var parent := sk.get_bone_parent(bone)
+	var pg := sk.get_bone_global_pose(parent) if parent >= 0 else Transform3D()
+	var axis_local := (pg.basis.inverse() * up).normalized()
+	sk.set_bone_pose_rotation(bone, Quaternion(axis_local, angle) * sk.get_bone_pose_rotation(bone))
