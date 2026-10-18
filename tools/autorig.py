@@ -360,19 +360,32 @@ def quadruped(args):
             line_n = foot + (top - foot) * f
             target[b] = line_n + off
         target[chain[-1]][1] = max(target[chain[-1]][1], 0.01 * H)
-    # rabo comprido (onça): mais ossos depois de tail0, seguindo a malha
+    # rabo: começa onde o corpo afina atrás das patas de trás (a anca fica com a pelve, não com o
+    # rabo); os ossos seguem o meio do rabo até a ponta
+    span = zf_n - zh_n
+    mid_sl = V[np.abs(V[:, 2] - (zf_n + zh_n) / 2) < 0.05 * span]
+    torso_thick = np.ptp(mid_sl[:, 1])
+    step = 0.025 * span
+    tail_root_z = None
+    z = zh_n
+    while z > V[:, 2].min() + step:
+        sl = V[np.abs(V[:, 2] - z) < step]
+        if len(sl) and np.ptp(sl[:, 1]) < 0.4 * torso_thick:
+            tail_root_z = z
+            break
+        z -= step
     extra = []
-    if np.linalg.norm(tail_tip - target[tail_i]) > 0.35 * (zf_n - zh_n):
-        base_p = target[tail_i]
-        tail_pts = back[back[:, 2] < base_p[2]]
-        n_extra = 3
-        last = tail_i
-        for e in range(n_extra):
-            frac = (e + 1) / (n_extra + 0.3)
-            zz = base_p[2] + (tail_tip[2] - base_p[2]) * frac
-            near = tail_pts[np.abs(tail_pts[:, 2] - zz) < 0.06 * (zf_n - zh_n) + 1e-3]
-            p = near.mean(0) if len(near) else base_p + (tail_tip - base_p) * frac
-            extra.append(p)
+    tail_mask = np.zeros(len(V), bool)
+    if tail_root_z is not None and tail_root_z - tail_tip[2] > 0.3 * span:
+        tail_mask = V[:, 2] < tail_root_z
+        n_tail = 4
+        cents = []
+        for e in range(n_tail):
+            zz = tail_root_z + (tail_tip[2] - tail_root_z) * e / (n_tail - 0.4)
+            near = V[tail_mask & (np.abs(V[:, 2] - zz) < 2.5 * step)]
+            cents.append(near.mean(0) if len(near) else np.array([0, tail_tip[1], zz]))
+        target[tail_i] = cents[0]
+        extra = cents[1:]
     # converte as posições-alvo (mundo) para o espaço do rig e monta as translações locais com as
     # MESMAS rotações de descanso da queixada (assim as curvas de animação servem como estão)
     R_inv = R_rig.T
@@ -414,10 +427,14 @@ def quadruped(args):
         else:
             par = new_bones[i]['parent']
             seg_b[i] = allW[i] + (allW[i] - allW[par]) * 0.5
-    body_set = [i for i in range(nb) if i not in leg_bones]
+    tail_set = [i for i in range(nb) if new_bones[i]['name'].startswith('tail')]
+    body_set = [i for i in range(nb) if i not in leg_bones and i not in tail_set]
     allowed = []
     belly = belly_n
-    for v in V:
+    for vi, v in enumerate(V):
+        if tail_mask[vi]:
+            allowed.append(tail_set)
+            continue
         if v[1] < belly:
             best = min(legs, key=lambda k: np.hypot(v[0] - feet[k][0], v[2] - feet[k][2]))
             if np.hypot(v[0] - feet[best][0], v[2] - feet[best][2]) < 0.35 * (zf_n - zh_n) and \
@@ -428,7 +445,7 @@ def quadruped(args):
     joints, weights = skin_weights(V, seg_a, seg_b, allowed)
     # animações da queixada: rotações iguais; a translação do osso raiz vira a nova (+ o balanço escalado)
     anims = []
-    for an in tg.animations:
+    for an in ([] if args.sem_animacao else tg.animations):
         chans = []
         for ch in an.channels:
             node = ch.target.node
@@ -670,6 +687,7 @@ def main():
     ap.add_argument('--antenas', type=int, default=0)
     ap.add_argument('--ossos', type=int, default=14)
     ap.add_argument('--nome', default='bicho')
+    ap.add_argument('--sem-animacao', action='store_true', help='quadrúpede: só o esqueleto (o andar é feito no jogo)')
     args = ap.parse_args()
     {'quadrupede': quadruped, 'artropode': arthropod, 'serpente': serpent}[args.modo](args)
 

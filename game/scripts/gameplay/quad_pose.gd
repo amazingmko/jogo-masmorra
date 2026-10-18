@@ -9,6 +9,7 @@ extends SkeletonModifier3D
 var ataque := 0.0
 var golpe := 0
 var investindo := false
+var own_tail := false        # a subclasse (FelinePose) cuida do rabo
 
 var _ready_bones := false
 var _neck := -1
@@ -68,9 +69,10 @@ func _process_modification_with_delta(delta: float) -> void:
 	_pitch(sk, _head, head)
 	_pitch(sk, _paw, paw)
 	_pitch(sk, _tail, tail)
-	for i in _tail_extra.size():
-		_yaw(sk, _tail_extra[i], sin(_t * 2.2 - i * 0.8) * 0.18)
-		_pitch(sk, _tail_extra[i], 0.08 + 0.1 * prep)
+	if not own_tail:
+		for i in _tail_extra.size():
+			_yaw(sk, _tail_extra[i], sin(_t * 2.2 - i * 0.8) * 0.18)
+			_pitch(sk, _tail_extra[i], 0.08 + 0.1 * prep)
 
 
 func _find_bones(sk: Skeleton3D) -> void:
@@ -127,9 +129,7 @@ func _pitch(sk: Skeleton3D, bone: int, angle: float) -> void:
 func _yaw(sk: Skeleton3D, bone: int, angle: float) -> void:
 	if bone < 0 or absf(angle) < 0.001:
 		return
-	var up := _side.cross(Vector3.FORWARD).normalized()
-	# "cima" do bicho no espaço do esqueleto: perpendicular ao lado e à frente
-	up = _up_axis
+	var up := _up_axis   # "cima" do bicho no espaço do esqueleto
 	var parent := sk.get_bone_parent(bone)
 	var pg := sk.get_bone_global_pose(parent) if parent >= 0 else Transform3D()
 	var axis_local := (pg.basis.inverse() * up).normalized()

@@ -1564,7 +1564,7 @@ const RIG_QUAD := {
 	&"queixada": {"comprimento": 1.45, "andar": 0.85, "correr": 2.8, "max_ritmo": 3.5, "ossos": true, "caixa_ossos": true},
 	# esqueletos feitos por tools/autorig.py (ver o LEIA-ME em arte/): a onça usa as animações da
 	# queixada; aranha, formiga e cobra andam por código (ArthroPose, SerpentPose)
-	&"onca_pintada": {"comprimento": 2.5, "andar": 0.6, "correr": 2.6, "max_ritmo": 3.5, "ossos": true, "salto": true,
+	&"onca_pintada": {"comprimento": 2.5, "modo": "felino", "ossos": true, "salto": true,
 		"golpes": {&"patada": 1, &"esturro": 5, &"mordida_cranio": 2}},
 	&"aranha_caranguejeira": {"comprimento": 1.9, "modo": "artropode", "passo": 0.55},
 	&"formiga_fogo": {"comprimento": 1.3, "modo": "artropode", "passo": 0.35, "formiga": true},
@@ -1593,7 +1593,7 @@ func _build_rig() -> bool:
 	var scene: Node3D = load(path).instantiate()
 	var players := scene.find_children("*", "AnimationPlayer", true, false)
 	var meshes := scene.find_children("*", "MeshInstance3D", true, false)
-	var procedural: bool = _rig_info().get("modo", "") in ["artropode", "serpente"]
+	var procedural: bool = _rig_info().get("modo", "") in ["artropode", "serpente", "felino"]
 	if (players.is_empty() and not procedural) or meshes.is_empty():
 		scene.free()
 		return false
@@ -1648,6 +1648,9 @@ func _build_rig() -> bool:
 		match modo:
 			"quad":
 				_quad = QuadPose.new()
+				skels[0].add_child(_quad)
+			"felino":
+				_quad = FelinePose.new()
 				skels[0].add_child(_quad)
 			"artropode":
 				_arthro = ArthroPose.new()
@@ -1781,6 +1784,14 @@ func _animate_quad(delta: float) -> void:
 		_quad.ataque = _atk_anim
 		_quad.investindo = charging
 		golpe = _quad.golpe
+		if _quad is FelinePose:
+			var fel := _quad as FelinePose
+			var run_amt := smoothstep(2.4, 4.0, speed)
+			# passada: andando ~45% do corpo por ciclo, correndo ~90%
+			var stride := lerpf(0.45, 0.9, run_amt) * _bone_len
+			fel.fase += speed * delta / maxf(stride, 0.1)
+			fel.andando = move_toward(fel.andando, clampf(speed / 0.8, 0.0, 1.0), delta * 5.0)
+			fel.correndo = move_toward(fel.correndo, run_amt, delta * 3.0)
 	else:
 		# passo pela distância andada: a pata/onda acompanha o chão
 		var stride: float = float(_rig_info().get("passo", 0.0))
