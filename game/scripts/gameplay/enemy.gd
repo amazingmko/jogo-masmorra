@@ -102,6 +102,17 @@ var training_dummy := false
 ## Encharcado (Encantado): fica pingando; poderes do Encantado batem mais nele.
 var _soaked_left := 0.0
 var _drip: CPUParticles3D
+## Escorrega quando encharcado (Chão Escorregadio, do Encantado): chance de errar o ataque.
+var slip_chance := 0.0
+var _foam_left := 0.0       # Espuma: erra ataques por um tempo
+var _foam_chance := 0.0
+var _fear_left := 0.0       # Rugido: foge do herói
+var _lure: WeakRef          # Cópia Teimosa: vai atrás da cópia em vez do herói
+var _lure_left := 0.0
+var _charm_left := 0.0      # Encanto: ataca os outros inimigos
+var _charm_tick := 0.0
+var _frozen_left := 0.0
+var _on_slam := Callable()
 ## Arremessado pela Pororoca: se bater na parede enquanto voa, leva este dano.
 var _slam_damage := 0
 var _slam_left := 0.0
@@ -176,6 +187,14 @@ func _physics_process(delta: float) -> void:
 	_constrict_immune -= delta
 	_stun_left -= delta
 	_slow_left -= delta
+	_foam_left -= delta
+	_fear_left -= delta
+	_lure_left -= delta
+	_charm_left -= delta
+	if _frozen_left > 0.0:
+		_frozen_left -= delta
+		if _frozen_left <= 0.0:
+			_material.albedo_color = _tint
 	if _soaked_left > 0.0:
 		_soaked_left -= delta
 		if _soaked_left <= 0.0 and is_instance_valid(_drip):
@@ -214,6 +233,21 @@ func _physics_process(delta: float) -> void:
 				_set_horizontal(Vector3.ZERO)
 				if player_alive and dist <= data.ambush_range:
 					_wake()
+			elif _fear_left > 0.0 and player_alive:
+				# Assustado (Rugido): corre para longe do herói, sem atacar.
+				var away := -to_player.normalized() if dist > 0.01 else Vector3.FORWARD
+				_set_horizontal(away * _move_speed() * 1.1 + _separation())
+				_face(away, delta)
+			elif _charm_left > 0.0:
+				_charmed_step(delta)
+			elif _lure_left > 0.0 and _lure and is_instance_valid(_lure.get_ref()):
+				# Atraído pela cópia de água: vai até ela (e ela explode quando ele encosta).
+				var to_lure: Vector3 = (_lure.get_ref() as Node3D).global_position - global_position
+				to_lure.y = 0.0
+				var lv := to_lure.normalized() * _move_speed() if to_lure.length() > 0.3 else Vector3.ZERO
+				_set_horizontal(lv + _separation())
+				if lv.length() > 0.1:
+					_face(lv, delta)
 			elif _dodge_left > 0.0:
 				# Esquiva: deslize rápido para o lado, sem decidir nada no meio.
 				_dodge_left -= delta
@@ -659,6 +693,14 @@ func _try_attack(dist: float) -> void:
 
 ## from_rally: entrou no ataque chamado por outro do bando (não chama mais ninguém).
 func _start(a: EnemyAttack, from_rally: bool = false) -> void:
+	# Encharcado no chão escorregadio / coberto de espuma: às vezes escorrega e perde o ataque.
+	var miss := miss_chance()
+	if miss > 0.0 and a.kind != EnemyAttack.Kind.MEGA and _rng.randf() < miss:
+		_cooldowns[a] = a.cooldown * 0.5
+		Fx.float_text(get_parent(), global_position + Vector3(0, 2.0 * data.body_scale, 0), "escorregou!", Color("8fd3ff"))
+		state = State.RECOVER
+		_timer = 0.6
+		return
 	if a.rally_radius > 0.0 and not from_rally:
 		for other in get_tree().get_nodes_in_group("enemies"):
 			if other == self or not (other is Enemy) or other.data.id != data.id:
@@ -770,6 +812,107 @@ func stun(seconds: float) -> void:
 	_stun_left = maxf(_stun_left, seconds)
 
 
+## Congelado (Gelo de Rio): como atordoado, mas fica azul-gelo. Chefe: bem menos.
+func freeze(seconds: float) -> void:
+	if state == State.DEAD:
+		return
+	if is_boss:
+		seconds *= 0.3
+	_stun_left = maxf(_stun_left, seconds)
+	_frozen_left = maxf(_frozen_left, seconds)
+	_material.albedo_color = _tint.lerp(Color("bfe9ff"), 0.7)
+	Fx.float_text(get_parent(), global_position + Vector3(0, 2.0 * data.body_scale, 0), "congelado", Color("bfe9ff"))
+
+
+## Espuma (Encantado): erra `chance` dos ataques por `seconds`.
+func foam(chance: float, seconds: float) -> void:
+	if state == State.DEAD:
+		return
+	_foam_chance = maxf(_foam_chance if _foam_left > 0.0 else 0.0, chance)
+	_foam_left = maxf(_foam_left, seconds)
+
+
+## Chance de perder o próximo ataque (espuma, ou escorregar encharcado). Chefe: metade.
+func miss_chance() -> float:
+	var c := 0.0
+	if _foam_left > 0.0:
+		c = _foam_chance
+	if is_soaked():
+		c = maxf(c, slip_chance)
+	return c * (0.5 if is_boss else 1.0)
+
+
+## Assustado (Rugido da Onça): foge do herói. Chefe não foge.
+func scare(seconds: float) -> void:
+	if state == State.DEAD or is_boss:
+		return
+	if state == State.WINDUP:
+		return  # ataque já avisado no chão não é cancelado
+	_fear_left = maxf(_fear_left, seconds)
+	Fx.float_text(get_parent(), global_position + Vector3(0, 2.0 * data.body_scale, 0), "assustado", Color("ffd34d"))
+
+
+func is_scared() -> bool:
+	return _fear_left > 0.0
+
+
+## Atraído (Cópia Teimosa): vai até `target` em vez do herói. Chefe ignora.
+func lure(target: Node3D, seconds: float) -> void:
+	if state == State.DEAD or is_boss or target == null:
+		return
+	_lure = weakref(target)
+	_lure_left = maxf(_lure_left, seconds)
+
+
+func is_lured() -> bool:
+	return _lure_left > 0.0 and _lure != null and is_instance_valid(_lure.get_ref())
+
+
+## Enfeitiçado (Encanto do Boto): ataca os outros inimigos por `seconds`. Chefe ignora.
+func charm(seconds: float) -> void:
+	if state == State.DEAD or is_boss:
+		return
+	if _charm_left <= 0.0:
+		Fx.float_text(get_parent(), global_position + Vector3(0, 2.0 * data.body_scale, 0), "enfeitiçado", Color("f2a7c3"))
+	_charm_left = maxf(_charm_left, seconds)
+	_charm_tick = 0.3
+
+
+func is_charmed() -> bool:
+	return _charm_left > 0.0
+
+
+## Enfeitiçado: corre até o inimigo mais perto e morde (dano do ataque mais forte dele).
+func _charmed_step(delta: float) -> void:
+	var best: Node3D = null
+	var best_d := 12.0
+	for other in get_tree().get_nodes_in_group("enemies"):
+		if other == self or not (other is Enemy) or other.state == State.DEAD:
+			continue
+		var d: float = other.global_position.distance_to(global_position)
+		if d < best_d:
+			best_d = d
+			best = other
+	if best == null:
+		_set_horizontal(Vector3.ZERO)
+		return
+	var to: Vector3 = best.global_position - global_position
+	to.y = 0.0
+	_face(to, delta)
+	if to.length() > 1.4 + 0.4 * data.body_scale:
+		_set_horizontal(to.normalized() * _move_speed())
+		return
+	_set_horizontal(Vector3.ZERO)
+	_charm_tick -= delta
+	if _charm_tick <= 0.0:
+		_charm_tick = 0.9
+		var dmg := 10
+		for a in _attacks:
+			dmg = maxi(dmg, a.damage)
+		best.take_hit(maxi(int(round(dmg * maxf(damage_multiplier, 1.0))), 1), false, to)
+		Vfx.particles(get_parent(), best.global_position + Vector3(0, 1.0, 0), "faisca", 8, 0.4, Color("f2a7c3"), 0.25, Vector2(1.0, 2.5), 120.0, -3.0)
+
+
 ## Lento (Chão Tremido): factor = fração da velocidade que sobra.
 func slow(factor: float, seconds: float) -> void:
 	if state == State.DEAD:
@@ -843,10 +986,11 @@ func is_soaked() -> bool:
 
 
 ## Pororoca: empurra com força; se bater na parede no caminho, leva `damage` (dobro se encharcado).
-func hurl(dir: Vector3, distance: float, damage: int) -> void:
+func hurl(dir: Vector3, distance: float, damage: int, on_slam := Callable()) -> void:
 	if state == State.DEAD:
 		return
 	_slam_damage = damage
+	_on_slam = on_slam
 	_slam_left = 1.0
 	if is_boss:
 		return
@@ -866,6 +1010,9 @@ func _hit_obstacle() -> bool:
 
 func _slam() -> void:
 	_slam_left = 0.0
+	if _on_slam.is_valid():
+		_on_slam.call(self)
+		_on_slam = Callable()
 	var amount := _slam_damage * (2 if is_soaked() else 1)
 	_knockback = Vector3.ZERO
 	take_hit(amount, is_soaked(), Vector3.ZERO)

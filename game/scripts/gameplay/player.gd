@@ -216,6 +216,12 @@ func receive_attack(amount: int, effect: int, effect_duration: float, effect_pow
 	var landed := true
 	last_hit_amount = amount
 	last_hit_from = _from
+	# Esquiva (Pele Malhada da Onça): o golpe passa raspando.
+	if kit and amount > 0 and not ignore_invuln and not health.is_invulnerable() and _rng.randf() < kit.dodge_chance():
+		Fx.float_text(get_parent(), global_position + Vector3(0, 2.2, 0), "esquivou", Color("d9a441"))
+		return
+	if kit and kit.ignores_effect(effect):
+		effect = EnemyAttack.Effect.NONE
 	if amount > 0:
 		landed = health.take_damage(amount, true, ignore_invuln) > 0
 	if landed:
@@ -263,7 +269,7 @@ func _physics_process(delta: float) -> void:
 	touch_ultimate = false
 	if form == Form.BOTO and not health.is_dead:
 		# Boto: recupera um pouco de vida sem parar.
-		_regen_acc += health.max_health * float(FORMS[form].regen) * delta
+		_regen_acc += health.max_health * (float(FORMS[form].regen) + (kit.regen_bonus() if kit else 0.0)) * delta
 		if _regen_acc >= 1.0:
 			health.heal(int(_regen_acc))
 			_regen_acc -= int(_regen_acc)
@@ -444,12 +450,12 @@ func _melee_swing() -> void:
 			var hit := Damage.roll(weapon_stats.damage, hero.element, enemy.data.element, crit_chance, _rng)
 			if kit:
 				hit.amount = kit.modify_outgoing(hit.amount)  # passivas (ex.: Revide)
-				hit.amount = int(round(hit.amount * kit.melee_multiplier(_combo_step)))
+				hit.amount = int(round(hit.amount * kit.melee_multiplier(_combo_step) * kit.target_multiplier(enemy)))
 			enemy.take_hit(hit.amount, hit.crit, to_enemy)
 			if kit:
 				kit.on_melee_hit(enemy, _combo_step)
 			if form != Form.NONE and float(FORMS[form].constrict) > 0.0:
-				enemy.constrict(float(FORMS[form].constrict))
+				enemy.constrict(float(FORMS[form].constrict) + (kit.constrict_bonus() if kit else 0.0))
 
 
 # ---------- dano ----------
@@ -637,11 +643,11 @@ func _apply_form_stats() -> void:
 	var w := WeaponStats.new()
 	w.damage = maxi(int(round(weapon_stats.damage * float(f.damage))), 1)
 	w.attack_speed = weapon_stats.attack_speed * float(f.speed)
-	w.attack_range = float(f.range)
+	w.attack_range = float(f.range) + (kit.form_range_bonus(form) if kit else 0.0)
 	w.projectile_speed = float(f.projectile)
 	weapon_stats = w
 	move_speed *= float(f.move)
-	health.damage_reduction = minf(health.damage_reduction + float(f.guard), 0.8)
+	health.damage_reduction = minf(health.damage_reduction + float(f.guard) + (kit.form_guard_bonus(form) if kit else 0.0), 0.8)
 
 
 ## Visual provisório: Onça e Sucuri andam "deitadas", o Boto fica em pé; cada uma com sua cor.

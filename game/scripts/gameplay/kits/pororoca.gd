@@ -12,6 +12,12 @@ const THROW := 8.0
 var direction := Vector3.FORWARD
 var damage := 60
 var slam_damage := 80
+var width := WIDTH
+var throw := THROW
+## Ressaca: fração do dano da onda que volta depois (0 = não volta).
+var backwash := 0.0
+var on_slam := Callable()
+var returning := false
 var _traveled := 0.0
 var _hit := {}
 var _wave: MeshInstance3D
@@ -24,7 +30,7 @@ func _ready() -> void:
 	look_at(global_position + direction, Vector3.UP)
 	_wave = MeshInstance3D.new()
 	var box := BoxMesh.new()
-	box.size = Vector3(WIDTH, 1.6, 0.9)
+	box.size = Vector3(width, 1.6 if not returning else 1.1, 0.9)
 	_wave.mesh = box
 	_wave.position.y = 0.6
 	var mat := StandardMaterial3D.new()
@@ -38,7 +44,7 @@ func _ready() -> void:
 	add_child(_wave)
 	var foam := Vfx.particles(self, Vector3(0, 1.3, 0), "faisca", 30, 0.5, Color(0.85, 0.95, 1.0), 0.35, Vector2(1.0, 2.5), 60.0, -6.0, true, false)
 	foam.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
-	foam.emission_box_extents = Vector3(WIDTH * 0.5, 0.2, 0.3)
+	foam.emission_box_extents = Vector3(width * 0.5, 0.2, 0.3)
 
 
 func _physics_process(delta: float) -> void:
@@ -51,13 +57,25 @@ func _physics_process(delta: float) -> void:
 			continue
 		var to: Vector3 = enemy.global_position - global_position
 		to.y = 0.0
-		if absf(to.dot(direction)) <= 0.9 and absf(to.dot(right)) <= WIDTH * 0.5:
+		if absf(to.dot(direction)) <= 0.9 and absf(to.dot(right)) <= width * 0.5:
 			_hit[enemy.get_instance_id()] = true
 			enemy.take_hit(damage, false, direction)
 			if enemy.has_method("hurl"):
-				enemy.hurl(direction, THROW, slam_damage)
+				enemy.hurl(direction, throw, slam_damage, on_slam)
 	if _traveled >= LENGTH:
 		set_physics_process(false)
+		if backwash > 0.0 and not returning:
+			# Ressaca: a água volta, menor, e acerta de novo.
+			var back := Pororoca.new()
+			back.direction = -direction
+			back.damage = maxi(int(round(damage * backwash)), 1)
+			back.slam_damage = maxi(int(round(slam_damage * backwash)), 1)
+			back.width = width * 0.8
+			back.throw = throw * 0.5
+			back.returning = true
+			back.on_slam = on_slam
+			get_parent().add_child(back)
+			back.global_position = global_position
 		var t := create_tween()
 		t.tween_property(_wave, "scale", Vector3(1.0, 0.05, 1.0), 0.3)
 		t.tween_callback(queue_free)

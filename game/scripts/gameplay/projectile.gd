@@ -113,6 +113,11 @@ func _build_arrow() -> void:
 
 
 ## Ricochete: vira para o inimigo mais perto que ainda não levou este disparo.
+## Quantos inimigos este disparo já acertou (2+ = já quicou ou atravessou).
+func hits() -> int:
+	return _hit.size()
+
+
 func _bounce_from(body: Node3D) -> bool:
 	var best: Node3D = null
 	var best_d := 7.0
