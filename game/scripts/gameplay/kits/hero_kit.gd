@@ -238,6 +238,41 @@ func on_death_saved() -> void:
 	pass
 
 
+## Chance de esquivar de um golpe (Pele Malhada).
+func dodge_chance() -> float:
+	return 0.0
+
+
+## Ignora este efeito de controle vindo dos inimigos (Corpo Pesado)?
+func ignores_effect(_effect: int) -> bool:
+	return false
+
+
+## Multiplicador do golpe contra este inimigo (Caça ao Ferido).
+func target_multiplier(_enemy: Node3D) -> float:
+	return 1.0
+
+
+## Segundos a mais no aperto da Sucuri.
+func constrict_bonus() -> float:
+	return 0.0
+
+
+## Fração da vida curada por segundo a mais (Canto do Boto).
+func regen_bonus() -> float:
+	return 0.0
+
+
+## Defesa a mais na forma (Escamas Grossas), em fração (0.05 = 5%).
+func form_guard_bonus(_form: int) -> float:
+	return 0.0
+
+
+## Alcance a mais na forma (Cauda Longa).
+func form_range_bonus(_form: int) -> float:
+	return 0.0
+
+
 ## Pontos num talento do herói.
 func t(id: String) -> int:
 	return player.talent(id) if player else 0

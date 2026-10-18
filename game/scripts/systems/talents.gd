@@ -72,6 +72,64 @@ const TREES := {
 			{"id": "revoada", "name": "Revoada", "row": 3, "max": 1, "per": 40, "desc": "A Harpia acompanha sempre ({v}% do dano); a ultimate vira Fúria da Harpia: dano em dobro por 8 s"},
 		]},
 	],
+	&"encantado": [
+		{"id": "correnteza", "name": "Correnteza", "role": "dano dos disparos", "talents": [
+			{"id": "agua_funda", "name": "Água Funda", "row": 0, "max": 3, "per": 4, "desc": "+{v}% de dano"},
+			{"id": "gota_ligeira", "name": "Gota Ligeira", "row": 0, "max": 3, "per": 4, "desc": "Dispara {v}% mais rápido"},
+			{"id": "ricochete_longo", "name": "Ricochete Longo", "row": 1, "max": 2, "per": 1, "desc": "O Ricochete quica em +{v} inimigo(s)"},
+			{"id": "pressao_agua", "name": "Pressão d'Água", "row": 1, "max": 1, "per": 5, "desc": "Acertar o mesmo alvo seguido soma +{v}% de dano por acerto (até +25%)"},
+			{"id": "agua_volta", "name": "Água que Volta", "row": 2, "max": 2, "per": 1, "desc": "Cada quique do Ricochete cura {v}% da vida"},
+			{"id": "gelo_rio", "name": "Gelo de Rio", "row": 2, "max": 1, "per": 10, "desc": "Disparo em alvo encharcado: {v}% de chance de congelar por 1 s"},
+			{"id": "enchente", "name": "Enchente", "row": 3, "max": 1, "per": 50, "desc": "Inimigo encharcado que morre espirra água: encharca e causa {v}% do dano a quem estiver a até 3 m (em cadeia)"},
+		]},
+		{"id": "espelho", "name": "Espelho", "role": "mobilidade e cópia", "talents": [
+			{"id": "passo_agua", "name": "Passo d'Água", "row": 0, "max": 2, "per": 1, "desc": "Espelho recarrega {v} s mais rápido"},
+			{"id": "bolha_protetora", "name": "Bolha Protetora", "row": 0, "max": 2, "per": 6, "desc": "Ao usar o Espelho, escudo de {v}% da vida por 3 s"},
+			{"id": "copia_atiradora", "name": "Cópia Atiradora", "row": 1, "max": 1, "per": 30, "desc": "A cópia de água atira junto com você ({v}% do dano)"},
+			{"id": "copia_teimosa", "name": "Cópia Teimosa", "row": 1, "max": 2, "per": 2, "desc": "A cópia dura +{v} s e atrai os inimigos próximos"},
+			{"id": "explosao_funda", "name": "Explosão Funda", "row": 2, "max": 2, "per": 1, "desc": "Explosão da cópia com +{v} m de raio"},
+			{"id": "espuma", "name": "Espuma", "row": 2, "max": 1, "per": 30, "desc": "Quem pega a explosão erra {v}% dos ataques por 3 s"},
+			{"id": "iara", "name": "Iara", "row": 3, "max": 1, "per": 4, "desc": "Usar o Espelho de novo em até {v} s te leva de volta para a cópia (e ela explode)"},
+		]},
+		{"id": "pororoca", "name": "Pororoca", "role": "ultimate e controle", "talents": [
+			{"id": "onda_larga", "name": "Onda Larga", "row": 0, "max": 3, "per": 15, "desc": "Onda {v}% mais larga"},
+			{"id": "mare_forte", "name": "Maré Forte", "row": 0, "max": 2, "per": 1.5, "desc": "Arremessa +{v} m mais longe"},
+			{"id": "ressaca", "name": "Ressaca", "row": 1, "max": 1, "per": 60, "desc": "Depois de passar, a onda volta ({v}% do dano) e acerta de novo"},
+			{"id": "encharcar_profundo", "name": "Encharcar Profundo", "row": 1, "max": 2, "per": 2, "desc": "Encharcado dura +{v} s"},
+			{"id": "chao_escorregadio", "name": "Chão Escorregadio", "row": 2, "max": 2, "per": 8, "desc": "Encharcados erram {v}% dos ataques"},
+			{"id": "mare_cheia", "name": "Maré Cheia", "row": 2, "max": 1, "per": 15, "desc": "Cada inimigo que a Pororoca joga na parede devolve {v}% da carga da ultimate"},
+			{"id": "boiuna", "name": "Boiuna", "row": 3, "max": 1, "per": 6, "desc": "A Pororoca vira a Cobra-Grande: circula em volta de você por {v} s acertando quem chega perto e no fim avança como onda"},
+		]},
+	],
+	&"druida": [
+		{"id": "onca", "name": "Onça", "role": "corpo a corpo", "talents": [
+			{"id": "garras_longas", "name": "Garras Longas", "row": 0, "max": 3, "per": 4, "desc": "Onça: +{v}% de dano"},
+			{"id": "bote", "name": "Bote", "row": 0, "max": 2, "per": 1, "desc": "O salto do Instinto alcança +{v} m"},
+			{"id": "faro_sangue", "name": "Faro de Sangue", "row": 1, "max": 1, "per": 1, "desc": "Abate na forma de Onça zera a recarga de troca de forma"},
+			{"id": "pele_malhada", "name": "Pele Malhada", "row": 1, "max": 2, "per": 6, "desc": "Onça: {v}% de chance de esquivar"},
+			{"id": "caca_ferido", "name": "Caça ao Ferido", "row": 2, "max": 2, "per": 12, "desc": "+{v}% de dano em inimigos com menos de 40% de vida"},
+			{"id": "rugido", "name": "Rugido", "row": 2, "max": 1, "per": 1.5, "desc": "O salto assusta os inimigos em volta: fogem por {v} s"},
+			{"id": "onca_alfa", "name": "Onça-Pintada Alfa", "row": 3, "max": 1, "per": 1, "desc": "O salto do Instinto encadeia: depois do primeiro alvo, salta num segundo"},
+		]},
+		{"id": "sucuri", "name": "Sucuri", "role": "controle e resistência", "talents": [
+			{"id": "escamas_grossas", "name": "Escamas Grossas", "row": 0, "max": 3, "per": 5, "desc": "Sucuri: +{v}% de defesa"},
+			{"id": "abraco_longo", "name": "Abraço Longo", "row": 0, "max": 2, "per": 0.4, "desc": "O aperto dura +{v} s"},
+			{"id": "engolir", "name": "Engolir", "row": 1, "max": 2, "per": 1.5, "desc": "Apertando um inimigo, cura {v}% da vida por segundo"},
+			{"id": "corpo_pesado", "name": "Corpo Pesado", "row": 1, "max": 1, "per": 1, "desc": "Sucuri: imune a raízes, lentidão e medo"},
+			{"id": "no_apertado", "name": "Nó Apertado", "row": 2, "max": 2, "per": 15, "desc": "O aperto machuca cada vez mais: +{v}% por segundo apertando"},
+			{"id": "cauda_longa", "name": "Cauda Longa", "row": 2, "max": 1, "per": 0.6, "desc": "Sucuri: +{v} m de alcance"},
+			{"id": "cobra_grande", "name": "Cobra Grande", "row": 3, "max": 1, "per": 1, "desc": "O golpe da Sucuri vira uma rabanada em volta que aperta todos que pega por {v} s"},
+		]},
+		{"id": "boto", "name": "Boto", "role": "distância e cura", "talents": [
+			{"id": "canto_boto", "name": "Canto do Boto", "row": 0, "max": 2, "per": 0.5, "desc": "Boto: +{v}% de cura por segundo"},
+			{"id": "sopro", "name": "Sopro", "row": 0, "max": 3, "per": 5, "desc": "Boto: +{v}% de dano"},
+			{"id": "encanto", "name": "Encanto", "row": 1, "max": 2, "per": 5, "desc": "Disparo do Boto: {v}% de chance de enfeitiçar (o inimigo ataca os outros por 2 s)"},
+			{"id": "sonar", "name": "Sonar", "row": 1, "max": 1, "per": 30, "desc": "O Boto marca o alvo; ao trocar para Onça, o salto vai direto nele com +{v}% de dano"},
+			{"id": "mare_cura", "name": "Maré de Cura", "row": 2, "max": 2, "per": 3, "desc": "A cura do Instinto do Boto aumenta +{v}% e continua por 3 s"},
+			{"id": "boto_ligeiro", "name": "Boto Ligeiro", "row": 2, "max": 1, "per": 15, "desc": "Boto: +{v}% de velocidade"},
+			{"id": "espirito_floresta", "name": "Espírito da Floresta", "row": 3, "max": 1, "per": 2, "desc": "O Ciclo da Mata ativa com {v} formas, e enquanto dura trocar de forma não tem recarga"},
+		]},
+	],
 }
 
 
@@ -177,7 +235,8 @@ static func apply_stats(s: HeroStats, hero_id: StringName, talents: Dictionary) 
 	s.damage_reduction = clampf(float(s.armor) / (float(s.armor) + 200.0), 0.0, 0.75)
 	if s.block_chance > 0.0:
 		s.block_chance = clampf(s.block_chance + v.call("escudo_firme") / 100.0, 0.0, HeroStats.MAX_BLOCK)
-	var dmg: float = v.call("ponta_pedra") + v.call("corda_tensa")
+	var dmg: float = v.call("ponta_pedra") + v.call("corda_tensa") + v.call("agua_funda")
 	s.weapon.damage = maxi(int(round(s.weapon.damage * (1.0 + dmg / 100.0))), 1)
 	s.crit_chance = clampf(s.crit_chance + v.call("mao_firme") / 100.0, 0.0, 1.0)
 	s.move_speed *= 1.0 + v.call("pes_leves") / 100.0
+	s.weapon.attack_speed *= 1.0 + v.call("gota_ligeira") / 100.0

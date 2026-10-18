@@ -95,7 +95,7 @@ func _spawn_all() -> void:
 		shot.global_position = at + Vector3(0, 1.2, 0)
 		shot.set_physics_process(false)
 	# objetos que os poderes deixam no chão (só o visual; somem junto)
-	for cls in [VineTrap, WaterClone, Pororoca, Harpy]:
+	for cls in [VineTrap, WaterClone, Pororoca, Harpy, Boiuna]:
 		var n: Node3D = cls.new()
 		if "owner_player" in n:
 			n.set("owner_player", _player)

@@ -47,6 +47,9 @@ var untouchable: bool = false
 var health: int
 var armor: int
 var is_dead: bool = false
+## Bolha (Bolha Protetora): escudo temporário que absorve antes do escudo normal.
+var bubble: int = 0
+var _bubble_left: float = 0.0
 
 var _since_hit: float = 0.0
 var _regen_timer: float = 0.0
@@ -63,6 +66,8 @@ func reset() -> void:
 	health = max_health
 	armor = max_armor
 	is_dead = false
+	bubble = 0
+	_bubble_left = 0.0
 	_since_hit = 0.0
 	_invulnerable = 0.0
 	_emit_changed()
@@ -85,6 +90,16 @@ func take_damage(amount: int, grant_invuln: bool = true, ignore_invuln: bool = f
 		amount = maxi(int(round(amount * (1.0 - BLOCK_REDUCTION))), 1)
 	if is_exposed():
 		amount = int(round(amount * (1.0 + exposed_bonus)))
+	if bubble > 0:
+		var popped := mini(bubble, amount)
+		bubble -= popped
+		amount -= popped
+		if amount <= 0:
+			_since_hit = 0.0
+			if grant_invuln:
+				_invulnerable = invulnerability_time
+			_emit_changed()
+			return 0
 	var had_shield := armor > 0
 	var absorbed := mini(armor, amount)
 	armor -= absorbed
@@ -141,6 +156,14 @@ func is_exposed() -> bool:
 	return exposed_bonus > 0.0 and max_armor > 0 and armor <= 0
 
 
+func add_bubble(amount: int, seconds: float) -> void:
+	if is_dead or amount <= 0:
+		return
+	bubble = maxi(bubble, amount)
+	_bubble_left = maxf(_bubble_left, seconds)
+	_emit_changed()
+
+
 func is_invulnerable() -> bool:
 	return _invulnerable > 0.0
 
@@ -154,6 +177,11 @@ func tick(delta: float) -> void:
 	if is_dead:
 		return
 	_invulnerable = maxf(_invulnerable - delta, 0.0)
+	if _bubble_left > 0.0:
+		_bubble_left -= delta
+		if _bubble_left <= 0.0:
+			bubble = 0
+			_emit_changed()
 	_since_hit += delta
 	if armor < max_armor and _since_hit >= armor_regen_delay:
 		_regen_timer += delta
