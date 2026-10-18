@@ -131,6 +131,8 @@ var _rig_mats: Array[StandardMaterial3D] = []
 var _rig_action := ""        # animação de ação tocando (ataque, dano, morte); "" = andando/parado
 var _rig_action_left := 0.0
 var _rig_running := false
+var _rig_height := 1.0
+var _quad: QuadPose        # quadrúpede do Anything World: ataques mexendo os ossos
 var _charge_fx_t := 0.0
 var _rig_impact_left := -1.0  # até o golpe da ação (depois dele, o resto toca no ritmo normal)
 var _rig_charge_left := -1.0  # mega magia: segurando a carga até soltar
@@ -1465,7 +1467,7 @@ func _show_weak_spot(on: bool) -> void:
 
 ## Movimento do ataque no shader (ver bicho.gdshader: 0 bote, 1 garrada, 2 pancada, 3 arremesso, 5 rugido).
 func _golpe_for(a: EnemyAttack) -> int:
-	var biped := _anim != null or (_model != null and int(_art(data.id).modo) == 1)
+	var biped := (_anim != null and _quad == null) or (_model != null and int(_art(data.id).modo) == 1)
 	match a.kind:
 		EnemyAttack.Kind.MELEE:
 			if biped:
@@ -1552,6 +1554,11 @@ const RIG := {
 	}},
 }
 const RIG_LOOPS := ["idle", "walk", "run"]
+## Quadrúpedes do Anything World ("ossos"): só trazem parado/andar/correr; os ataques são feitos
+## mexendo pescoço, cabeça e pata (QuadPose). "comprimento": tamanho do focinho ao rabo (m).
+const RIG_QUAD := {
+	&"queixada": {"comprimento": 1.45, "andar": 0.85, "correr": 2.8, "max_ritmo": 3.5, "ossos": true},
+}
 ## "andar"/"correr" na tabela acima: a velocidade (m/s) em que o pé apoiado fica parado no chão em
 ## cada animação (medida nos ossos do pé). O ritmo da animação segue a velocidade real, sem deslizar.
 ## Tempo de voo do ouriço jogado (sai da mão antes e cai junto com o aviso).
@@ -1560,9 +1567,13 @@ const LOB_TIME := 0.45
 const CHARGE_RELEASE := 0.35
 
 
+func _rig_info() -> Dictionary:
+	return RIG.get(data.id, RIG_QUAD.get(data.id, {}))
+
+
 func _build_rig() -> bool:
 	var path: String = RIG_PATH % data.id
-	if not RIG.has(data.id) or not ResourceLoader.exists(path):
+	if _rig_info().is_empty() or not ResourceLoader.exists(path):
 		return false
 	var scene: Node3D = load(path).instantiate()
 	var players := scene.find_children("*", "AnimationPlayer", true, false)
@@ -1573,17 +1584,49 @@ func _build_rig() -> bool:
 	_pose = Node3D.new()
 	_body.add_child(_pose)
 	_pose.add_child(scene)
-	var aabb: AABB = (meshes[0] as MeshInstance3D).get_aabb()
-	# a malha fica debaixo de nós com escala (o Mixamo vem em centímetros): soma tudo até a raiz
-	var inner := 1.0
+	# a malha fica debaixo de nós com escala e giro (o Mixamo vem em centímetros, o Anything
+	# World vem de lado, com Z para cima): junta tudo até a raiz e mede a caixa já de pé
+	var to_scene := Transform3D()
 	var n: Node = meshes[0]
 	while n != null and n != scene:
 		if n is Node3D:
-			inner *= (n as Node3D).scale.y
+			to_scene = (n as Node3D).transform * to_scene
 		n = n.get_parent()
-	var k: float = float(RIG[data.id].altura) / maxf(aabb.size.y * inner, 0.001)
+	var box: AABB = to_scene * (meshes[0] as MeshInstance3D).get_aabb()
+	var info: Dictionary = _rig_info()
+	if info.get("ossos", false):
+		# Anything World: a malha vem numa pose de encaixe diferente da do esqueleto, então a caixa
+		# é medida pelos ossos de descanso (cascos no chão; focinho e pelo somam ~25% no comprimento)
+		var sks := scene.find_children("*", "Skeleton3D", true, false)
+		if not sks.is_empty():
+			var sk: Skeleton3D = sks[0]
+			var sk_to := Transform3D()
+			var q: Node = sk
+			while q != null and q != scene:
+				sk_to = (q as Node3D).transform * sk_to
+				q = q.get_parent()
+			box = AABB(sk_to * sk.get_bone_global_rest(0).origin, Vector3.ZERO)
+			for b in sk.get_bone_count():
+				box = box.expand(sk_to * sk.get_bone_global_rest(b).origin)
+			box = box.grow(0.0)
+			box.size.z *= 1.25
+			box.size.x *= 1.25
+	var k: float
+	if info.has("comprimento"):
+		k = float(info.comprimento) / maxf(maxf(box.size.x, box.size.z), 0.001)
+	else:
+		k = float(info.altura) / maxf(box.size.y, 0.001)
 	scene.scale = Vector3.ONE * k
+	scene.position.y = -box.position.y * k   # pés no chão
+	_rig_height = box.size.y * k
+	var aabb := AABB(box.position, box.size)  # (usada abaixo para a boca do Mapinguari)
+	var inner := 1.0
 	_anim = players[0]
+	if info.get("ossos", false):
+		var skels := scene.find_children("*", "Skeleton3D", true, false)
+		if not skels.is_empty():
+			_quad = QuadPose.new()
+			skels[0].add_child(_quad)
 	for a in RIG_LOOPS:
 		if _anim.has_animation(a):
 			_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
@@ -1598,7 +1641,7 @@ func _build_rig() -> bool:
 	if data.belly_mouth:
 		var glow := MeshInstance3D.new()
 		var sphere := SphereMesh.new()
-		var hgt: float = RIG[data.id].altura
+		var hgt: float = _rig_height
 		sphere.radius = hgt * 0.09
 		sphere.height = hgt * 0.09
 		glow.mesh = sphere
@@ -1640,6 +1683,8 @@ func _animate_rig(delta: float) -> void:
 	if _anim == null or state == State.DEAD:
 		return
 	_update_lobs(delta)
+	if _quad:
+		_animate_quad(delta)
 	if _rig_charge_left >= 0.0:
 		_animate_charge(delta)
 	if _rig_impact_left >= 0.0:
@@ -1659,7 +1704,7 @@ func _animate_rig(delta: float) -> void:
 			return
 		_rig_action = ""
 	var speed := Vector2(velocity.x, velocity.z).length()
-	var info: Dictionary = RIG[data.id]
+	var info: Dictionary = _rig_info()
 	var walk_v: float = info.get("andar", 1.8)
 	var run_v: float = info.get("correr", 4.5)
 	# troca andar/correr com folga, para não ficar piscando entre as duas na velocidade do meio
@@ -1672,7 +1717,7 @@ func _animate_rig(delta: float) -> void:
 	var rate := 1.0
 	if _rig_running and _anim.has_animation("run"):
 		want = "run"
-		rate = clampf(speed / run_v, 0.6, 2.7)
+		rate = clampf(speed / run_v, 0.6, float(info.get("max_ritmo", 2.7)))
 	elif speed > 0.3:
 		want = "walk"
 		rate = clampf(speed / walk_v, 0.45, 2.0)
@@ -1680,14 +1725,45 @@ func _animate_rig(delta: float) -> void:
 	_rig_play(want, 0.2 if _anim.current_animation != want else -1.0, rate)
 
 
+## Quadrúpede: prepara durante o aviso (-1), golpe rápido no impacto (+1) e volta; o corpo
+## recua na preparação e avança no bote.
+func _animate_quad(delta: float) -> void:
+	if state == State.WINDUP and _strike_t < 0.0:
+		var total: float = maxf(_attack.windup if _attack else 0.5, 0.15)
+		_atk_anim = move_toward(_atk_anim, -1.0, delta / (total * 0.7))
+	elif _strike_t >= 0.0:
+		_strike_t += delta
+		if _strike_t < 0.09:
+			_atk_anim = lerpf(_atk_anim, 1.0, clampf(delta * 28.0, 0.0, 1.0))
+		elif _strike_t < 0.22:
+			_atk_anim = 1.0
+		else:
+			_atk_anim = move_toward(_atk_anim, 0.0, delta * 2.8)
+			if _atk_anim <= 0.0:
+				_strike_t = -1.0
+	else:
+		_atk_anim = move_toward(_atk_anim, 0.0, delta * 3.0)
+	_quad.ataque = _atk_anim
+	_quad.investindo = state == State.CHARGING
+	if _pose and _quad.golpe in [0, 2]:
+		var len: float = float(_rig_info().get("comprimento", 1.0))
+		_pose.position.z = (-0.08 * maxf(-_atk_anim, 0.0) + 0.2 * maxf(_atk_anim, 0.0)) * len
+	elif _pose:
+		_pose.position.z = 0.0
+
+
 func _rig_entry(a: EnemyAttack) -> Array:
-	var info: Dictionary = RIG[data.id]
+	var info: Dictionary = _rig_info()
 	return info.ataques.get(a.id, info.padrao)
 
 
 ## Começa o ataque: a animação começa no ponto certo e no ritmo certo para o golpe cair exatamente
 ## no fim do aviso no chão (o aviso já está com a pressa de enfurecido).
 func _rig_attack(a: EnemyAttack) -> void:
+	if _quad:
+		_quad.golpe = 6 if a.kind == EnemyAttack.Kind.CHARGE else _golpe_for(a)
+		_rig_lobs.clear()
+		return
 	var entry := _rig_entry(a)
 	var anim_name: String = entry[0]
 	var from: float = entry[1]
@@ -1792,7 +1868,7 @@ func _update_lobs(delta: float) -> void:
 
 
 func _throw_lob(spot: Vector3, a: EnemyAttack) -> void:
-	var hgt: float = RIG[data.id].altura
+	var hgt: float = _rig_height
 	var from := global_position + Vector3(0, hgt * 0.95, 0) + _aim_dir * 0.3
 	var ball := MeshInstance3D.new()
 	var sphere := SphereMesh.new()
@@ -1825,6 +1901,13 @@ func _rig_death() -> float:
 		_rig_action = "morte"
 		_anim.play("morte", 0.1, 1.3)
 		return minf(_anim.get_animation("morte").length / 1.3, 2.2)
+	if _quad and _pose:
+		# sem animação de morte: tomba de lado e fica parado
+		_quad.ataque = 0.0
+		_anim.pause()
+		var t := create_tween()
+		t.tween_property(_pose, "rotation:z", PI * 0.5 * (1.0 if randf() < 0.5 else -1.0), 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		return 0.75
 	return 0.0
 
 
