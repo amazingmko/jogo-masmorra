@@ -6,13 +6,14 @@
 script = ExtResource("1_f7sq5")
 id = &"cajado_raiz"
 display_name = "Cajado de Raiz"
-description = "Raiz viva que chama os espíritos da mata. A Druida luta com ele em forma de bicho."
+description = "Raiz viva que chama os espíritos da mata. Lança sementes que viram mudas; a Druida as faz florescer para curar."
 kind = 1
 max_stack = 1
 stats = {
-"attack_range": 1.9,
-"attack_speed": 2.0,
-"damage": 60
+"attack_range": 8.0,
+"attack_speed": 1.3,
+"damage": 70,
+"projectile_speed": 11.0
 }
 weapon_type = &"cajado_raiz"
 primary_stat = 1

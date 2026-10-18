@@ -70,10 +70,10 @@ func _process(_d: float) -> bool:
 		for p in get_nodes_in_group("player_projectiles"):
 			p.free()
 		_player._attack()
-		_shot_at = Time.get_ticks_msec()
+		_shot_at = _f
 		check(get_nodes_in_group("player_projectiles").is_empty(), "a flecha não sai no instante do toque")
 	if _f > 120 and _shot_seen < 0 and not get_nodes_in_group("player_projectiles").is_empty():
-		_shot_seen = Time.get_ticks_msec() - _shot_at
+		_shot_seen = int((_f - _shot_at) * 1000.0 / 60.0)  # tempo de jogo (--fixed-fps 60), não do relógio
 	if _f == 200:
 		var expected: float = _player.weapon_stats.cooldown() * 0.98 * 0.73 * 1000.0
 		check(_shot_seen > 0 and absf(_shot_seen - expected) < 120.0, "a flecha sai na soltura (%d ms; esperado ~%d ms)" % [_shot_seen, int(expected)])

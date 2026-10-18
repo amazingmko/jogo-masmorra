@@ -238,6 +238,16 @@ func on_death_saved() -> void:
 	pass
 
 
+## Multiplicador do dano recebido (Raízes Vivas da Druida).
+## Troca a arma em uso (ex.: o Canto do Boto). Chamado por player.refresh_stats.
+func modify_weapon(w: WeaponStats) -> WeaponStats:
+	return w
+
+
+func incoming_factor() -> float:
+	return 1.0
+
+
 ## Chance de esquivar de um golpe (Pele Malhada).
 func dodge_chance() -> float:
 	return 0.0

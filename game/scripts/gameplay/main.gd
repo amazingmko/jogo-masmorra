@@ -491,6 +491,7 @@ func _on_enemy_died(enemy: Enemy) -> void:
 	_alive -= 1
 	if not enemy.is_summon:
 		_stats.kills += 1
+		_player.set_meta("last_killed", enemy)
 		_player.on_enemy_killed(enemy.elite)
 		_give_xp(enemy.data.xp_reward * (ELITE_XP if enemy.elite else 1))
 		if enemy.elite:

@@ -81,19 +81,11 @@ func _process(_d: float) -> bool:
 		check(rare_uid != "" and head.get("uid", "") == rare_uid, "a Rara entra no lugar da Comum vestida")
 		check(gs.craft_streak(&"capuz_couro_raro") == 0, "acertar zera as falhas seguidas")
 
-		# Druida: troca de forma muda o ataque.
+		# Druida: forma humana, Cajado de Raiz de longe; não troca de forma.
 		player.set_hero(db.get_hero(&"druida"))
-		check(player.form == 1 and not player.weapon_stats.is_ranged(), "Druida começa como Onça, corpo a corpo")
-		player._form_cooldown = 0.0
+		check(player.form == 0 and player.weapon_stats.is_ranged(), "Druida em forma humana, ataca de longe")
 		player.cycle_form()
-		check(player.form == 2 and player.weapon_stats.attack_range > 2.0 and player.health.damage_reduction > player.stats.damage_reduction,
-			"Sucuri: alcance maior e aguenta mais")
-		player._form_cooldown = 0.0
-		player.cycle_form()
-		check(player.form == 3 and player.weapon_stats.is_ranged(), "Boto ataca de longe")
-		player._form_cooldown = 0.0
-		player.cycle_form()
-		check(player.form == 1, "volta para a Onça")
+		check(player.form == 0, "Druida não troca de forma")
 		player.set_hero(db.get_hero(&"mateira"))
 		check(player.form == 0, "outros heróis não trocam de forma")
 

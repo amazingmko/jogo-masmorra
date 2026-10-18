@@ -253,141 +253,110 @@ func _test_encantado() -> void:
 
 # ---------------------------------------------------------------- Druida
 
+func _seed_at(offset: Vector3) -> void:
+	_kit._plant(_player.global_position + offset)
+
+
 func _test_druida() -> void:
 	await _start(&"druida")
-	_set_talents(&"druida", _all(&"druida"))
-	_player.set_form(_player.Form.ONCA)
-	_kit._instinct = false
-	check(is_equal_approx(_kit.melee_multiplier(0), 1.12), "Garras Longas: Onça +12%")
-	check(is_equal_approx(_kit.dodge_chance(), 0.12), "Pele Malhada: Onça esquiva 12%")
-	# esquiva de verdade: 60 golpes, algum passa raspando
-	var dodged := 0
-	for i in 60:
-		var hp: int = _player.health.health
-		_player.health._invulnerable = 0.0
-		_player.receive_attack(5, 0, 0.0, 0, Vector3.ZERO)
-		if _player.health.health == hp:
-			dodged += 1
-	_player.health.reset()
-	check(dodged > 0 and dodged < 30, "Pele Malhada: esquivou de %d de 60 golpes" % dodged)
-
-	var hurt = _dummy(Vector3(-3, 0, 0))
-	_hold(hurt)
-	hurt.health.health = int(hurt.health.max_health * 0.3)
-	check(is_equal_approx(_kit.target_multiplier(hurt), 1.24), "Caça ao Ferido: +24% em quem tem menos de 40% de vida")
-
-	# Faro de Sangue
-	_player._form_cooldown = 3.0
-	_kit.on_kill(false)
-	check(_player._form_cooldown <= 0.0, "Faro de Sangue: abate na Onça zera a recarga da troca")
-
-	# Bote + Rugido + Onça-Pintada Alfa
-	_clear()
-	await _frames(2)
 	var room = _main.builder.rooms[_main.layout.start_index]
-	_player.global_position = room.center() + Vector3(-4.5, 0.1, 0)
-	var far = _dummy(Vector3(8.5, 0, 0))
-	var second = _dummy(Vector3(8.5, 0, 3.0))
-	_hold(far)
-	_hold(second)
-	_player._target = far
-	_kit._instinct = true
-	_kit._chained = false
-	var x0: float = _player.global_position.x
-	_kit.before_attack()
-	check(_player.global_position.x - x0 > 6.0, "Bote: o salto alcançou o alvo a 8,5 m (andou %.1f m)" % (_player.global_position.x - x0))
-	check(second.is_scared(), "Rugido: o salto assusta quem está em volta")
-	var hp2: int = second.health.health
-	_kit.on_melee_hit(far, 0)
-	await _frames(2)
-	check(second.health.health < hp2, "Onça-Pintada Alfa: saltou no segundo alvo e bateu")
-
-	# Sucuri
-	_clear()
-	await _frames(2)
-	_player._form_cooldown = 0.0
-	_player.set_form(_player.Form.NONE if false else _player.Form.SUCURI)
-	_kit._instinct = false
-	var no_talent_dr: float
-	_set_talents(&"druida", {})
-	_player.set_form(_player.Form.SUCURI)
-	no_talent_dr = _player.health.damage_reduction
-	var no_talent_range: float = _player.weapon_stats.attack_range
+	# sem talentos: números de base
+	check(_kit.max_seeds() == 6 and is_equal_approx(_kit.seed_life(), 8.0), "base: 6 mudas de 8 s")
 	_set_talents(&"druida", _all(&"druida"))
-	_kit._instinct = false
-	check(is_equal_approx(_player.health.damage_reduction - no_talent_dr, 0.15), "Escamas Grossas: Sucuri +15% de defesa")
-	check(is_equal_approx(_player.weapon_stats.attack_range - no_talent_range, 0.6), "Cauda Longa: Sucuri +0,6 m de alcance")
-	check(is_equal_approx(_kit.constrict_bonus(), 0.8), "Abraço Longo: aperto +0,8 s")
-	check(is_equal_approx(_kit.melee_cone_bonus(), 290.0), "Cobra Grande: golpe em volta toda")
-	_player.receive_attack(1, ROOT, 2.0, 0, Vector3.ZERO)
-	check(not _player.status.is_rooted(), "Corpo Pesado: Sucuri não fica presa por raízes")
-	# Cobra Grande: inimigo atrás também é pego e apertado.
-	var behind = _dummy(Vector3(0, 0, 1.5))
-	_player._facing = Vector3(0, 0, -1)
-	_player.health.health = 100
-	var bh: int = behind.health.health
-	_player._melee_swing()
-	check(behind.health.health < bh and behind.is_constricted(), "Cobra Grande: pegou e apertou o inimigo de trás")
-	var tick0: int = behind.health.health
-	await _frames(70)
-	check(behind.health.health < tick0, "Nó Apertado: o aperto machuca enquanto dura")
-	check(_player.health.health > 100, "Engolir: curou enquanto apertava (%d)" % _player.health.health)
+	check(_kit.max_seeds() == 8 and is_equal_approx(_kit.seed_life(), 12.0), "Bosque: 8 mudas de 12 s")
+	check(is_equal_approx(_kit.root_delay(), 0.5), "Raiz Funda: raízes em 0,5 s")
+	var p = PROJ.new()
+	p.damage = 100
+	_kit.modify_projectile(p)
+	check(p.damage == 115, "Semente Dura: +15%% (%d)" % p.damage)
+	p.free()
 
-	# Boto
+	# Seiva Forte + Raiz Afiada + Espinho de Tucumã + Flor de Maracujá
 	_clear()
 	await _frames(2)
-	_player._form_cooldown = 0.0
-	_player.set_form(_player.Form.BOTO)
-	check(is_equal_approx(_kit.regen_bonus(), 0.01), "Canto do Boto: +1% de cura por segundo")
-	check(is_equal_approx(_kit.speed_factor(), 1.15), "Boto Ligeiro: +15% de velocidade")
-	_kit._instinct = true
+	var e = _dummy(Vector3(2.0, 0, 0))
+	_hold(e)
+	_seed_at(Vector3(2.0, 0, 0))
+	await _frames(1)
 	_player.health.health = 100
-	var bp = PROJ.new()
-	bp.damage = 100
-	_kit.modify_projectile(bp)
-	var heal_now: int = _player.health.health - 100
-	check(heal_now == int(round(_player.health.max_health * 0.11)), "Maré de Cura: Instinto do Boto cura 11%")
-	var cycle_dmg: float = _kit.damage_factor()
-	check(bp.damage == int(round(int(round(100 * cycle_dmg)) * 1.15)), "Sopro: Boto +15% de dano")
-	bp.free()
-	_kit._instinct = false
-	var after_instant: int = _player.health.health
-	await _frames(60)
-	check(_player.health.health > after_instant, "Maré de Cura: continua curando depois")
-	# Encanto: enfeitiça às vezes; o enfeitiçado ataca outro inimigo.
-	var charmed = _dummy(Vector3(-3, 0, 0))
-	var other = _dummy(Vector3(-4.2, 0, 0))
-	_hold(other)
-	var got := false
-	for i in 80:
-		_kit._on_boto_hit(charmed, null)
-		if charmed.is_charmed():
-			got = true
+	var hp: int = e.health.health
+	_kit.bloom_all(false)
+	var heal: int = _player.health.health - 100
+	check(heal == int(round(_player.health.max_health * 0.03 * 1.45)), "Seiva Forte: a flor cura 4,35%% (%d)" % heal)
+	var expect := int(round(int(round(_player.weapon_stats.damage * 0.5 * 1.5)) * 1.3))
+	check(hp - e.health.health >= expect, "Raiz Afiada + Espinho: a flor bateu %d (>= %d)" % [hp - e.health.health, expect])
+	check(e.is_weakened() and is_equal_approx(e.damage_multiplier, 0.7), "Espinho de Tucumã: inimigo bate 30% mais fraco")
+	check(e._slow_left > 0.0 and is_equal_approx(e._slow_factor, 0.6), "Flor de Maracujá: 40% mais lento")
+
+	# Muda Viva: cura parada perto da muda; Muda Carnívora: morde quem encosta
+	_clear()
+	await _frames(2)
+	var biter = _dummy(Vector3(1.5, 0, 0))
+	_hold(biter)
+	_seed_at(Vector3(1.5, 0, 0))
+	_player.health.health = 100
+	_kit._still = -999.0  # sem Raízes Vivas para medir só a muda
+	var bh: int = biter.health.health
+	await _frames(130)
+	check(_player.health.health > 100, "Muda Viva: curou %d em ~2 s" % (_player.health.health - 100))
+	check(biter.health.health < bh, "Muda Carnívora: a muda mordeu o inimigo encostado")
+
+	# Ninho de Flores: depois do Florescer nascem 2 mudas
+	_clear()
+	await _frames(2)
+	_kit._seeds.clear()
+	_kit._skill_cd = 0.0
+	check(_kit.try_skill(), "Florescer sem mudas funciona")
+	await _frames(1)
+	check(_kit.seeds().size() == 2, "Ninho de Flores: 2 mudas novas (%d)" % _kit.seeds().size())
+
+	# Sonolência: 3 sementes no mesmo inimigo = sono; Despertar Rude: o golpe que acorda dói +30%
+	var sl = _dummy(Vector3(3, 0, 0))
+	_hold(sl)
+	for i in 3:
+		_kit._on_seed_hit(sl, null)
+	check(sl.is_asleep(), "Sonolência: 3 sementes fazem dormir")
+	var shp: int = sl.health.health
+	sl.take_hit(100, false, Vector3.RIGHT)
+	check(shp - sl.health.health >= 130 and not sl.is_asleep(), "Despertar Rude: acordou com %d de dano (100 base)" % (shp - sl.health.health))
+
+	# Boto: Orvalho, Festa do Boto, Canto (cura, Eco, Sono, Boto Ancestral), Coração do Rio
+	_clear()
+	await _frames(2)
+	_player.global_position = room.center() + Vector3(0, 0.1, 0)
+	var d1 = _dummy(Vector3(3, 0, 0))
+	var d2 = _dummy(Vector3(-3, 0, 1))
+	_player.health.health = 100
+	_kit.charge = 100.0
+	check(_kit.try_ultimate(), "Despertar do Boto funciona")
+	check(_player.health.health >= 100 + int(_player.health.max_health * 0.3) - 1, "Orvalho: curou 30% ao despertar")
+	check(d1.is_dancing() and d2.is_dancing(), "Festa do Boto: os inimigos perto dançam")
+	var cp = PROJ.new()
+	cp.damage = 100
+	_kit.modify_projectile(cp)
+	check(cp.pierce >= 99, "Canto atravessa todos")
+	_player.health.health = 100
+	var left0: float = _kit._boto_left
+	_kit._on_canto_hit(d1, cp)
+	check(_player.health.health - 100 == maxi(int(round(_player.health.max_health * 0.015 * 1.6)), 1), "Canto Doce: o Canto cura 2,4%%")
+	check(_kit._boto_left > left0 + 0.4, "Boto Ancestral: o acerto estende o Boto")
+	check(is_equal_approx(d1.damage_taken_bonus(), 0.15), "Eco: marcado recebe +15%")
+	for i in 20:
+		_kit._on_canto_hit(d1, cp)
+	check(_kit._boto_extended <= 5.0 + 0.001, "Boto Ancestral: no máximo +5 s")
+	var slept := false
+	for i in 200:
+		d2._sleep_left = 0.0
+		_kit._on_canto_hit(d2, cp)
+		if d2.is_asleep():
+			slept = true
 			break
-	check(got, "Encanto: o disparo do Boto enfeitiça às vezes")
-	var ohp: int = other.health.health
-	await _frames(90)
-	check(other.health.health < ohp, "Encanto: o enfeitiçado atacou outro inimigo")
-	# Sonar: o Boto marca, a Onça salta direto no marcado (mais longe que o normal).
-	_clear()
-	await _frames(2)
-	_player.global_position = room.center() + Vector3(-5, 0.1, 0)
-	var marked = _dummy(Vector3(10.0, 0, 0))
-	_hold(marked)
-	_kit._on_boto_hit(marked, null)
-	_player._form_cooldown = 0.0
-	_player.set_form(_player.Form.ONCA)
-	_player._target = null
-	var sx: float = _player.global_position.x
-	_kit.before_attack()
-	check(_player.global_position.x - sx > 7.5, "Sonar: a Onça saltou direto no alvo marcado a 10 m")
-	check(_kit.melee_multiplier(0) > 1.12 * 1.5 * 1.29, "Sonar: o salto no marcado bate +30%")
-
-	# Espírito da Floresta: Ciclo com 2 formas e troca sem recarga.
-	_kit.on_run_start()
-	_player._form_cooldown = 0.0
-	_player.set_form(_player.Form.SUCURI)
-	_player._form_cooldown = 0.0
-	_player.set_form(_player.Form.BOTO)
-	check(_kit._cycle_left > 0.0, "Espírito da Floresta: Ciclo da Mata com 2 formas")
-	check(is_equal_approx(_kit.skill_cooldown(), 0.15), "Espírito da Floresta: troca sem recarga durante o Ciclo")
+	check(slept and d2._sleep_left >= 4.4, "Sono + Sono Profundo: o Canto faz dormir (%.1f s)" % d2._sleep_left)
+	cp.free()
+	# Coração do Rio: matar um marcado cura e carrega a ultimate
+	_player.health.health = 100
+	_kit.charge = 0.0
+	_player.set_meta("last_killed", d1)
+	_kit.on_kill(false)
+	check(_player.health.health > 100 and _kit.charge >= 10.0, "Coração do Rio: abate de marcado cura e carrega a ultimate")
+	cp = null

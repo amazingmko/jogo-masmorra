@@ -104,6 +104,17 @@ func _spawn_all() -> void:
 		n.position = Vector3(2.5, 0, 0)
 		n.set_process(false)
 		n.set_physics_process(false)
+	# Druida: muda, flor e o Boto da ultimate (o modelo do boto só carrega para ela)
+	if _player and _player.hero_id == &"druida":
+		for cls in [DruidSeed, BotoForm]:
+			var n: Node3D = cls.new()
+			add_child(n)
+			n.position = Vector3(-2.5, 0, 0)
+			n.set_process(false)
+		var flower := DruidSeed.new()
+		add_child(flower)
+		flower.position = Vector3(-2.0, 0, 0.5)
+		flower.bloom()
 	# itens no chão
 	var items: Array = ItemDB.catalog.items.values()
 	if not items.is_empty():
