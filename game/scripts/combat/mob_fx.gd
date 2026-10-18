@@ -10,6 +10,18 @@ const BARK := Color(0.33, 0.22, 0.13)
 const STONE := Color(0.52, 0.5, 0.46)
 const NUT := Color(0.45, 0.28, 0.12)
 const STINK := Color(0.55, 0.8, 0.35)
+const VENOM := Color(0.55, 0.95, 0.3)
+const BLOOD := Color(0.55, 0.05, 0.08)
+const WEB := Color(0.95, 0.95, 0.92)
+## Rastro enquanto corre (investidas, botes): cor da poeira/faísca e se solta torrões.
+const CHARGE_TRAIL := {
+	&"investida_mapinguari": {"cor": Color(0.68, 0.55, 0.4, 0.75), "torrao": true},
+	&"investida_bando": {"cor": Color(0.7, 0.58, 0.42, 0.7), "torrao": true},
+	&"estouro": {"cor": Color(0.7, 0.58, 0.42, 0.8), "torrao": true},
+	&"bote_onca": {"cor": Color(1.0, 0.8, 0.3, 0.8), "faisca": true},
+	&"formigueiro": {"cor": Color(1.0, 0.4, 0.15, 0.9), "faisca": true, "brasa": true},
+	&"bote_cobra": {"cor": Color(0.55, 0.95, 0.3, 0.8), "faisca": true},
+}
 
 static var _mats := {}
 
@@ -46,6 +58,29 @@ static func on_resolve(t: Telegraph) -> void:
 			_scream(parent, at, t.radius)
 		&"fedor":
 			_stink_cloud(t)
+		# ---- queixada
+		&"dentada":
+			_bite(parent, at, t.rotation.y, t.radius, Color(1.0, 0.95, 0.85, 0.8), Color(0.38, 0.27, 0.18))
+		# ---- onça
+		&"patada":
+			_claws(parent, at, t.rotation.y, t.radius)
+		&"mordida_cranio":
+			_bite(parent, at, t.rotation.y, t.radius, Color(1.0, 0.5, 0.3, 0.9), BLOOD)
+		&"esturro":
+			_scream(parent, at, t.radius)
+		# ---- aranha
+		&"picada":
+			_venom(parent, at, t.rotation.y, t.radius, VENOM)
+		&"armadilha_teia":
+			_web_decal(parent, at, t.radius * 2.2, t.linger + 0.5)
+		# ---- formiga
+		&"ferroada":
+			_venom(parent, at, t.rotation.y, t.radius, Color(1.0, 0.55, 0.15))
+		# ---- jararaca
+		&"picada_cobra":
+			_venom(parent, at, t.rotation.y, t.radius, VENOM)
+		&"veneno_forte":
+			_venom(parent, at, t.rotation.y, t.radius, Color(0.75, 0.08, 0.1))
 		&"bafo":
 			_bafo_fog(t)
 
@@ -82,7 +117,68 @@ static func projectile_visual(p: EnemyProjectile) -> bool:
 			var trail := Vfx.particles(p, Vector3.ZERO, "faisca", 14, 0.35, Color(1.0, 0.6, 0.2, 0.9), 0.35, Vector2(0.0, 0.3), 180.0, 0.0, true, false)
 			trail.local_coords = false
 			return true
+		&"teia":
+			# bolo de teia girando
+			var ball := MeshInstance3D.new()
+			var sm := SphereMesh.new()
+			sm.radius = 0.22
+			sm.height = 0.36
+			sm.radial_segments = 8
+			sm.rings = 4
+			ball.mesh = sm
+			ball.material_override = _soft(WEB, 0.85)
+			ball.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			p.add_child(ball)
+			_spin(ball, Vector3(0.0, 0.0, 9.0))
+			var fibers := Vfx.particles(p, Vector3.ZERO, "faisca", 8, 0.3, Color(1, 1, 1, 0.7), 0.18, Vector2(0.0, 0.2), 180.0, 0.0, true, false)
+			fibers.local_coords = false
+			return true
+		&"pelos":
+			# tufinho de pelos urticantes: agulhas marrons com brilho
+			for k in 3:
+				var hair := MeshInstance3D.new()
+				var bx := BoxMesh.new()
+				bx.size = Vector3(0.03, 0.03, 0.26)
+				hair.mesh = bx
+				hair.material_override = _solid(Color(0.45, 0.3, 0.18))
+				hair.position = Vector3((k - 1) * 0.07, (k % 2) * 0.05, 0)
+				hair.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				p.add_child(hair)
+			var glint := Vfx.particles(p, Vector3.ZERO, "faisca", 6, 0.25, Color(1.0, 0.85, 0.6, 0.8), 0.12, Vector2(0.0, 0.2), 180.0, 0.0, true, false)
+			glint.local_coords = false
+			return true
 	return false
+
+
+## Disparo acertou o herói.
+static func projectile_hit_player(player: Node3D, id: StringName, duration: float) -> void:
+	if id != &"teia" or not is_instance_valid(player):
+		return
+	# casulo de teia em volta do herói enquanto ele está preso
+	var cocoon := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.42
+	cyl.bottom_radius = 0.5
+	cyl.height = 1.5
+	cyl.radial_segments = 10
+	cyl.rings = 2
+	cocoon.mesh = cyl
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.albedo_texture = Vfx.tex("teia")
+	m.uv1_scale = Vector3(3, 2, 1)
+	m.albedo_color = Color(WEB, 0.0)
+	cocoon.material_override = m
+	cocoon.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	cocoon.position = Vector3(0, 0.8, 0)
+	player.add_child(cocoon)
+	var t := cocoon.create_tween()
+	t.tween_property(m, "albedo_color:a", 0.8, 0.12)
+	t.tween_interval(maxf(duration - 0.4, 0.3))
+	t.tween_property(m, "albedo_color:a", 0.0, 0.3)
+	t.tween_callback(cocoon.queue_free)
 
 
 ## Disparo acabou (acertou ou bateu em algo).
@@ -93,22 +189,41 @@ static func projectile_end(parent: Node, at: Vector3, id: StringName) -> void:
 			Vfx.particles(parent, at, "poeira", 6, 0.45, Color(0.7, 0.66, 0.6, 0.6), 0.5, Vector2(0.5, 1.5), 180.0, -1.0, false)
 		&"cinco_olhos":
 			Vfx.particles(parent, at, "faisca", 10, 0.35, Color(1.0, 0.6, 0.2), 0.3, Vector2(2.0, 4.0), 180.0, -3.0)
+		&"teia":
+			_web_decal(parent, at, 1.6, 2.5)
+			Vfx.particles(parent, at, "faisca", 10, 0.4, Color(1, 1, 1, 0.8), 0.2, Vector2(1.0, 2.5), 180.0, -3.0)
+		&"pelos":
+			Vfx.particles(parent, at, "poeira", 6, 0.6, Color(0.55, 0.4, 0.25, 0.6), 0.4, Vector2(0.5, 1.5), 180.0, -0.5, false)
 
 
 ## Investida do Mapinguari: poeira e torrões saindo dos pés enquanto corre.
 static func charge_step(enemy: Node3D, id: StringName) -> void:
-	if id != &"investida_mapinguari":
+	if not CHARGE_TRAIL.has(id):
 		return
+	var cfg: Dictionary = CHARGE_TRAIL[id]
 	var parent := enemy.get_parent()
 	var at := enemy.global_position + Vector3(0, 0.15, 0)
-	Vfx.particles(parent, at, "poeira", 3, 0.7, Color(0.68, 0.55, 0.4, 0.75), 1.1, Vector2(0.5, 1.5), 60.0, -0.5, false)
-	if randf() < 0.5:
-		chunks(parent, at, Color(0.38, 0.27, 0.18), 3, 0.1, Vector2(1.5, 3.0))
+	var big := 1.1 if id == &"investida_mapinguari" else 0.7
+	if cfg.get("faisca", false):
+		# rastro rápido e brilhante (bote): faíscas que ficam no ar atrás do bicho
+		Vfx.particles(parent, at + Vector3(0, 0.3, 0), "faisca", 4, 0.35, cfg.cor, 0.25, Vector2(0.0, 0.4), 180.0, 0.0)
+	else:
+		Vfx.particles(parent, at, "poeira", 3, 0.7, cfg.cor, big, Vector2(0.5, 1.5), 60.0, -0.5, false)
+	if cfg.get("torrao", false) and randf() < 0.5:
+		chunks(parent, at, Color(0.38, 0.27, 0.18), 3, 0.08 * big / 0.7, Vector2(1.5, 3.0))
+	if cfg.get("brasa", false):
+		Vfx.particles(parent, at, "faisca", 3, 0.6, Color(1.0, 0.3, 0.1, 0.9), 0.12, Vector2(0.3, 1.0), 70.0, -1.0)
 
 
 ## Fim da investida (parou ou bateu na parede): o chão racha.
 static func charge_end(enemy: Node3D, id: StringName) -> void:
+	if not CHARGE_TRAIL.has(id):
+		return
 	if id != &"investida_mapinguari":
+		var cfg: Dictionary = CHARGE_TRAIL[id]
+		var par := enemy.get_parent()
+		Vfx.particles(par, enemy.global_position + Vector3(0, 0.2, 0), "poeira", 8, 0.6, Color(0.7, 0.58, 0.42, 0.7), 0.7, Vector2(1.0, 2.5), 80.0, -0.8, false)
+		Vfx.ground_ring(par, enemy.global_position, "anel_som", cfg.cor, 2.5, 0.3)
 		return
 	var parent := enemy.get_parent()
 	Vfx.ground_ring(parent, enemy.global_position, "onda_choque", Color(0.9, 0.65, 0.4, 0.55), 6.0, 0.4)
@@ -128,6 +243,9 @@ static func warm(parent: Node3D, at: Vector3) -> void:
 	_belly_bite(parent, at, 0.0)
 	_scream(parent, at, 2.0)
 	_falling_tree(parent, at, 0.1)
+	_bite(parent, at, 0.0, 1.0, Color.WHITE, NUT)
+	_venom(parent, at, 0.0, 1.0, VENOM)
+	_web_decal(parent, at, 1.0, 0.3)
 	Vfx.particles(parent, at, "fumaca", 2, 0.3, STINK, 0.5, Vector2.ONE, 30.0, 0.0, false)
 	var orb := MeshInstance3D.new()
 	orb.mesh = SphereMesh.new()
@@ -285,6 +403,38 @@ static func _bafo_fog(t: Telegraph) -> void:
 	p.color_ramp.add_point(0.25, Color(STINK, 0.6))
 
 
+## Mordida: dentes fechando (dois arcos que se juntam) + lascas/gotas.
+static func _bite(parent: Node, at: Vector3, yaw: float, reach: float, flash: Color, chip: Color) -> void:
+	var fwd := Vector3(sin(yaw), 0, cos(yaw))
+	var spot := at + fwd * reach * 0.6
+	Vfx.ground_ring(parent, spot, "anel_som", flash, maxf(reach, 1.2), 0.22)
+	Vfx.particles(parent, spot + Vector3(0, 0.6, 0), "faisca", 8, 0.3, flash, 0.25, Vector2(1.5, 3.0), 60.0, -4.0)
+	chunks(parent, spot + Vector3(0, 0.3, 0), chip, 5, 0.06, Vector2(1.0, 2.5))
+
+
+## Picada venenosa: gotas da cor do veneno caindo e uma pocinha que some.
+static func _venom(parent: Node, at: Vector3, yaw: float, reach: float, color: Color) -> void:
+	var fwd := Vector3(sin(yaw), 0, cos(yaw))
+	var spot := at + fwd * reach * 0.6
+	var drops := Vfx.particles(parent, spot + Vector3(0, 0.6, 0), "faisca", 12, 0.6, color, 0.18, Vector2(1.0, 3.0), 50.0, -9.0, false)
+	drops.direction = (fwd + Vector3(0, 0.6, 0)).normalized()
+	var puddle := _decal(parent, spot, yaw, maxf(reach * 0.9, 0.8), "fumaca", Color(color, 0.55), false)
+	var t := puddle.create_tween()
+	t.tween_interval(0.8)
+	t.tween_property(puddle.material_override, "albedo_color:a", 0.0, 0.8)
+	t.tween_callback(puddle.queue_free)
+
+
+## Teia no chão (armadilha, bolo de teia que acertou): fica um tempo e some.
+static func _web_decal(parent: Node, at: Vector3, size: float, life: float) -> void:
+	var web := _decal(parent, at, randf() * TAU, size, "teia", Color(WEB, 0.0), false)
+	var t := web.create_tween()
+	t.tween_property(web.material_override, "albedo_color:a", 0.85, 0.15)
+	t.tween_interval(maxf(life - 0.8, 0.2))
+	t.tween_property(web.material_override, "albedo_color:a", 0.0, 0.6)
+	t.tween_callback(web.queue_free)
+
+
 # ---------- ajudantes ----------
 
 static func _decal(parent: Node, at: Vector3, yaw: float, size: float, texture: String, color: Color, additive: bool) -> MeshInstance3D:
@@ -315,6 +465,17 @@ static func _solid(color: Color) -> StandardMaterial3D:
 		m.albedo_color = color
 		m.roughness = 1.0
 		m.disable_receive_shadows = true
+		_mats[key] = m
+	return _mats[key]
+
+
+static func _soft(color: Color, alpha: float) -> StandardMaterial3D:
+	var key := "a" + color.to_html() + str(alpha)
+	if not _mats.has(key):
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.albedo_color = Color(color, alpha)
 		_mats[key] = m
 	return _mats[key]
 

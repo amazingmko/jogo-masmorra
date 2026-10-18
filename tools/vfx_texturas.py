@@ -9,7 +9,7 @@ Dois usos:
 
 Nomes (os efeitos procuram por estes arquivos):
   casco_hex, onda_choque, poeira, folha, faisca, sapo_muiraquita, simbolo_provocado,
-  garra (três rasgos de garra), fumaca (nuvem macia), anel_som (anel fino de grito)
+  garra (três rasgos de garra), fumaca (nuvem macia), anel_som (anel fino de grito), teia (teia de aranha)
   python3 tools/vfx_texturas.py provisorias garra fumaca   -> só essas (não mexe nas outras)
 """
 import sys, os, math
@@ -19,7 +19,7 @@ from PIL import Image, ImageDraw, ImageFilter
 OUT = os.path.join(os.path.dirname(__file__), '..', 'game', 'art', 'vfx')
 SIZES = {'casco_hex': 512, 'onda_choque': 512, 'poeira': 128, 'folha': 128, 'faisca': 64,
          'sapo_muiraquita': 256, 'simbolo_provocado': 128,
-         'garra': 256, 'fumaca': 128, 'anel_som': 256}
+         'garra': 256, 'fumaca': 128, 'anel_som': 256, 'teia': 256}
 
 
 def save_rgba(name, rgb, alpha):
@@ -145,6 +145,19 @@ def draw(name, s):
             v = 255 - i * 60
             d.ellipse([c - s * rr, c - s * rr, c + s * rr, c + s * rr], outline=(v, v, v), width=w)
         img = img.filter(ImageFilter.GaussianBlur(2))
+    elif name == 'teia':
+        # raios e espirais de teia, um pouco tortos
+        rng = np.random.default_rng(7)
+        n = 12
+        angs = [k * math.tau / n + rng.uniform(-0.12, 0.12) for k in range(n)]
+        for a in angs:
+            d.line([c, c, c + math.cos(a) * c * 0.95, c + math.sin(a) * c * 0.95], fill=(235, 235, 235), width=2)
+        for ring in range(1, 9):
+            rr = c * 0.11 * ring
+            pts = [(c + math.cos(a) * rr * rng.uniform(0.93, 1.05), c + math.sin(a) * rr * rng.uniform(0.93, 1.05)) for a in angs]
+            pts.append(pts[0])
+            d.line(pts, fill=(220, 220, 220), width=2)
+        img = img.filter(ImageFilter.GaussianBlur(0.8))
     return img
 
 

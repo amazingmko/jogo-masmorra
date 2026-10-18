@@ -78,5 +78,6 @@ func _on_body_entered(body: Node3D) -> void:
 	_spent = true
 	if body.is_in_group("player"):
 		body.receive_attack(damage, effect, effect_duration, effect_power, global_position)
+		MobFx.projectile_hit_player(body, attack_id, effect_duration)
 	MobFx.projectile_end(get_parent(), global_position, attack_id)
 	queue_free()
