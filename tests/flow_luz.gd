@@ -24,6 +24,12 @@ func _count(node: Node, out: Dictionary) -> void:
 		for i in node.multimesh.mesh.get_surface_count():
 			mats.append(node.multimesh.mesh.surface_get_material(i))
 	for m in mats:
+		if m is ShaderMaterial and m.shader and "Bichos da mata" in m.shader.code:
+			# modelos com shader próprio (bichos): precisam de "shadows_disabled" no render_mode
+			out.total += 1
+			if not "shadows_disabled" in m.shader.code:
+				out.bad += 1
+			continue
 		if m is BaseMaterial3D:
 			if (m as BaseMaterial3D).shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED:
 				continue

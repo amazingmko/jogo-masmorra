@@ -123,6 +123,13 @@ var _own_telegraphs: Array[Telegraph] = []
 var _player: Player
 var _body: Node3D
 var _material: StandardMaterial3D
+## Modelo 3D do bicho (quando existe em game/art/inimigos/<id>.glb); senão, a cápsula provisória.
+var _model: MeshInstance3D
+var _pose: Node3D          # pivô do modelo: inclina no bote, achata ao apanhar
+var _mouth_glow: Node3D
+var _gait_phase := 0.0
+var _gait_amount := 0.0
+var _gait_per_meter := 3.0
 var _eye_material: StandardMaterial3D
 var _knockback := Vector3.ZERO
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
@@ -149,6 +156,9 @@ func _ready() -> void:
 	_build_visuals()
 	if elite:
 		_add_elite_marks()
+		if _model:
+			_tint = Color(1.0, 0.72, 0.72)
+			_set_color(_tint)
 	Lighting.no_shadow_receive(self)
 	health = Health.new()
 	health.max_health = maxi(int(round(data.max_health * health_multiplier)), 1)
@@ -194,7 +204,7 @@ func _physics_process(delta: float) -> void:
 	if _frozen_left > 0.0:
 		_frozen_left -= delta
 		if _frozen_left <= 0.0:
-			_material.albedo_color = _tint
+			_set_color(_tint)
 	if _soaked_left > 0.0:
 		_soaked_left -= delta
 		if _soaked_left <= 0.0 and is_instance_valid(_drip):
@@ -211,8 +221,8 @@ func _physics_process(delta: float) -> void:
 			provoked_vulnerability = 0.0
 	if _exposed_left > 0.0:
 		_exposed_left -= delta
-		if _exposed_left <= 0.0 and _mouth_material:
-			_mouth_material.emission_enabled = false
+		if _exposed_left <= 0.0:
+			_show_weak_spot(false)
 	_recent_timer -= delta
 	if _recent_timer <= 0.0:
 		_recent_damage = 0
@@ -296,6 +306,7 @@ func _physics_process(delta: float) -> void:
 		velocity += _knockback
 	_knockback = _knockback.move_toward(Vector3.ZERO, 30.0 * delta)
 	move_and_slide()
+	_animate_model(delta)
 	if _slam_left > 0.0:
 		_slam_left -= delta
 		if _knockback.length() > 1.5 and _hit_obstacle():
@@ -326,7 +337,7 @@ func take_hit(amount: int, crit: bool, from_direction: Vector3) -> void:
 	_recent_timer = 1.2
 	_react_to_pain()
 	Fx.damage_number(get_parent(), global_position + Vector3(0, 1.7 * data.body_scale, 0), amount, crit, number_color)
-	Fx.flash(_material, _tint)
+	_flash_hit()
 	var push := from_direction
 	push.y = 0.0
 	if push.length() > 0.01 and state != State.CHARGING and not is_boss:
@@ -820,7 +831,7 @@ func freeze(seconds: float) -> void:
 		seconds *= 0.3
 	_stun_left = maxf(_stun_left, seconds)
 	_frozen_left = maxf(_frozen_left, seconds)
-	_material.albedo_color = _tint.lerp(Color("bfe9ff"), 0.7)
+	_set_color(_tint.lerp(Color("bfe9ff"), 0.7))
 	Fx.float_text(get_parent(), global_position + Vector3(0, 2.0 * data.body_scale, 0), "congelado", Color("bfe9ff"))
 
 
@@ -1066,6 +1077,9 @@ func _update_camouflage(delta: float, dist: float) -> void:
 	elif not _awake:
 		target = 0.5
 	_alpha = move_toward(_alpha, target, delta * 2.5)
+	if _model:
+		_set_color(_tint if _frozen_left <= 0.0 else _tint.lerp(Color("bfe9ff"), 0.7))
+		return
 	for mat: StandardMaterial3D in [_material, _eye_material]:
 		var c := mat.albedo_color
 		c.a = _alpha if mat == _material else maxf(_alpha, 0.6)
@@ -1111,8 +1125,7 @@ func _execute() -> void:
 	_glow(false)
 	if a.exposes_weak_spot > 0.0:
 		_exposed_left = a.exposes_weak_spot
-		if _mouth_material:
-			_mouth_material.emission_enabled = true
+		_show_weak_spot(true)
 		Fx.float_text(get_parent(), global_position + Vector3(0, 2.6 * data.body_scale, 0), "BARRIGA EXPOSTA!", Color("ff8a3d"))
 	match a.kind:
 		EnemyAttack.Kind.CHARGE:
@@ -1184,8 +1197,8 @@ func _fallback_attack() -> EnemyAttack:
 func _on_health_changed(hp: int, max_hp: int, _a: int, _b: int) -> void:
 	if is_boss and not enraged and hp > 0 and float(hp) / max_hp <= ENRAGE_AT:
 		enraged = true
-		_tint = data.color.lerp(Color("e05555"), 0.45)
-		_material.albedo_color = _tint
+		_tint = data.color.lerp(Color("e05555"), 0.45) if _model == null else Color(1.0, 0.68, 0.62)
+		_set_color(_tint)
 		announced.emit(self, "%s está enfurecido!" % data.display_name)
 
 
@@ -1233,10 +1246,169 @@ func _face(dir: Vector3, delta: float) -> void:
 
 
 func _glow(on: bool) -> void:
+	if _model:
+		var c: Color = _attack.color if (on and _attack) else Color.BLACK
+		_model.set_instance_shader_parameter("brilho", Color(c.r, c.g, c.b, 0.55 if on else 0.0))
+		return
 	_material.emission_enabled = on
 	if on and _attack:
 		_material.emission = _attack.color
 		_material.emission_energy_multiplier = 0.8
+
+
+# ---------- modelo 3D ----------
+
+const ART_PATH := "res://game/art/inimigos/%s.glb"
+## Cada bicho: modo do andar (ver bicho.gdshader), tamanho final ("h" = altura, "l" = maior lado no
+## chão, em metros) e para onde a cabeça aponta na malha da Tripo.
+const ART := {
+	&"mapinguari": {"modo": 1, "tam": ["h", 3.4], "frente": Vector3(0, 0, 1)},
+	&"macaco_prego": {"modo": 1, "tam": ["h", 1.25], "frente": Vector3(0, 0, 1)},
+	&"queixada": {"modo": 0, "tam": ["l", 1.45], "frente": Vector3(1, 0, 0)},
+	&"onca_pintada": {"modo": 0, "tam": ["l", 2.5], "frente": Vector3(1, 0, 0)},
+	&"jararaca": {"modo": 2, "tam": ["l", 2.4], "frente": Vector3(1, 0, 0)},
+	&"aranha_caranguejeira": {"modo": 3, "tam": ["l", 1.9], "frente": Vector3(0, 0, 1)},
+	&"formiga_fogo": {"modo": 3, "tam": ["l", 1.3], "frente": Vector3(0, 0, 1)},
+}
+static var _art_cache := {}     # id -> {mesh, material, base, caixa}
+static var _shader_opaque: Shader
+static var _shader_fade: Shader
+
+
+## Prepara (uma vez por tipo de bicho) a malha, o material do andar e o encaixe no chão.
+static func _art(id: StringName) -> Dictionary:
+	if _art_cache.has(id):
+		return _art_cache[id]
+	var out := {}
+	var path: String = ART_PATH % id
+	if ART.has(id) and ResourceLoader.exists(path):
+		var scene: Node = load(path).instantiate()
+		var found := scene.find_children("*", "MeshInstance3D", true, false)
+		if not found.is_empty():
+			var mesh: Mesh = (found[0] as MeshInstance3D).mesh
+			var cfg: Dictionary = ART[id]
+			var aabb := mesh.get_aabb()
+			var front: Vector3 = cfg.frente
+			var measured: float = aabb.size.y if cfg.tam[0] == "h" else maxf(aabb.size.x, aabb.size.z)
+			var k: float = float(cfg.tam[1]) / maxf(measured, 0.001)
+			var yaw := atan2(-front.x, front.z)
+			var basis := Basis(Vector3.UP, yaw).scaled(Vector3.ONE * k)
+			var center := aabb.get_center()
+			var base := Transform3D(basis, basis * Vector3(-center.x, -aabb.position.y, -center.z))
+			var tex: Texture2D = null
+			var src := mesh.surface_get_material(0) as BaseMaterial3D
+			if src:
+				tex = src.albedo_texture
+			out = {"mesh": mesh, "base": base, "aabb": aabb, "modo": int(cfg.modo), "tex": tex, "k": k, "frente": front}
+		scene.free()
+	_art_cache[id] = out
+	return out
+
+
+static func _bicho_material(art: Dictionary, fade: bool) -> ShaderMaterial:
+	if _shader_opaque == null:
+		_shader_opaque = load("res://game/shaders/bicho.gdshader")
+		_shader_fade = Shader.new()
+		_shader_fade.code = _shader_opaque.code.replace("render_mode diffuse_lambert,", "render_mode blend_mix, depth_draw_always, diffuse_lambert,") \
+			.replace("ROUGHNESS = 0.95;", "ROUGHNESS = 0.95;\n\tALPHA = cor.a * t.a;")
+	var key := "mat_fade" if fade else "mat"
+	if art.has(key):
+		return art[key]
+	var m := ShaderMaterial.new()
+	m.shader = _shader_fade if fade else _shader_opaque
+	m.set_shader_parameter("textura", art.tex)
+	m.set_shader_parameter("modo", art.modo)
+	var aabb: AABB = art.aabb
+	m.set_shader_parameter("caixa_min", aabb.position)
+	m.set_shader_parameter("caixa_tam", aabb.size)
+	m.set_shader_parameter("frente", art.frente)
+	art[key] = m
+	return m
+
+
+## Troca a cápsula pelo modelo 3D (se existir). Devolve falso se não tem modelo.
+func _build_model() -> bool:
+	var art := _art(data.id)
+	if art.is_empty():
+		return false
+	_pose = Node3D.new()
+	_body.add_child(_pose)
+	_model = MeshInstance3D.new()
+	_model.mesh = art.mesh
+	_model.transform = art.base
+	_model.material_override = _bicho_material(art, data.stalker or data.ambush_range > 0.0)
+	_pose.add_child(_model)
+	var aabb: AABB = art.aabb
+	var size: Vector3 = aabb.size * float(art.k)
+	var stride: float = (size.y * 0.6) if art.modo == 1 else maxf(size.x, size.z) * 0.55
+	_gait_per_meter = TAU / maxf(stride, 0.2)
+	if data.belly_mouth:
+		# brilho da boca da barriga (aparece quando ela fica exposta)
+		var glow := MeshInstance3D.new()
+		var sphere := SphereMesh.new()
+		sphere.radius = size.y * 0.09
+		sphere.height = size.y * 0.09
+		glow.mesh = sphere
+		_mouth_material = StandardMaterial3D.new()
+		_mouth_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_mouth_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_mouth_material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		_mouth_material.albedo_color = Color(1.0, 0.45, 0.15, 0.9)
+		glow.material_override = _mouth_material
+		glow.scale = Vector3(1.6, 0.8, 0.5)
+		glow.position = Vector3(0, size.y * 0.42, minf(size.z, size.x) * 0.36)
+		glow.visible = false
+		_pose.add_child(glow)
+		_mouth_glow = glow
+	return true
+
+
+func _set_color(c: Color) -> void:
+	if _model:
+		_model.set_instance_shader_parameter("cor", Color(c.r, c.g, c.b, _alpha))
+	else:
+		_material.albedo_color = c
+
+
+func _flash_hit() -> void:
+	if _model:
+		var t := create_tween()
+		t.tween_method(func(v: float) -> void:
+			if is_instance_valid(_model):
+				_model.set_instance_shader_parameter("pisca", v), 1.0, 0.0, 0.14)
+		if _pose:
+			_pose.scale = Vector3(1.08, 0.9, 1.08)
+			var sq := create_tween()
+			sq.tween_property(_pose, "scale", Vector3.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	else:
+		Fx.flash(_material, _tint)
+
+
+func _show_weak_spot(on: bool) -> void:
+	if _mouth_material:
+		_mouth_material.emission_enabled = on
+	if is_instance_valid(_mouth_glow):
+		_mouth_glow.visible = on
+
+
+## Andar do modelo: a fase anda com o passo e o modelo inclina no bote.
+func _animate_model(delta: float) -> void:
+	if _model == null:
+		return
+	var speed := Vector2(velocity.x, velocity.z).length()
+	if state == State.DEAD:
+		speed = 0.0
+	_gait_amount = move_toward(_gait_amount, clampf(speed / 2.2, 0.0, 1.0), delta * 5.0)
+	_gait_phase = fmod(_gait_phase + speed * delta * _gait_per_meter, TAU * 100.0)
+	_model.set_instance_shader_parameter("fase", _gait_phase)
+	_model.set_instance_shader_parameter("andando", _gait_amount)
+	if _pose:
+		var lean := 0.0
+		if state == State.WINDUP:
+			lean = -0.18     # prepara o bote: inclina para trás
+		elif state == State.CHARGING:
+			lean = 0.15
+		_pose.rotation.x = lerpf(_pose.rotation.x, lean, clampf(delta * 10.0, 0.0, 1.0))
 
 
 # ---------- visual provisório (vira modelo 3D na etapa de arte) ----------
@@ -1258,6 +1430,11 @@ func _build_visuals() -> void:
 	_material.roughness = 0.9
 	if data.stalker or data.ambush_range > 0.0:
 		_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	if _build_model():
+		_eye_material = StandardMaterial3D.new()  # (sem olhos de mentira: o modelo já tem)
+		_tint = Color.WHITE
+		_set_color(_tint)
+		return
 	var mesh := MeshInstance3D.new()
 	var capsule := CapsuleMesh.new()
 	mesh.material_override = _material

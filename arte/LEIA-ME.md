@@ -55,3 +55,10 @@ Para trocar pelas versões pintadas por IA:
 3. Preparar (o preto vira transparente): `python3 tools/vfx_texturas.py preparar arte/vfx`
 
 Efeitos no código: `game/scripts/combat/vfx.gd`. Fotos para conferir: `tests/shot_powers.gd`.
+
+## Inimigos (lote 4)
+
+Modelos da Tripo em `arte/bruto/inimigos/` → reduzidos com `tools/reduzir_modelo.py` para `game/art/inimigos/<id>.glb`
+(o nome é o id do inimigo, ex.: `onca_pintada.glb`). Sem esqueleto: o andar é feito no shader `game/shaders/bicho.gdshader`
+(quadrúpede, bípede, cobra ou muitas patas). Tamanho, modo e para onde a cabeça aponta: tabela `ART` em `enemy.gd`.
+Conferir o andar: folha de contato com 4 momentos do passo de cada bicho.
