@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cxpj0owsdp4ln"
-path="res://.godot/imported/jararaca_0.png-d1af1c19b43795f4d0b76526e7b4117e.ctex"
+path.s3tc="res://.godot/imported/jararaca_0.png-d1af1c19b43795f4d0b76526e7b4117e.s3tc.ctex"
+path.etc2="res://.godot/imported/jararaca_0.png-d1af1c19b43795f4d0b76526e7b4117e.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "1e3f89a17f61f058df0f5bde3b19c2a3"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://game/art/inimigos/animados/jararaca_0.png"
-dest_files=["res://.godot/imported/jararaca_0.png-d1af1c19b43795f4d0b76526e7b4117e.ctex"]
+dest_files=["res://.godot/imported/jararaca_0.png-d1af1c19b43795f4d0b76526e7b4117e.s3tc.ctex", "res://.godot/imported/jararaca_0.png-d1af1c19b43795f4d0b76526e7b4117e.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -40,4 +42,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0
