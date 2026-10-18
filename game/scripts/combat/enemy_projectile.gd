@@ -10,6 +10,7 @@ var effect_duration := 0.0
 var effect_power := 0
 var color := Color("e05555")
 var max_distance := 18.0
+var attack_id: StringName = &""
 
 var _traveled := 0.0
 var _spent := false
@@ -24,6 +25,7 @@ static func create(attack: EnemyAttack, dir: Vector3, damage_mult: float) -> Ene
 	p.effect_duration = attack.effect_duration
 	p.effect_power = attack.effect_power
 	p.color = attack.color
+	p.attack_id = attack.id
 	return p
 
 
@@ -38,6 +40,11 @@ func _ready() -> void:
 	shape.shape = sphere
 	add_child(shape)
 
+	if direction.length() > 0.01:
+		rotation.y = atan2(direction.x, direction.z)
+	body_entered.connect(_on_body_entered)
+	if MobFx.projectile_visual(self):
+		return
 	var mesh := MeshInstance3D.new()
 	var visual := SphereMesh.new()
 	visual.radius = 0.22
@@ -48,10 +55,7 @@ func _ready() -> void:
 	mat.albedo_color = color
 	mesh.material_override = mat
 	mesh.scale = Vector3(0.8, 0.8, 1.6)
-	if direction.length() > 0.01:
-		rotation.y = atan2(direction.x, direction.z)
 	add_child(mesh)
-	body_entered.connect(_on_body_entered)
 
 
 func _physics_process(delta: float) -> void:
@@ -59,6 +63,7 @@ func _physics_process(delta: float) -> void:
 	# Pedra, tronco, sumaúma e borda da mata seguram o disparo (raio no caminho deste quadro).
 	if not _spent and Layers.blocked(get_world_3d(), global_position, global_position + direction * step):
 		_spent = true
+		MobFx.projectile_end(get_parent(), global_position, attack_id)
 		queue_free()
 		return
 	global_position += direction * step
@@ -73,4 +78,5 @@ func _on_body_entered(body: Node3D) -> void:
 	_spent = true
 	if body.is_in_group("player"):
 		body.receive_attack(damage, effect, effect_duration, effect_power, global_position)
+	MobFx.projectile_end(get_parent(), global_position, attack_id)
 	queue_free()

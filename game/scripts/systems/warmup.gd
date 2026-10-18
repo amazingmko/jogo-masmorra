@@ -56,6 +56,7 @@ func _spawn_all() -> void:
 	Fx.slash(parent, at, Vector3.FORWARD, 2.0)
 	Vfx.ground_ring(parent, at, "onda_choque", Color(1, 1, 1, 0.8), 2.0, 0.3)
 	Vfx.provoke(parent, at, 2.0)
+	MobFx.warm(parent, at)
 	var holder := Node3D.new()
 	add_child(holder)
 	holder.position = Vector3(1.5, 0, 0)

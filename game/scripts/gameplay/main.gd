@@ -483,6 +483,7 @@ func _on_summon_requested(enemy: Enemy, summon_id: StringName, count: int, at: V
 		if not room.contains(spot):
 			spot = room.random_point(_rng, _player.global_position, 3.0)
 		_spawn(summon_id, room, spot + Vector3(0, 0.1, 0), true)
+		MobFx.summon_dust(_dungeon, spot)
 	pass  # o próprio inimigo anuncia o ataque (signal announced)
 
 

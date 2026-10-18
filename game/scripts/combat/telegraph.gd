@@ -30,6 +30,9 @@ var visual_only := false
 ## O golpe sai de quem atacou (garra, cone, grito): parede, pilar, pedra ou tronco no meio protegem.
 ## Falso para o que cai do alto (ouriços, árvores) e para a mega magia (que tem as zonas seguras).
 var blockable := false
+## Ataque que criou o aviso (os efeitos próprios dele ficam em MobFx).
+var attack_id: StringName = &""
+var _pre_fx_done := false
 
 var _t := 0.0
 var _resolved := false
@@ -41,6 +44,7 @@ var _fill_mat: StandardMaterial3D
 ## Cria o aviso de um ataque. origin: posição no chão; direction: para onde o ataque aponta.
 static func for_attack(attack: EnemyAttack, origin: Vector3, direction: Vector3, damage_mult: float) -> Telegraph:
 	var t := Telegraph.new()
+	t.attack_id = attack.id
 	t.duration = attack.windup
 	t.damage = int(round(attack.damage * damage_mult))
 	t.damage_percent = attack.damage_percent_of_target
@@ -81,6 +85,9 @@ func _process(delta: float) -> void:
 	if not _resolved:
 		var p := clampf(_t / maxf(duration, 0.01), 0.0, 1.0)
 		_set_fill(p)
+		if not _pre_fx_done and not visual_only and duration - _t <= 0.45:
+			_pre_fx_done = true
+			MobFx.before_impact(self)
 		if _t >= duration:
 			_resolve()
 	elif linger > 0.0:
@@ -162,6 +169,8 @@ func _resolve() -> void:
 			player.receive_attack(amount, effect, effect_duration, effect_power, global_position, shape == Shape.MEGA)
 			hit = true
 	resolved.emit(hit)
+	if not visual_only:
+		MobFx.on_resolve(self)
 	# Pisca e some (ou fica como poça).
 	_fill_mat.albedo_color = Color(1, 1, 1, 0.7)
 	var tween := create_tween()

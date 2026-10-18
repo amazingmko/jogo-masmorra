@@ -131,6 +131,7 @@ var _rig_mats: Array[StandardMaterial3D] = []
 var _rig_action := ""        # animação de ação tocando (ataque, dano, morte); "" = andando/parado
 var _rig_action_left := 0.0
 var _rig_running := false
+var _charge_fx_t := 0.0
 var _rig_impact_left := -1.0  # até o golpe da ação (depois dele, o resto toca no ritmo normal)
 var _rig_charge_left := -1.0  # mega magia: segurando a carga até soltar
 var _rig_charge_impact := 0.0
@@ -302,12 +303,17 @@ func _physics_process(delta: float) -> void:
 		State.CHARGING:
 			_set_horizontal(_aim_dir * _attack.speed)
 			_charge_left -= _attack.speed * delta
+			_charge_fx_t -= delta
+			if _charge_fx_t <= 0.0:
+				_charge_fx_t = 0.08
+				MobFx.charge_step(self, _attack.id)
 			if player_alive and not _charge_hit and dist <= 1.0 + 0.5 * data.body_scale + _attack.radius * 0.3 \
 					and Layers.clear_path(get_world_3d(), global_position, _player.global_position):
 				_charge_hit = true
 				_player.receive_attack(int(round(_attack.damage * damage_multiplier)), _attack.effect,
 					_attack.effect_duration, _attack.effect_power, global_position)
 			if _charge_left <= 0.0 or (is_on_wall() and _charge_left < _attack.length - 0.5):
+				MobFx.charge_end(self, _attack.id)
 				_enter_recover()
 		State.RECOVER:
 			_set_horizontal(Vector3.ZERO)
