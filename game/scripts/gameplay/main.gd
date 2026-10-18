@@ -51,6 +51,7 @@ var layout: DungeonLayout
 var builder: DungeonBuilder
 
 var _rng := RandomNumberGenerator.new()
+var _changing_floor := false  # entre entrar no portal e o andar novo ficar pronto
 var _current_room: DungeonRoom
 var _alive := 0
 var _run_over := false
@@ -202,6 +203,9 @@ func debug_jump_to_floor(target: int) -> void:
 ## Portal: a tela de carregamento aparece antes, e o andar novo é montado por trás dela
 ## (sem a tela "congelar" no andar velho enquanto monta).
 func _portal_to_next_floor() -> void:
+	if _changing_floor:
+		return
+	_changing_floor = true
 	var run := _run_id
 	if _loading:
 		_loading.visible = true
@@ -213,6 +217,7 @@ func _portal_to_next_floor() -> void:
 		await get_tree().process_frame
 	if run == _run_id and not _run_over:
 		_next_floor()
+	_changing_floor = false
 
 
 func _next_floor() -> void:

@@ -66,6 +66,11 @@ func _process(delta: float) -> void:
 func _on_body_entered(body: Node3D) -> void:
 	if used or not body.is_in_group("player"):
 		return
+	# No quadro em que o herói troca de andar, a física ainda o vê onde estava no andar velho: se um
+	# baú/fonte/portal do andar novo nascer naquele ponto, dispararia sozinho (pulava um andar).
+	var flat := Vector2(body.global_position.x - global_position.x, body.global_position.z - global_position.z)
+	if flat.length() > 1.8:
+		return
 	used = true
 	match kind:
 		Kind.CHEST:

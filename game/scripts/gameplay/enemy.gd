@@ -130,6 +130,12 @@ var _anim: AnimationPlayer
 var _rig_mats: Array[StandardMaterial3D] = []
 var _rig_action := ""        # animação de ação tocando (ataque, dano, morte); "" = andando/parado
 var _rig_action_left := 0.0
+var _rig_running := false
+var _rig_impact_left := -1.0  # até o golpe da ação (depois dele, o resto toca no ritmo normal)
+var _rig_charge_left := -1.0  # mega magia: segurando a carga até soltar
+var _rig_charge_impact := 0.0
+var _rig_charge_fx: CPUParticles3D
+var _rig_lobs: Array = []     # ouriços que ainda vão sair da mão: [tempo, alvo, ataque]
 var _pose: Node3D          # pivô do modelo: inclina no bote, achata ao apanhar
 var _mouth_glow: Node3D
 var _gait_phase := 0.0
@@ -271,7 +277,8 @@ func _physics_process(delta: float) -> void:
 				# Esquiva: deslize rápido para o lado, sem decidir nada no meio.
 				_dodge_left -= delta
 				_set_horizontal(_dodge_dir * _move_speed() * 3.0)
-				_face(to_player, delta)
+				# com esqueleto, o corpo vira para onde corre (andar de lado faria o pé deslizar)
+				_face(_dodge_dir if _anim else to_player, delta * (2.0 if _anim else 1.0))
 			else:
 				if player_alive:
 					_update_tactic(delta)
@@ -734,8 +741,7 @@ func _start(a: EnemyAttack, from_rally: bool = false) -> void:
 	_strike_t = -1.0
 	if _model:
 		_model.set_instance_shader_parameter("golpe", float(_golpe_for(a)))
-	if _anim:
-		_rig_attack(a)
+	_rig_lobs.clear()
 	var haste := (0.8 if enraged else 1.0) * (1.0 - 0.15 * _rage())
 	_timer = a.windup * haste
 	_cooldowns[a] = a.cooldown * (0.7 if enraged else 1.0)
@@ -785,8 +791,11 @@ func _start(a: EnemyAttack, from_rally: bool = false) -> void:
 			for i in a.count:
 				var spot := target if i == 0 else target + Vector3(_rng.randf_range(-3.5, 3.5), 0, _rng.randf_range(-3.5, 3.5))
 				_spawn_telegraph(Telegraph.for_attack(a, spot, Vector3.FORWARD, damage_multiplier), haste)
+				_rig_lobs.append([0.0, spot, a])
 		EnemyAttack.Kind.MEGA:
 			_start_mega(a)
+	if _anim:
+		_rig_attack(a)
 
 
 ## Provocar (tanque): vem para cima do herói sem recuar, aparece se estava escondido e bate mais fraco.
@@ -1513,12 +1522,36 @@ func _animate_model(delta: float) -> void:
 # ---------- bichos com animação do Mixamo ----------
 
 const RIG_PATH := "res://game/art/inimigos/animados/%s.glb"
-## Altura final e as animações de cada golpe (ver _golpe_for): nome e o instante do impacto (s).
+## Altura final e a animação de cada ataque: [animação, de onde começa (s), instante do golpe (s)].
+## O golpe foi achado quadro a quadro: garrada = a garra desce (1,32 s), pancada = soco esticado
+## (0,50 s), rugido = boca da barriga aberta (1,15 s), arremesso = a mão solta (2,18 s; antes disso
+## ele se abaixa e pega no chão), tapa = braço esticado (0,54 s).
 const RIG := {
-	&"mapinguari": {"altura": 3.4, "golpes": {1: ["garrada", 1.29], 2: ["pancada", 0.29], 0: ["pancada", 0.29], 5: ["rugido", 1.6], 3: ["rugido", 1.6]}},
-	&"macaco_prego": {"altura": 1.25, "golpes": {3: ["arremesso", 2.42], 5: ["arremesso", 2.42], 0: ["tapa", 0.48], 1: ["tapa", 0.48], 2: ["tapa", 0.48]}},
+	&"mapinguari": {"altura": 3.4, "andar": 2.28, "correr": 4.24, "padrao": ["garrada", 1.0, 1.32], "ataques": {
+		&"garras": ["garrada", 1.0, 1.32],
+		&"bocarra": ["rugido", 0.55, 1.15],              # abre a boca da barriga
+		&"investida_mapinguari": ["rugido", 0.0, 0.8],   # se curva e toma impulso; depois corre
+		&"cinco_olhos": ["rugido", 0.6, 1.15],
+		&"estouro_queixadas": ["rugido", 0.6, 1.15],     # chama o bando
+		&"fedor": ["rugido", 0.6, 1.15],                 # solta o fedor pela boca da barriga
+		&"grito": ["rugido", 0.6, 1.15],
+		&"arvores": ["garrada", 1.0, 1.32],              # bate no chão e as árvores caem
+		&"bafo": ["rugido", 0.0, 1.15],                  # carrega (ver _rig_charge) e solta
+	}},
+	&"macaco_prego": {"altura": 1.25, "andar": 1.06, "correr": 1.93, "padrao": ["tapa", 0.3, 0.54], "ataques": {
+		&"pedrada": ["arremesso", 1.6, 2.18],
+		&"ourico": ["arremesso", 0.9, 2.18],             # pega o ouriço no chão e joga por cima
+		&"chuva_ourico": ["arremesso", 0.9, 2.18],
+		&"tapa": ["tapa", 0.3, 0.54],
+	}},
 }
 const RIG_LOOPS := ["idle", "walk", "run"]
+## "andar"/"correr" na tabela acima: a velocidade (m/s) em que o pé apoiado fica parado no chão em
+## cada animação (medida nos ossos do pé). O ritmo da animação segue a velocidade real, sem deslizar.
+## Tempo de voo do ouriço jogado (sai da mão antes e cai junto com o aviso).
+const LOB_TIME := 0.45
+## Mega magia: quanto antes do fim ele solta a carga.
+const CHARGE_RELEASE := 0.35
 
 
 func _build_rig() -> bool:
@@ -1580,56 +1613,208 @@ func _build_rig() -> bool:
 func _rig_play(anim_name: String, blend := 0.15, speed := 1.0) -> void:
 	if _anim == null or not _anim.has_animation(anim_name):
 		return
+	_anim.speed_scale = 1.0
 	_anim.play(anim_name, blend, speed)
 
 
 ## Ação por cima do andar (ataque, dano). duration: quanto tempo ela manda antes de voltar a andar.
-func _rig_action_play(anim_name: String, speed: float, duration: float) -> void:
+## from: de onde a animação começa (s).
+func _rig_action_play(anim_name: String, speed: float, duration: float, from := 0.0) -> void:
 	if _anim == null or not _anim.has_animation(anim_name):
 		return
 	_rig_action = anim_name
 	_rig_action_left = duration
-	_anim.play(anim_name, 0.1, speed)
+	_rig_impact_left = -1.0
+	_anim.play(anim_name, 0.08, 1.0)
+	_anim.seek(from, true)
+	_anim.speed_scale = speed
 
 
 func _animate_rig(delta: float) -> void:
 	if _anim == null or state == State.DEAD:
 		return
+	_update_lobs(delta)
+	if _rig_charge_left >= 0.0:
+		_animate_charge(delta)
+	if _rig_impact_left >= 0.0:
+		_rig_impact_left -= delta
+		if _rig_impact_left < 0.0:
+			_anim.speed_scale = 1.0   # depois do golpe, o resto do movimento no ritmo normal
+	var lean := 0.0
+	if state == State.WINDUP and _attack and _attack.kind == EnemyAttack.Kind.CHARGE:
+		lean = 0.18   # se curva para a frente antes de investir
+	elif state == State.CHARGING:
+		lean = 0.12
+	if _pose:
+		_pose.rotation.x = lerpf(_pose.rotation.x, lean, clampf(delta * 8.0, 0.0, 1.0))
 	if _rig_action != "":
 		_rig_action_left -= delta
 		if _rig_action_left > 0.0:
 			return
 		_rig_action = ""
 	var speed := Vector2(velocity.x, velocity.z).length()
+	var info: Dictionary = RIG[data.id]
+	var walk_v: float = info.get("andar", 1.8)
+	var run_v: float = info.get("correr", 4.5)
+	# troca andar/correr com folga, para não ficar piscando entre as duas na velocidade do meio
+	var limit := (walk_v + run_v) * 0.5
+	if _rig_running:
+		_rig_running = speed > limit * 0.85
+	else:
+		_rig_running = speed > limit * 1.15
 	var want := "idle"
 	var rate := 1.0
-	if speed > 3.2 and _anim.has_animation("run"):
+	if _rig_running and _anim.has_animation("run"):
 		want = "run"
-		rate = clampf(speed / 4.5, 0.7, 1.6)
-	elif speed > 0.25:
+		rate = clampf(speed / run_v, 0.6, 2.7)
+	elif speed > 0.3:
 		want = "walk"
-		rate = clampf(speed / 1.8, 0.6, 1.8)
+		rate = clampf(speed / walk_v, 0.45, 2.0)
 	# mesma animação: play() não recomeça, só ajusta o ritmo ao passo
 	_rig_play(want, 0.2 if _anim.current_animation != want else -1.0, rate)
 
 
-## Começa o ataque: a animação é acelerada/freada para o impacto cair no fim do aviso.
+func _rig_entry(a: EnemyAttack) -> Array:
+	var info: Dictionary = RIG[data.id]
+	return info.ataques.get(a.id, info.padrao)
+
+
+## Começa o ataque: a animação começa no ponto certo e no ritmo certo para o golpe cair exatamente
+## no fim do aviso no chão (o aviso já está com a pressa de enfurecido).
 func _rig_attack(a: EnemyAttack) -> void:
-	var g := _golpe_for(a)
-	var table: Dictionary = RIG[data.id].golpes
-	var entry: Array = table.get(g, table.values()[0])
+	var entry := _rig_entry(a)
 	var anim_name: String = entry[0]
-	var impact: float = entry[1]
+	var from: float = entry[1]
+	var impact: float = entry[2]
 	if not _anim.has_animation(anim_name):
 		return
-	var windup: float = maxf(a.windup, 0.2)
-	var speed := clampf(impact / windup, 0.35, 3.0)
+	_end_charge()
+	var hit_at: float = maxf(_timer, 0.15)
+	if a.kind == EnemyAttack.Kind.MEGA:
+		_rig_charge(a, anim_name, impact, hit_at)
+		return
+	# ouriço jogado: sai da mão antes, voa e cai junto com o aviso
+	var lob := a.kind == EnemyAttack.Kind.GROUND_AOE and data.id == &"macaco_prego"
+	if lob:
+		hit_at = maxf(hit_at - LOB_TIME, 0.12)
+		for l in _rig_lobs:
+			l[0] = hit_at
+	else:
+		_rig_lobs.clear()
+	# ritmo perto do natural; se o aviso for curto, pula o começo da animação (a pegada no chão)
+	var speed := clampf((impact - from) / hit_at, 0.6, 1.8)
+	from = maxf(impact - hit_at * speed, 0.0)
+	speed = maxf((impact - from) / hit_at, 0.2)
 	var length := _anim.get_animation(anim_name).length
-	# manda até o impacto e mais um tantinho depois (o resto do golpe), depois volta a andar
-	_rig_action_play(anim_name, speed, windup + minf((length - impact) / speed, 0.6))
+	var tail := 0.1 if a.kind == EnemyAttack.Kind.CHARGE else minf(length - impact, 0.6)
+	_rig_action_play(anim_name, speed, hit_at + tail, from)
+	_rig_impact_left = hit_at
+
+
+## Mega magia: se ergue e se curva juntando força (treme, a boca da barriga acende, o ar é puxado
+## para ele) e no fim solta tudo de uma vez.
+func _rig_charge(a: EnemyAttack, anim_name: String, impact: float, hit_at: float) -> void:
+	var gather := minf(impact - 0.35, hit_at - CHARGE_RELEASE)   # até a pose curvada
+	_rig_action_play(anim_name, 1.0, hit_at + 0.7, 0.0)
+	_rig_action_left = hit_at + 0.7
+	_rig_charge_impact = impact
+	_rig_charge_left = hit_at
+	_anim.set_meta("gather", gather)
+	_rig_charge_fx = Vfx.particles(self, global_position + Vector3(0, 0.3, 0), "poeira", 40, 0.9, Color(a.color, 0.8), 0.5,
+			Vector2(0.2, 0.6), 30.0, 2.5, false, false, 4.5)
+	_rig_charge_fx.radial_accel_min = -9.0
+	_rig_charge_fx.radial_accel_max = -6.0
+	if is_instance_valid(_mouth_glow):
+		_mouth_glow.visible = true
+		_mouth_glow.scale = Vector3(0.6, 0.3, 0.2)
+
+
+func _animate_charge(delta: float) -> void:
+	_rig_charge_left -= delta
+	var gather: float = _anim.get_meta("gather", 0.8)
+	var pos := _anim.current_animation_position
+	if _rig_charge_left > CHARGE_RELEASE:
+		# chegou na pose curvada: segura ali, tremendo
+		if pos >= gather:
+			_anim.speed_scale = 0.02
+		var power := 1.0 - clampf((_rig_charge_left - CHARGE_RELEASE) / 3.0, 0.0, 1.0)
+		if _pose:
+			_pose.position.x = sin(Time.get_ticks_msec() * 0.07) * 0.04 * (0.3 + power)
+			_pose.scale = Vector3.ONE * (1.0 + 0.05 * power)
+		if is_instance_valid(_mouth_glow):
+			_mouth_glow.scale = Vector3(1.6, 0.8, 0.5) * (0.4 + 0.8 * power)
+	elif _anim.speed_scale < 0.5:
+		# solta: corre até a boca aberta no fim exato da carga
+		_anim.speed_scale = clampf((_rig_charge_impact - pos) / maxf(_rig_charge_left, 0.05), 0.3, 4.0)
+	if _rig_charge_left <= 0.0:
+		_end_charge()
+		_anim.speed_scale = 1.0
+		Vfx.ground_ring(get_parent(), global_position + Vector3(0, 0.05, 0), "onda_choque", Color(_attack.color if _attack else Color.WHITE, 0.9), 14.0, 0.6)
+		Vfx.particles(get_parent(), global_position + Vector3(0, 1.6, 0), "poeira", 30, 0.8, Color(_attack.color if _attack else Color.WHITE, 0.8), 0.9, Vector2(4.0, 9.0), 80.0, -2.0)
+
+
+func _end_charge() -> void:
+	_rig_charge_left = -1.0
+	if is_instance_valid(_rig_charge_fx):
+		_rig_charge_fx.emitting = false
+		var fx := _rig_charge_fx
+		get_tree().create_timer(1.0, false).timeout.connect(func() -> void:
+			if is_instance_valid(fx):
+				fx.queue_free())
+	_rig_charge_fx = null
+	if _pose:
+		_pose.position.x = 0.0
+		_pose.scale = Vector3.ONE
+	if is_instance_valid(_mouth_glow) and _exposed_left <= 0.0:
+		_mouth_glow.visible = false
+		_mouth_glow.scale = Vector3(1.6, 0.8, 0.5)
+
+
+## Ouriços do Macaco: saem da mão no instante do arremesso e caem em cima do aviso.
+func _update_lobs(delta: float) -> void:
+	if _rig_lobs.is_empty():
+		return
+	var keep := []
+	for l in _rig_lobs:
+		l[0] -= delta
+		if l[0] <= 0.0:
+			if state == State.WINDUP:
+				_throw_lob(l[1], l[2])
+		else:
+			keep.append(l)
+	_rig_lobs = keep
+
+
+func _throw_lob(spot: Vector3, a: EnemyAttack) -> void:
+	var hgt: float = RIG[data.id].altura
+	var from := global_position + Vector3(0, hgt * 0.95, 0) + _aim_dir * 0.3
+	var ball := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = 0.16
+	sphere.height = 0.3
+	sphere.radial_segments = 8
+	sphere.rings = 4
+	ball.mesh = sphere
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.42, 0.27, 0.13)
+	m.roughness = 1.0
+	ball.material_override = m
+	ball.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	get_parent().add_child(ball)
+	ball.global_position = from
+	var to := Vector3(spot.x, 0.15, spot.z)
+	var arc := 1.5 + from.distance_to(to) * 0.18
+	var t := ball.create_tween()
+	t.tween_method(func(k: float) -> void:
+		if is_instance_valid(ball):
+			ball.global_position = from.lerp(to, k) + Vector3(0, sin(k * PI) * arc, 0)
+			ball.rotation = Vector3(k * 9.0, k * 5.0, 0), 0.0, 1.0, LOB_TIME)
+	t.tween_callback(ball.queue_free)
 
 
 func _rig_death() -> float:
+	_end_charge()
+	_rig_lobs.clear()
 	if _anim and _anim.has_animation("morte"):
 		_rig_action = "morte"
 		_anim.play("morte", 0.1, 1.3)

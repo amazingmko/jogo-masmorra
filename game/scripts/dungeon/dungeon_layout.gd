@@ -5,6 +5,10 @@ extends RefCounted
 
 enum RoomType { START, COMBAT, TREASURE, REST, EXIT, BOSS }
 
+## Chance de porta extra entre duas salas vizinhas (além do caminho principal).
+const EXTRA_LINK := 0.45
+## Entre duas salas vizinhas, no máximo este tanto de portas para ir de uma à outra.
+const MAX_DETOUR := 3
 const DIRS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 
 ## Cada sala: {"cell": Vector2i, "type": RoomType, "links": Array[int] (índices das vizinhas ligadas), "depth": int}
@@ -39,13 +43,21 @@ func generate(rng: RandomNumberGenerator, room_count: int, boss_floor: bool) -> 
 		var idx := _add_room(cell, cell_to_index)
 		_link(from, idx)
 
-	# Algumas ligações extras criam atalhos (laços), para não ser só uma árvore.
+	# Ligações extras entre vizinhas criam atalhos (laços), para não ser só uma árvore.
 	for i in rooms.size():
 		for dir in DIRS:
 			var other_cell: Vector2i = rooms[i].cell + dir
 			if cell_to_index.has(other_cell):
 				var j: int = cell_to_index[other_cell]
-				if j > i and not rooms[i].links.has(j) and rng.randf() < 0.15:
+				if j > i and not rooms[i].links.has(j) and rng.randf() < EXTRA_LINK:
+					_link(i, j)
+	# Sala colada na outra, mas sem porta entre elas, obrigando a dar uma volta grande: abre a porta.
+	for i in rooms.size():
+		for dir in DIRS:
+			var other_cell: Vector2i = rooms[i].cell + dir
+			if cell_to_index.has(other_cell):
+				var j: int = cell_to_index[other_cell]
+				if j > i and not rooms[i].links.has(j) and path(i, j).size() - 1 > MAX_DETOUR:
 					_link(i, j)
 
 	_compute_depths()
