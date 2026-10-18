@@ -514,6 +514,41 @@ func talent_value(id: String) -> float:
 	return GameState.talent_value(hero_id, id)
 
 
+## Teleporte/salto seguro: anda até `distance` na direção, parando antes de qualquer sólido (o
+## corpo inteiro, não só uma linha: passar raspando na ponta de um tronco não deixa ninguém preso).
+## Devolve quanto andou.
+func dash(direction: Vector3, distance: float) -> float:
+	direction.y = 0.0
+	if direction.length() < 0.01 or distance <= 0.0:
+		return 0.0
+	direction = direction.normalized()
+	var space := get_world_3d().direct_space_state
+	var q := PhysicsShapeQueryParameters3D.new()
+	var cap := CapsuleShape3D.new()
+	cap.radius = 0.38  # um tiquinho menor que o corpo: encostado na parede ainda dá para sair
+	cap.height = 1.5
+	q.shape = cap
+	q.collision_mask = Layers.WORLD
+	q.exclude = [get_rid()]
+	q.transform = Transform3D(Basis(), global_position + Vector3(0, 0.9, 0))  # acima do chão
+	q.motion = direction * distance
+	var frac: PackedFloat32Array = space.cast_motion(q)
+	var safe := distance * (frac[0] if frac.size() > 0 else 1.0)
+	safe = maxf(safe - 0.05, 0.0)
+	# conferência final: se ainda encosta em algo, recua um pouco de cada vez
+	var tries := 0
+	while safe > 0.0 and tries < 12:
+		q.motion = Vector3.ZERO
+		q.transform = Transform3D(Basis(), global_position + direction * safe + Vector3(0, 0.9, 0))
+		if space.intersect_shape(q, 1).is_empty():
+			break
+		safe = maxf(safe - 0.25, 0.0)
+		tries += 1
+	global_position += direction * safe
+	reset_physics_interpolation()
+	return safe
+
+
 ## Inimigo que a mira automática escolheu agora (ou null).
 func current_target() -> Node3D:
 	return _target if is_instance_valid(_target) else null

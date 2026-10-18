@@ -222,14 +222,8 @@ func before_attack() -> void:
 func _leap(to: Vector3) -> void:
 	var dir := to.normalized()
 	var dist := to.length() - 1.0
-	var from := player.global_position + Vector3(0, 0.6, 0)
-	var space := player.get_world_3d().direct_space_state
-	var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(from, from + dir * dist, Layers.WORLD))
-	if not hit.is_empty():
-		dist = maxf(from.distance_to(hit.position) - 0.6, 0.0)
 	Vfx.particles(player.get_parent(), player.global_position + Vector3(0, 0.3, 0), "poeira", 10, 0.5, Color(0.8, 0.7, 0.5), 0.5, Vector2(1.0, 2.0), 60.0, 0.0)
-	player.global_position += dir * dist
-	player.reset_physics_interpolation()
+	player.dash(dir, dist)  # para antes de qualquer obstáculo (corpo inteiro)
 	Fx.float_text(player.get_parent(), player.global_position + Vector3(0, 2.4, 0), "SALTO!", Color("d9a441"))
 	_roar()
 
