@@ -130,6 +130,7 @@ var _anim: AnimationPlayer
 var _rig_mats: Array[StandardMaterial3D] = []
 var _rig_action := ""        # animação de ação tocando (ataque, dano, morte); "" = andando/parado
 var _rig_action_left := 0.0
+var _rig_running := false
 var _rig_impact_left := -1.0  # até o golpe da ação (depois dele, o resto toca no ritmo normal)
 var _rig_charge_left := -1.0  # mega magia: segurando a carga até soltar
 var _rig_charge_impact := 0.0
@@ -276,7 +277,8 @@ func _physics_process(delta: float) -> void:
 				# Esquiva: deslize rápido para o lado, sem decidir nada no meio.
 				_dodge_left -= delta
 				_set_horizontal(_dodge_dir * _move_speed() * 3.0)
-				_face(to_player, delta)
+				# com esqueleto, o corpo vira para onde corre (andar de lado faria o pé deslizar)
+				_face(_dodge_dir if _anim else to_player, delta * (2.0 if _anim else 1.0))
 			else:
 				if player_alive:
 					_update_tactic(delta)
@@ -1525,7 +1527,7 @@ const RIG_PATH := "res://game/art/inimigos/animados/%s.glb"
 ## (0,50 s), rugido = boca da barriga aberta (1,15 s), arremesso = a mão solta (2,18 s; antes disso
 ## ele se abaixa e pega no chão), tapa = braço esticado (0,54 s).
 const RIG := {
-	&"mapinguari": {"altura": 3.4, "padrao": ["garrada", 1.0, 1.32], "ataques": {
+	&"mapinguari": {"altura": 3.4, "andar": 2.28, "correr": 4.24, "padrao": ["garrada", 1.0, 1.32], "ataques": {
 		&"garras": ["garrada", 1.0, 1.32],
 		&"bocarra": ["rugido", 0.55, 1.15],              # abre a boca da barriga
 		&"investida_mapinguari": ["rugido", 0.0, 0.8],   # se curva e toma impulso; depois corre
@@ -1536,7 +1538,7 @@ const RIG := {
 		&"arvores": ["garrada", 1.0, 1.32],              # bate no chão e as árvores caem
 		&"bafo": ["rugido", 0.0, 1.15],                  # carrega (ver _rig_charge) e solta
 	}},
-	&"macaco_prego": {"altura": 1.25, "padrao": ["tapa", 0.3, 0.54], "ataques": {
+	&"macaco_prego": {"altura": 1.25, "andar": 1.06, "correr": 1.93, "padrao": ["tapa", 0.3, 0.54], "ataques": {
 		&"pedrada": ["arremesso", 1.6, 2.18],
 		&"ourico": ["arremesso", 0.9, 2.18],             # pega o ouriço no chão e joga por cima
 		&"chuva_ourico": ["arremesso", 0.9, 2.18],
@@ -1544,6 +1546,8 @@ const RIG := {
 	}},
 }
 const RIG_LOOPS := ["idle", "walk", "run"]
+## "andar"/"correr" na tabela acima: a velocidade (m/s) em que o pé apoiado fica parado no chão em
+## cada animação (medida nos ossos do pé). O ritmo da animação segue a velocidade real, sem deslizar.
 ## Tempo de voo do ouriço jogado (sai da mão antes e cai junto com o aviso).
 const LOB_TIME := 0.45
 ## Mega magia: quanto antes do fim ele solta a carga.
@@ -1649,14 +1653,23 @@ func _animate_rig(delta: float) -> void:
 			return
 		_rig_action = ""
 	var speed := Vector2(velocity.x, velocity.z).length()
+	var info: Dictionary = RIG[data.id]
+	var walk_v: float = info.get("andar", 1.8)
+	var run_v: float = info.get("correr", 4.5)
+	# troca andar/correr com folga, para não ficar piscando entre as duas na velocidade do meio
+	var limit := (walk_v + run_v) * 0.5
+	if _rig_running:
+		_rig_running = speed > limit * 0.85
+	else:
+		_rig_running = speed > limit * 1.15
 	var want := "idle"
 	var rate := 1.0
-	if speed > 3.2 and _anim.has_animation("run"):
+	if _rig_running and _anim.has_animation("run"):
 		want = "run"
-		rate = clampf(speed / 4.5, 0.7, 1.8)
-	elif speed > 0.25:
+		rate = clampf(speed / run_v, 0.6, 2.7)
+	elif speed > 0.3:
 		want = "walk"
-		rate = clampf(speed / 1.8, 0.6, 1.8)
+		rate = clampf(speed / walk_v, 0.45, 2.0)
 	# mesma animação: play() não recomeça, só ajusta o ritmo ao passo
 	_rig_play(want, 0.2 if _anim.current_animation != want else -1.0, rate)
 
