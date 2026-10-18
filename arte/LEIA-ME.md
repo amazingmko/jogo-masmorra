@@ -64,3 +64,17 @@ Modelos da Tripo em `arte/bruto/inimigos/` → reduzidos com `tools/reduzir_mode
 Conferir o andar: folha de contato com 4 momentos do passo de cada bicho.
 Bichos que andam em pé (Mapinguari, Macaco-prego) usam o Mixamo: FBX em `arte/animacoes/<id>/` → FBX2glTF →
 `tools/mixamo_merge.mjs` → `game/art/inimigos/animados/<id>.glb`. Golpes e instante do impacto: tabela `RIG` em `enemy.gd`.
+
+## Bichos com esqueleto feito por código (tools/autorig.py)
+
+A Tripo entrega os bichos sem ossos. Mixamo só serve para bípedes (Mapinguari, Macaco) e o Anything
+World animou a Queixada (créditos grátis acabaram). Os outros ganham esqueleto e pesos pelo script:
+
+    python3 tools/autorig.py quadrupede game/art/inimigos/onca_pintada.glb game/art/inimigos/animados/onca_pintada.glb --frente x
+    python3 tools/autorig.py artropode game/art/inimigos/aranha_caranguejeira.glb game/art/inimigos/animados/aranha_caranguejeira.glb --frente z --pernas 8 --nome aranha
+    python3 tools/autorig.py artropode game/art/inimigos/formiga_fogo.glb game/art/inimigos/animados/formiga_fogo.glb --frente z --pernas 6 --antenas 2 --nome formiga
+    python3 tools/autorig.py serpente game/art/inimigos/jararaca.glb game/art/inimigos/animados/jararaca.glb --frente x --nome jararaca
+
+- Onça: esqueleto da Queixada encaixado no corpo dela, com as animações de parado/andar/correr da Queixada.
+- Aranha, formiga, cobra: o andar e os ataques são calculados no jogo (ArthroPose, SerpentPose).
+- Queixada (Anything World): `node tools/aw_merge.mjs <pasta animations do zip> game/art/inimigos/animados/queixada.glb`.
