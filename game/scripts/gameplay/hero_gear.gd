@@ -48,6 +48,8 @@ const GEAR := {
 const IMPACT := {
 	&"icamiaba": {"ataque1": 0.43, "ataque2": 0.5, "ataque3": 0.5},
 	&"mateira": {"ataque1": 0.73},
+	&"encantado": {"ataque1": 0.61, "ataque2": 0.58, "ataque3": 0.61},
+	&"druida": {"ataque1": 0.61, "ataque2": 0.61, "ataque3": 0.61},
 }
 static func has_timing(hero_id: StringName) -> bool:
 	return IMPACT.has(hero_id)

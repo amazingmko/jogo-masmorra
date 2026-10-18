@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="HeroData" format=3]
 
 [ext_resource type="Script" path="res://game/scripts/resources/hero_data.gd" id="1_ugaj4"]
+[ext_resource type="PackedScene" path="res://game/art/herois/encantado.glb" id="2_mdl"]
 
 [resource]
 script = ExtResource("1_ugaj4")
@@ -14,4 +15,5 @@ weapon_type = &"cajado"
 max_health = 80
 max_shield = 20
 max_energy = 220
+model = ExtResource("2_mdl")
 starting_weapon_id = &"cajado_aprendiz"

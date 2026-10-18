@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="HeroData" format=3]
 
 [ext_resource type="Script" path="res://game/scripts/resources/hero_data.gd" id="1_nuqq2"]
+[ext_resource type="PackedScene" path="res://game/art/herois/druida.glb" id="2_mdl"]
 
 [resource]
 script = ExtResource("1_nuqq2")
@@ -15,4 +16,5 @@ max_health = 110
 max_shield = 35
 max_energy = 160
 move_speed = 5.2
+model = ExtResource("2_mdl")
 starting_weapon_id = &"cajado_raiz"
