@@ -148,9 +148,13 @@ func _process(_d: float) -> bool:
 		check(not _kit.is_boto() and _player.weapon_stats.attack_speed < 2.0, "fim do Boto: volta a Druida com o Cajado")
 		check(_player._model == null or _player._model.visible, "fim do Boto: o modelo volta")
 		check(_kit.seeds().is_empty(), "fim do Boto: as mudas florescem")
-		_kit._still = 0.0
-	if _f == 290:
-		check(_kit.is_rooted() and is_equal_approx(_kit.incoming_factor(), 0.8), "Raízes Vivas: parada, finca raízes e recebe 20% menos dano")
+		_a._awake = true
+		_pos = _player.global_position
+	if _f > 210 and _f < 300:
+		# Rastro de Seiva: andando em luta (8 m), planta mudas sozinha
+		_player.global_position = _pos + Vector3(0, 0, 0.1 * (_f - 210))
+	if _f == 300:
+		check(_kit.seeds().size() >= 2, "Rastro de Seiva: andando 9 m em luta plantou %d mudas" % _kit.seeds().size())
 		print("fim: ", "TUDO OK" if _ok else "COM FALHAS")
 		quit(0 if _ok else 1)
 	return false

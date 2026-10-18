@@ -28,6 +28,7 @@ const NOMES = {
   golpe1: 'ataque1', golpe2: 'ataque2', golpe3: 'ataque3', golpe4: 'ataque4',
   impacto: 'dano', bloquear: 'bloqueio', morte: 'morte',
   provocar: 'provocar', muralha: 'muralha', armadilha: 'armadilha', harpia: 'harpia',  // poderes da classe
+  espelho: 'espelho', pororoca: 'pororoca', florescer: 'florescer', despertar: 'despertar',
   garrada: 'garrada', pancada: 'pancada', rugido: 'rugido', arremesso: 'arremesso', tapa: 'tapa',  // bichos
 };
 const SCALE = 100;

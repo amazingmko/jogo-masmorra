@@ -106,7 +106,7 @@ const TREES := {
 			{"id": "seiva_forte", "name": "Seiva Forte", "row": 0, "max": 3, "per": 15, "desc": "Cada flor do Florescer cura +{v}%"},
 			{"id": "canto_doce", "name": "Canto Doce", "row": 0, "max": 3, "per": 20, "desc": "Cada acerto do Canto do Boto cura +{v}%"},
 			{"id": "muda_viva", "name": "Muda Viva", "row": 1, "max": 2, "per": 0.5, "desc": "Cada muda perto de você cura {v}% da vida por segundo"},
-			{"id": "raiz_funda", "name": "Raiz Funda", "row": 1, "max": 1, "per": 0.5, "desc": "Raízes Vivas fincam {v} s mais cedo"},
+			{"id": "passo_semente", "name": "Passo de Semente", "row": 1, "max": 1, "per": 1, "desc": "Rastro de Seiva planta {v} m mais cedo (uma muda a cada 3 m)"},
 			{"id": "bosque", "name": "Bosque", "row": 2, "max": 2, "per": 1, "desc": "+{v} muda no máximo, e cada muda dura +2 s por ponto"},
 			{"id": "orvalho", "name": "Orvalho", "row": 2, "max": 1, "per": 30, "desc": "Ao despertar o Boto, cura {v}% da vida"},
 			{"id": "boto_ancestral", "name": "Boto Ancestral", "row": 3, "max": 1, "per": 0.5, "desc": "Cada inimigo atingido pelo Canto estende o Boto em {v} s (até +5 s)"},
@@ -121,7 +121,7 @@ const TREES := {
 			{"id": "festa_boto", "name": "Festa do Boto", "row": 3, "max": 1, "per": 2, "desc": "Ao despertar o Boto, os inimigos a até 6 m dançam por {v} s (não atacam nem andam)"},
 		]},
 		{"id": "rio", "name": "Marca do Rio", "role": "suporte de dano", "talents": [
-			{"id": "eco", "name": "Eco", "row": 0, "max": 3, "per": 5, "desc": "O Canto marca o inimigo: recebe +{v}% de dano por 4 s"},
+			{"id": "eco", "name": "Eco", "row": 0, "max": 3, "per": 5, "desc": "A Semente e o Canto marcam o inimigo: recebe +{v}% de dano por 4 s"},
 			{"id": "semente_dura", "name": "Semente Dura", "row": 0, "max": 3, "per": 5, "desc": "Semente: +{v}% de dano"},
 			{"id": "espinho_tucuma", "name": "Espinho de Tucumã", "row": 1, "max": 2, "per": 15, "desc": "As flores ganham espinhos: +30% de dano e o inimigo causa {v}% menos dano por 4 s"},
 			{"id": "eco_longo", "name": "Eco Longo", "row": 1, "max": 1, "per": 3, "desc": "A marca do Eco dura +{v} s"},

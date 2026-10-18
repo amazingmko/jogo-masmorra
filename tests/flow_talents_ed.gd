@@ -264,7 +264,7 @@ func _test_druida() -> void:
 	check(_kit.max_seeds() == 6 and is_equal_approx(_kit.seed_life(), 8.0), "base: 6 mudas de 8 s")
 	_set_talents(&"druida", _all(&"druida"))
 	check(_kit.max_seeds() == 8 and is_equal_approx(_kit.seed_life(), 12.0), "Bosque: 8 mudas de 12 s")
-	check(is_equal_approx(_kit.root_delay(), 0.5), "Raiz Funda: raízes em 0,5 s")
+	check(is_equal_approx(_kit.trail_step(), 3.0), "Passo de Semente: uma muda a cada 3 m")
 	var p = PROJ.new()
 	p.damage = 100
 	_kit.modify_projectile(p)
@@ -295,7 +295,6 @@ func _test_druida() -> void:
 	_hold(biter)
 	_seed_at(Vector3(1.5, 0, 0))
 	_player.health.health = 100
-	_kit._still = -999.0  # sem Raízes Vivas para medir só a muda
 	var bh: int = biter.health.health
 	await _frames(130)
 	check(_player.health.health > 100, "Muda Viva: curou %d em ~2 s" % (_player.health.health - 100))
@@ -316,6 +315,7 @@ func _test_druida() -> void:
 	for i in 3:
 		_kit._on_seed_hit(sl, null)
 	check(sl.is_asleep(), "Sonolência: 3 sementes fazem dormir")
+	check(sl._marks.has("eco"), "Eco: a Semente também marca")
 	var shp: int = sl.health.health
 	sl.take_hit(100, false, Vector3.RIGHT)
 	check(shp - sl.health.health >= 130 and not sl.is_asleep(), "Despertar Rude: acordou com %d de dano (100 base)" % (shp - sl.health.health))

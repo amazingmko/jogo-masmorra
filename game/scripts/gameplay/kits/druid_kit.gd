@@ -5,8 +5,8 @@ extends HeroKit
 ##              muda (dura 8 s, no máximo 6).
 ##  Habilidade  Florescer: todas as mudas abrem em flor de uma vez: cada flor perto da Druida cura,
 ##              e machuca os inimigos em volta da flor. Sem mudas, planta duas aos seus pés.
-##  Passiva     Raízes Vivas: parada 1 s, finca raízes: regenera a vida e recebe menos dano;
-##              ao andar, solta.
+##  Passiva     Rastro de Seiva: andando em luta, planta sozinha uma muda atrás de si a cada 4 m
+##              (correr dos inimigos espalha o jardim que o Florescer vai abrir).
 ##  Ultimate    Despertar do Boto (10 s): vira o boto-cor-de-rosa numa bolha de água: mais rápida,
 ##              imune a lentidão e raízes; o ataque vira o Canto (onda sonora que atravessa todos e
 ##              cura a cada acerto). No fim, toda muda floresce.
@@ -20,9 +20,8 @@ const FLOWER_HEAL := 0.03          # cada flor perto da Druida cura 3% da vida m
 const FLOWER_HEAL_RANGE := 4.0
 const FLOWER_RADIUS := 2.2         # inimigos a até 2,2 m da flor levam o golpe dela
 const FLOWER_DAMAGE := 0.5         # 50% do dano da arma
-const ROOT_DELAY := 1.0
-const ROOT_REGEN := 0.015          # 1,5% da vida por segundo
-const ROOT_GUARD := 0.2            # 20% menos dano
+const TRAIL_STEP := 4.0           # uma muda a cada 4 m andados
+const TRAIL_COMBAT_RANGE := 14.0   # só planta com inimigo acordado por perto (explorando, não)
 const BOTO_TIME := 10.0
 const BOTO_EXTEND_MAX := 5.0
 const CANTO_HEAL := 0.015          # cada inimigo atingido pelo Canto cura 1,5%
@@ -37,10 +36,8 @@ const DROWSY_WINDOW := 4.0
 const CARNIVORE_RADIUS := 1.3
 
 var _seeds: Array = []
-var _still := 0.0
-var _rooted := false
-var _root_fx: Node3D
-var _regen_acc := 0.0
+var _walked := 0.0
+var _last_pos := Vector3.INF
 var _boto_left := 0.0
 var _boto_extended := 0.0
 var _boto: BotoForm
@@ -68,7 +65,7 @@ func describe() -> PackedStringArray:
 	return PackedStringArray([
 		"Semente (ataque): onde a semente cai, nasce uma muda (dura %d s, no máximo %d)." % [SEED_LIFE, max_seeds()],
 		"Florescer (habilidade, %d s): todas as mudas abrem em flor: cada flor perto de você cura %d%% da vida e machuca os inimigos em volta dela." % [BLOOM_COOLDOWN, int(FLOWER_HEAL * 100)],
-		"Raízes Vivas (passiva): parada %.1f s, finca raízes: regenera %.1f%% da vida por segundo e recebe %d%% menos dano." % [root_delay(), ROOT_REGEN * 100, int(ROOT_GUARD * 100)],
+		"Rastro de Seiva (passiva): andando em luta, planta uma muda atrás de você a cada %d m." % int(trail_step()),
 		"Despertar do Boto (ultimate, %d s): vira o Boto numa bolha de água, mais rápida e imune a lentidão e raízes; o Canto atravessa os inimigos e cura a cada acerto. No fim, toda muda floresce." % BOTO_TIME,
 	])
 
@@ -83,8 +80,8 @@ func seed_life() -> float:
 	return SEED_LIFE + 2.0 * t("bosque")
 
 
-func root_delay() -> float:
-	return ROOT_DELAY - tv("raiz_funda")
+func trail_step() -> float:
+	return TRAIL_STEP - tv("passo_semente")
 
 
 func is_boto() -> bool:
@@ -109,6 +106,7 @@ func modify_projectile(p: Projectile) -> void:
 
 
 func _on_seed_hit(enemy: Node3D, _p: Projectile) -> void:
+	_echo(enemy)
 	# Sonolência: várias sementes seguidas no mesmo bicho o fazem dormir
 	if t("sonolencia") > 0 and enemy.has_method("sleep"):
 		var id := enemy.get_instance_id()
@@ -160,6 +158,7 @@ func on_seed_tick(s: DruidSeed, delta: float) -> void:
 # ---------- Florescer ----------
 
 func _use_skill() -> bool:
+	player.play_kit_animation("florescer", 0.8, "")
 	var list := seeds()
 	if list.is_empty():
 		# sem mudas: duas nascem aos pés dela e já abrem
@@ -218,71 +217,45 @@ func _process(delta: float) -> void:
 		_drowsy[id][1] += delta
 		if _drowsy[id][1] > DROWSY_WINDOW:
 			_drowsy.erase(id)
-	var moving := Vector2(player.velocity.x, player.velocity.z).length() > 0.3
-	if moving or is_boto():
-		_still = 0.0
-		if _rooted:
-			_set_rooted(false)
-	else:
-		_still += delta
-		if not _rooted and _still >= root_delay():
-			_set_rooted(true)
-	if _rooted:
-		_regen_acc += player.health.max_health * ROOT_REGEN * delta
-		if _regen_acc >= 1.0:
-			player.health.heal(int(_regen_acc))
-			_regen_acc -= int(_regen_acc)
+	_trail()
 	if _boto_left > 0.0:
 		_boto_left -= delta
 		if _boto_left <= 0.0:
 			_end_boto()
 
 
-func _set_rooted(on: bool) -> void:
-	_rooted = on
-	if on:
-		_root_fx = Node3D.new()
-		player.add_child(_root_fx)
-		for i in 5:
-			var r := MeshInstance3D.new()
-			var c := CylinderMesh.new()
-			c.top_radius = 0.01
-			c.bottom_radius = 0.05
-			c.height = 0.5
-			c.radial_segments = 5
-			c.rings = 1
-			r.mesh = c
-			r.material_override = DruidSeed._mat(Color(0.4, 0.28, 0.15))
-			var a := TAU * i / 5.0
-			r.position = Vector3(cos(a) * 0.35, 0.12, sin(a) * 0.35)
-			r.rotation = Vector3(sin(a) * 0.9, 0, -cos(a) * 0.9)
-			r.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			_root_fx.add_child(r)
-		_root_fx.scale = Vector3(1, 0.05, 1)
-		_root_fx.create_tween().tween_property(_root_fx, "scale", Vector3.ONE, 0.3)
-		Vfx.particles(player.get_parent(), player.global_position + Vector3(0, 0.2, 0), "folha", 6, 0.8, Color(0.6, 1.0, 0.5, 0.8), 0.2, Vector2(0.5, 1.5), 60.0, -1.0)
-	elif is_instance_valid(_root_fx):
-		var fx := _root_fx
-		var tw := fx.create_tween()
-		tw.tween_property(fx, "scale", Vector3(1, 0.05, 1), 0.15)
-		tw.tween_callback(fx.queue_free)
-		_root_fx = null
+## Rastro de Seiva: conta os metros andados (fora do Boto) e planta uma muda atrás dela.
+func _trail() -> void:
+	var pos: Vector3 = player.global_position
+	if _last_pos == Vector3.INF:
+		_last_pos = pos
+	var step := Vector2(pos.x - _last_pos.x, pos.z - _last_pos.z).length()
+	_last_pos = pos
+	if is_boto() or step > 2.0 or not _in_combat():  # teleporte/troca de andar não conta
+		return
+	_walked += step
+	if _walked >= trail_step():
+		_walked = 0.0
+		var back := Vector3(player.velocity.x, 0, player.velocity.z)
+		back = -back.normalized() * 0.6 if back.length() > 0.1 else Vector3.ZERO
+		_plant(pos + back)
 
 
-func is_rooted() -> bool:
-	return _rooted
-
-
-func incoming_factor() -> float:
-	return 1.0 - ROOT_GUARD if _rooted else 1.0
+func _in_combat() -> bool:
+	for enemy in player.get_tree().get_nodes_in_group("enemies"):
+		if enemy.health.is_dead or not enemy.get("_awake"):
+			continue
+		if enemy.global_position.distance_to(player.global_position) <= TRAIL_COMBAT_RANGE:
+			return true
+	return false
 
 
 # ---------- Despertar do Boto ----------
 
 func _use_ultimate() -> void:
+	player.play_kit_animation("despertar", 0.6, "")
 	_boto_left = BOTO_TIME
 	_boto_extended = 0.0
-	_set_rooted(false)
 	_show_boto(true)
 	player.refresh_stats()
 	Fx.float_text(player.get_parent(), player.global_position + Vector3(0, 3.0, 0), "DESPERTAR DO BOTO!", Color("f29ccb"))
@@ -367,9 +340,13 @@ func _on_canto_hit(enemy: Node3D, _p: Projectile) -> void:
 		_boto_extended += add
 	if t("sono") > 0 and enemy.has_method("sleep") and randf() < tv("sono") / 100.0:
 		enemy.sleep(_sleep_time(), _wake_bonus())
+	_echo(enemy)
+
+
+## Eco (Marca do Rio): Semente e Canto marcam o inimigo para levar mais dano.
+func _echo(enemy: Node3D) -> void:
 	if t("eco") > 0 and enemy.has_method("mark"):
 		enemy.mark("eco", tv("eco") / 100.0, ECO_TIME + tv("eco_longo"))
-		enemy.set_meta("eco_until", Time.get_ticks_msec() + int((ECO_TIME + tv("eco_longo")) * 1000.0))
 
 
 func _sleep_time() -> float:
@@ -396,7 +373,7 @@ func on_kill(elite: bool) -> void:
 	var last: Node = player.get_meta("last_killed", null) if player.has_meta("last_killed") else null
 	if last == null or not is_instance_valid(last):
 		return
-	if int(last.get_meta("eco_until", 0)) >= Time.get_ticks_msec():
+	if last.get("_marks") is Dictionary and last._marks.has("eco"):
 		player.health.heal(int(round(player.health.max_health * tv("coracao_rio") / 100.0)))
 		add_charge(10.0)
 		Fx.float_text(player.get_parent(), player.global_position + Vector3(0, 2.6, 0), "CORAÇÃO DO RIO", Color("f29ccb"))
@@ -410,7 +387,8 @@ func on_run_start() -> void:
 	_boto_left = 0.0
 	if is_instance_valid(_boto):
 		_boto.queue_free()
-	_set_rooted(false)
+	_walked = 0.0
+	_last_pos = Vector3.INF
 	_drowsy.clear()
 
 
@@ -418,5 +396,5 @@ func on_floor_start() -> void:
 	_seeds.clear()
 	if is_boto():
 		_end_boto()
-	if _rooted:
-		_set_rooted(false)
+	_walked = 0.0
+	_last_pos = Vector3.INF
