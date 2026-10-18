@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://281f1mp6p7bs"
-path="res://.godot/imported/aranha_caranguejeira_0.png-b40c65e244e68f1589d20fca8411edab.ctex"
+path.s3tc="res://.godot/imported/aranha_caranguejeira_0.png-b40c65e244e68f1589d20fca8411edab.s3tc.ctex"
+path.etc2="res://.godot/imported/aranha_caranguejeira_0.png-b40c65e244e68f1589d20fca8411edab.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "a8bbe3b34bf75df9c884fad0fff406a8"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://game/art/inimigos/animados/aranha_caranguejeira_0.png"
-dest_files=["res://.godot/imported/aranha_caranguejeira_0.png-b40c65e244e68f1589d20fca8411edab.ctex"]
+dest_files=["res://.godot/imported/aranha_caranguejeira_0.png-b40c65e244e68f1589d20fca8411edab.s3tc.ctex", "res://.godot/imported/aranha_caranguejeira_0.png-b40c65e244e68f1589d20fca8411edab.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -40,4 +42,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0
