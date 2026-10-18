@@ -87,14 +87,6 @@ func _use_skill() -> bool:
 	if dir.length() < 0.1:
 		return false
 	dir = dir.normalized()
-	# Não atravessa parede: para um pouco antes do que o raio encontrar.
-	var space := player.get_world_3d().direct_space_state
-	var from := origin + Vector3(0, 0.6, 0)
-	var query := PhysicsRayQueryParameters3D.create(from, from + dir * BLINK_DISTANCE, Layers.WORLD)
-	var hit := space.intersect_ray(query)
-	var dist := BLINK_DISTANCE
-	if not hit.is_empty():
-		dist = maxf(from.distance_to(hit.position) - 0.6, 0.0)
 	var clone := WaterClone.new()
 	clone.owner_player = player
 	clone.damage = maxi(int(round(player.weapon_stats.damage * CLONE_DAMAGE)), 1)
@@ -110,8 +102,7 @@ func _use_skill() -> bool:
 		for enemy in player.get_tree().get_nodes_in_group("enemies"):
 			if enemy.global_position.distance_to(clone.global_position) <= LURE_RADIUS and enemy.has_method("lure"):
 				enemy.lure(clone, clone.lifetime)
-	player.global_position = origin + dir * dist
-	player.reset_physics_interpolation()
+	player.dash(dir, BLINK_DISTANCE)  # não atravessa nem fica preso em obstáculo
 	if t("iara") > 0:
 		_iara_left = tv("iara")
 		_iara_clone = weakref(clone)
