@@ -62,3 +62,5 @@ Modelos da Tripo em `arte/bruto/inimigos/` → reduzidos com `tools/reduzir_mode
 (o nome é o id do inimigo, ex.: `onca_pintada.glb`). Sem esqueleto: o andar é feito no shader `game/shaders/bicho.gdshader`
 (quadrúpede, bípede, cobra ou muitas patas). Tamanho, modo e para onde a cabeça aponta: tabela `ART` em `enemy.gd`.
 Conferir o andar: folha de contato com 4 momentos do passo de cada bicho.
+Bichos que andam em pé (Mapinguari, Macaco-prego) usam o Mixamo: FBX em `arte/animacoes/<id>/` → FBX2glTF →
+`tools/mixamo_merge.mjs` → `game/art/inimigos/animados/<id>.glb`. Golpes e instante do impacto: tabela `RIG` em `enemy.gd`.

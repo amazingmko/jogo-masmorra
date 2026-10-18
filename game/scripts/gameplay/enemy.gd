@@ -125,6 +125,11 @@ var _body: Node3D
 var _material: StandardMaterial3D
 ## Modelo 3D do bicho (quando existe em game/art/inimigos/<id>.glb); senão, a cápsula provisória.
 var _model: MeshInstance3D
+## Bicho com esqueleto e animações do Mixamo (game/art/inimigos/animados/<id>.glb).
+var _anim: AnimationPlayer
+var _rig_mats: Array[StandardMaterial3D] = []
+var _rig_action := ""        # animação de ação tocando (ataque, dano, morte); "" = andando/parado
+var _rig_action_left := 0.0
 var _pose: Node3D          # pivô do modelo: inclina no bote, achata ao apanhar
 var _mouth_glow: Node3D
 var _gait_phase := 0.0
@@ -311,6 +316,7 @@ func _physics_process(delta: float) -> void:
 	_knockback = _knockback.move_toward(Vector3.ZERO, 30.0 * delta)
 	move_and_slide()
 	_animate_model(delta)
+	_animate_rig(delta)
 	if _slam_left > 0.0:
 		_slam_left -= delta
 		if _knockback.length() > 1.5 and _hit_obstacle():
@@ -728,6 +734,8 @@ func _start(a: EnemyAttack, from_rally: bool = false) -> void:
 	_strike_t = -1.0
 	if _model:
 		_model.set_instance_shader_parameter("golpe", float(_golpe_for(a)))
+	if _anim:
+		_rig_attack(a)
 	var haste := (0.8 if enraged else 1.0) * (1.0 - 0.15 * _rage())
 	_timer = a.windup * haste
 	_cooldowns[a] = a.cooldown * (0.7 if enraged else 1.0)
@@ -1223,6 +1231,12 @@ func _on_died() -> void:
 		_drop_loot()
 	died.emit(self)
 	var tween := create_tween()
+	if _anim and _pose:
+		# animação de morte do Mixamo, depois afunda no chão
+		tween.tween_interval(_rig_death())
+		tween.tween_property(_pose, "position:y", -1.5 * data.body_scale, 0.6)
+		tween.tween_callback(queue_free)
+		return
 	if _model and _pose:
 		# tomba de lado e afunda no chão
 		_model.set_instance_shader_parameter("andando", 0.0)
@@ -1262,6 +1276,13 @@ func _face(dir: Vector3, delta: float) -> void:
 
 
 func _glow(on: bool) -> void:
+	if _anim:
+		for m in _rig_mats:
+			m.emission_enabled = on
+			if on and _attack:
+				m.emission = _attack.color
+				m.emission_energy_multiplier = 0.35
+		return
 	if _model:
 		var c: Color = _attack.color if (on and _attack) else Color.BLACK
 		_model.set_instance_shader_parameter("brilho", Color(c.r, c.g, c.b, 0.55 if on else 0.0))
@@ -1381,6 +1402,10 @@ func _build_model() -> bool:
 
 
 func _set_color(c: Color) -> void:
+	if _anim:
+		for m in _rig_mats:
+			m.albedo_color = c
+		return
 	if _model:
 		_model.set_instance_shader_parameter("cor", Color(c.r, c.g, c.b, _alpha))
 	else:
@@ -1388,6 +1413,20 @@ func _set_color(c: Color) -> void:
 
 
 func _flash_hit() -> void:
+	if _anim:
+		for m in _rig_mats:
+			m.emission_enabled = true
+			m.emission = Color(1, 1, 1)
+			m.emission_energy_multiplier = 0.8
+		var t := create_tween()
+		t.tween_method(func(v: float) -> void:
+			for m in _rig_mats:
+				m.emission_energy_multiplier = v
+				if v <= 0.01:
+					m.emission_enabled = false, 0.8, 0.0, 0.14)
+		if _rig_action == "" and state == State.MOVE and _anim.has_animation("dano") and randf() < 0.35:
+			_rig_action_play("dano", 1.6, 0.35)
+		return
 	if _model:
 		var t := create_tween()
 		t.tween_method(func(v: float) -> void:
@@ -1411,7 +1450,7 @@ func _show_weak_spot(on: bool) -> void:
 
 ## Movimento do ataque no shader (ver bicho.gdshader: 0 bote, 1 garrada, 2 pancada, 3 arremesso, 5 rugido).
 func _golpe_for(a: EnemyAttack) -> int:
-	var biped := _model != null and int(_art(data.id).modo) == 1
+	var biped := _anim != null or (_model != null and int(_art(data.id).modo) == 1)
 	match a.kind:
 		EnemyAttack.Kind.MELEE:
 			if biped:
@@ -1471,6 +1510,133 @@ func _animate_model(delta: float) -> void:
 		_pose.rotation.x = lerpf(_pose.rotation.x, lean, clampf(delta * 10.0, 0.0, 1.0))
 
 
+# ---------- bichos com animação do Mixamo ----------
+
+const RIG_PATH := "res://game/art/inimigos/animados/%s.glb"
+## Altura final e as animações de cada golpe (ver _golpe_for): nome e o instante do impacto (s).
+const RIG := {
+	&"mapinguari": {"altura": 3.4, "golpes": {1: ["garrada", 1.29], 2: ["pancada", 0.29], 0: ["pancada", 0.29], 5: ["rugido", 1.6], 3: ["rugido", 1.6]}},
+	&"macaco_prego": {"altura": 1.25, "golpes": {3: ["arremesso", 2.42], 5: ["arremesso", 2.42], 0: ["tapa", 0.48], 1: ["tapa", 0.48], 2: ["tapa", 0.48]}},
+}
+const RIG_LOOPS := ["idle", "walk", "run"]
+
+
+func _build_rig() -> bool:
+	var path: String = RIG_PATH % data.id
+	if not RIG.has(data.id) or not ResourceLoader.exists(path):
+		return false
+	var scene: Node3D = load(path).instantiate()
+	var players := scene.find_children("*", "AnimationPlayer", true, false)
+	var meshes := scene.find_children("*", "MeshInstance3D", true, false)
+	if players.is_empty() or meshes.is_empty():
+		scene.free()
+		return false
+	_pose = Node3D.new()
+	_body.add_child(_pose)
+	_pose.add_child(scene)
+	var aabb: AABB = (meshes[0] as MeshInstance3D).get_aabb()
+	# a malha fica debaixo de nós com escala (o Mixamo vem em centímetros): soma tudo até a raiz
+	var inner := 1.0
+	var n: Node = meshes[0]
+	while n != null and n != scene:
+		if n is Node3D:
+			inner *= (n as Node3D).scale.y
+		n = n.get_parent()
+	var k: float = float(RIG[data.id].altura) / maxf(aabb.size.y * inner, 0.001)
+	scene.scale = Vector3.ONE * k
+	_anim = players[0]
+	for a in RIG_LOOPS:
+		if _anim.has_animation(a):
+			_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
+	for mi: MeshInstance3D in meshes:
+		for i in mi.mesh.get_surface_count():
+			var src := mi.get_active_material(i) as StandardMaterial3D
+			if src:
+				var m := src.duplicate() as StandardMaterial3D
+				mi.set_surface_override_material(i, m)
+				_rig_mats.append(m)
+	_anim.play("idle")
+	if data.belly_mouth:
+		var glow := MeshInstance3D.new()
+		var sphere := SphereMesh.new()
+		var hgt: float = RIG[data.id].altura
+		sphere.radius = hgt * 0.09
+		sphere.height = hgt * 0.09
+		glow.mesh = sphere
+		_mouth_material = StandardMaterial3D.new()
+		_mouth_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_mouth_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_mouth_material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		_mouth_material.albedo_color = Color(1.0, 0.45, 0.15, 0.9)
+		glow.material_override = _mouth_material
+		glow.scale = Vector3(1.6, 0.8, 0.5)
+		glow.position = Vector3(0, hgt * 0.42, aabb.size.z * inner * k * 0.3)
+		glow.visible = false
+		_pose.add_child(glow)
+		_mouth_glow = glow
+	return true
+
+
+func _rig_play(anim_name: String, blend := 0.15, speed := 1.0) -> void:
+	if _anim == null or not _anim.has_animation(anim_name):
+		return
+	_anim.play(anim_name, blend, speed)
+
+
+## Ação por cima do andar (ataque, dano). duration: quanto tempo ela manda antes de voltar a andar.
+func _rig_action_play(anim_name: String, speed: float, duration: float) -> void:
+	if _anim == null or not _anim.has_animation(anim_name):
+		return
+	_rig_action = anim_name
+	_rig_action_left = duration
+	_anim.play(anim_name, 0.1, speed)
+
+
+func _animate_rig(delta: float) -> void:
+	if _anim == null or state == State.DEAD:
+		return
+	if _rig_action != "":
+		_rig_action_left -= delta
+		if _rig_action_left > 0.0:
+			return
+		_rig_action = ""
+	var speed := Vector2(velocity.x, velocity.z).length()
+	var want := "idle"
+	var rate := 1.0
+	if speed > 3.2 and _anim.has_animation("run"):
+		want = "run"
+		rate = clampf(speed / 4.5, 0.7, 1.6)
+	elif speed > 0.25:
+		want = "walk"
+		rate = clampf(speed / 1.8, 0.6, 1.8)
+	# mesma animação: play() não recomeça, só ajusta o ritmo ao passo
+	_rig_play(want, 0.2 if _anim.current_animation != want else -1.0, rate)
+
+
+## Começa o ataque: a animação é acelerada/freada para o impacto cair no fim do aviso.
+func _rig_attack(a: EnemyAttack) -> void:
+	var g := _golpe_for(a)
+	var table: Dictionary = RIG[data.id].golpes
+	var entry: Array = table.get(g, table.values()[0])
+	var anim_name: String = entry[0]
+	var impact: float = entry[1]
+	if not _anim.has_animation(anim_name):
+		return
+	var windup: float = maxf(a.windup, 0.2)
+	var speed := clampf(impact / windup, 0.35, 3.0)
+	var length := _anim.get_animation(anim_name).length
+	# manda até o impacto e mais um tantinho depois (o resto do golpe), depois volta a andar
+	_rig_action_play(anim_name, speed, windup + minf((length - impact) / speed, 0.6))
+
+
+func _rig_death() -> float:
+	if _anim and _anim.has_animation("morte"):
+		_rig_action = "morte"
+		_anim.play("morte", 0.1, 1.3)
+		return minf(_anim.get_animation("morte").length / 1.3, 2.2)
+	return 0.0
+
+
 # ---------- visual provisório (vira modelo 3D na etapa de arte) ----------
 
 func _build_visuals() -> void:
@@ -1490,6 +1656,11 @@ func _build_visuals() -> void:
 	_material.roughness = 0.9
 	if data.stalker or data.ambush_range > 0.0:
 		_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	if _build_rig():
+		_eye_material = StandardMaterial3D.new()
+		_tint = Color.WHITE
+		_set_color(_tint)
+		return
 	if _build_model():
 		_eye_material = StandardMaterial3D.new()  # (sem olhos de mentira: o modelo já tem)
 		_tint = Color.WHITE
