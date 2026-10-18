@@ -6,7 +6,7 @@
 script = ExtResource("1_nuqq2")
 id = &"druida"
 display_name = "Druida da Mata"
-description = "Guardiã da mata que vira bicho: Onça (golpes rápidos), Sucuri (aperta e prende, aguenta mais) e Boto (jatos d'água de longe, cura sem parar). Agilidade, couro."
+description = "Guardiã da mata que cura e protege: planta mudas com o Cajado de Raiz e as faz florescer; na ultimate, desperta o Boto. Suporte, cura e controle."
 hero_class = 3
 element = 3
 primary_stat = 1

@@ -1,6 +1,6 @@
 extends SceneTree
 ## Teleportes e saltos nunca deixam o herói preso dentro de obstáculo (tronco caído, pedra, sumaúma):
-## Espelho do Rio (Encantado), salto da Onça (Druida) e o salto encadeado da Onça-Pintada Alfa.
+## Espelho do Rio (Encantado).
 ## Para cada obstáculo, várias distâncias e ângulos; no fim o corpo do herói não pode estar
 ## encostando dentro de nenhum sólido.
 ## Rodar: godot --headless --fixed-fps 60 --path . --script res://tests/flow_dash.gd
@@ -36,7 +36,7 @@ func _frames(n: int) -> void:
 
 func _run() -> void:
 	_gs = root.get_node("GameState")
-	for hero in [&"encantado", &"druida"]:
+	for hero in [&"encantado"]:
 		await _hero(hero)
 	print("fim: ", "TUDO OK" if _ok else "COM FALHAS")
 	quit(0 if _ok else 1)

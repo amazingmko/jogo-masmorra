@@ -81,6 +81,7 @@ func try_skill() -> bool:
 
 
 func _use_skill() -> bool:
+	player.play_kit_animation("espelho", 0.5, "")
 	var origin := player.global_position
 	var dir := player.facing()
 	dir.y = 0.0
@@ -137,6 +138,7 @@ func _show_bubble(seconds: float) -> void:
 # ---------- Pororoca / Boiuna ----------
 
 func _use_ultimate() -> void:
+	player.play_kit_animation("pororoca", 1.0, "")
 	if t("boiuna") > 0:
 		var snake := Boiuna.new()
 		snake.owner_player = player

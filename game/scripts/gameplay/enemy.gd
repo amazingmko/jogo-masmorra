@@ -88,6 +88,10 @@ var _constrict_immune := 0.0
 ## Efeitos dos talentos do herói: atordoado (não anda nem decide), lento, envenenado e marcas
 ## que aumentam o dano recebido ({nome: [bônus, segundos]}).
 var _stun_left := 0.0
+var _sleep_left := 0.0      # Sono (Druida): parado até levar dano
+var _dance_left := 0.0      # Festa do Boto: dança sem atacar
+var _weaken_left := 0.0     # Espinho de Tucumã: bate mais fraco
+var _weaken_factor := 1.0
 var _slow_left := 0.0
 var _slow_factor := 1.0
 var _poison_left := 0.0
@@ -218,6 +222,18 @@ func _physics_process(delta: float) -> void:
 	_constrict_left -= delta
 	_constrict_immune -= delta
 	_stun_left -= delta
+	if _sleep_left > 0.0:
+		_sleep_left -= delta
+	if _weaken_left > 0.0:
+		_weaken_left -= delta
+		if _weaken_left <= 0.0:
+			damage_multiplier /= _weaken_factor
+			_weaken_factor = 1.0
+	if _dance_left > 0.0:
+		_dance_left -= delta
+		if _dance_left <= 0.0 and _pose:
+			_pose.rotation.z = 0.0
+			_pose.position.y = 0.0
 	_slow_left -= delta
 	_foam_left -= delta
 	_fear_left -= delta
@@ -336,6 +352,11 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_animate_model(delta)
 	_animate_rig(delta)
+	if _dance_left > 0.0 and _pose:
+		var tt := Time.get_ticks_msec() * 0.001
+		_pose.rotation.z = sin(tt * 11.0) * 0.3
+		_pose.position.y = absf(sin(tt * 5.5)) * 0.18 * data.body_scale
+		_body.rotation.y += sin(tt * 3.0) * 0.06
 	if _slam_left > 0.0:
 		_slam_left -= delta
 		if _knockback.length() > 1.5 and _hit_obstacle():
@@ -350,6 +371,13 @@ func take_hit(amount: int, crit: bool, from_direction: Vector3) -> void:
 		return
 	if not _awake:
 		_wake()
+	# Dormindo (Druida): o golpe acorda; com Despertar Rude, esse golpe dói mais
+	if _sleep_left > 0.0:
+		_sleep_left = 0.0
+		_stun_left = 0.0
+		amount = int(round(amount * (1.0 + wake_bonus)))
+		wake_bonus = 0.0
+		Fx.float_text(get_parent(), global_position + Vector3(0, 2.0 * data.body_scale, 0), "acordou!", Color("c9b8ff"))
 	if _try_evade(from_direction):
 		return
 	# Couro grosso (Mapinguari): toma menos dano, e o dobro com a barriga exposta.
@@ -857,6 +885,59 @@ func stun(seconds: float) -> void:
 	if _stun_left <= 0.0:
 		Fx.float_text(get_parent(), global_position + Vector3(0, 2.0 * data.body_scale, 0), "atordoado", Color("ffd34d"))
 	_stun_left = maxf(_stun_left, seconds)
+
+
+## Sono (Canto do Boto): parado até levar dano ou o tempo acabar. Chefe: bem menos.
+## Não interrompe um ataque já avisado no chão. bonus: dano extra do golpe que acorda.
+var wake_bonus := 0.0
+
+
+func sleep(seconds: float, bonus := 0.0) -> void:
+	if state == State.DEAD:
+		return
+	if is_boss:
+		seconds *= 0.3
+	if _sleep_left <= 0.0:
+		Fx.float_text(get_parent(), global_position + Vector3(0, 2.0 * data.body_scale, 0), "Zzz", Color("c9b8ff"))
+		Vfx.particles(self, global_position + Vector3(0, 1.6 * data.body_scale, 0), "faisca", 5, 1.2, Color(0.8, 0.75, 1.0, 0.8), 0.2, Vector2(0.3, 0.6), 20.0, 0.4)
+	_sleep_left = maxf(_sleep_left, seconds)
+	_stun_left = maxf(_stun_left, seconds)
+	wake_bonus = maxf(wake_bonus, bonus)
+
+
+func is_asleep() -> bool:
+	return _sleep_left > 0.0
+
+
+## Festa do Boto: dança no lugar, sem andar nem começar ataques. Chefe: bem menos.
+func dance(seconds: float) -> void:
+	if state == State.DEAD:
+		return
+	if is_boss:
+		seconds *= 0.4
+	if _dance_left <= 0.0:
+		Fx.float_text(get_parent(), global_position + Vector3(0, 2.0 * data.body_scale, 0), "dançando!", Color("ff9ad5"))
+	_dance_left = maxf(_dance_left, seconds)
+	_stun_left = maxf(_stun_left, seconds)
+
+
+func is_dancing() -> bool:
+	return _dance_left > 0.0
+
+
+## Bate mais fraco por um tempo (factor = fração do dano que sobra). Reaplicar renova.
+func weaken(factor: float, seconds: float) -> void:
+	if state == State.DEAD:
+		return
+	if _weaken_left > 0.0:
+		damage_multiplier /= _weaken_factor
+	_weaken_factor = clampf(factor, 0.2, 1.0)
+	damage_multiplier *= _weaken_factor
+	_weaken_left = seconds
+
+
+func is_weakened() -> bool:
+	return _weaken_left > 0.0
 
 
 ## Congelado (Gelo de Rio): como atordoado, mas fica azul-gelo. Chefe: bem menos.
@@ -1671,7 +1752,8 @@ func _build_rig() -> bool:
 				var m := src.duplicate() as StandardMaterial3D
 				mi.set_surface_override_material(i, m)
 				_rig_mats.append(m)
-	_anim.play("idle")
+	if _anim.has_animation("idle"):
+		_anim.play("idle")
 	if data.belly_mouth:
 		var glow := MeshInstance3D.new()
 		var sphere := SphereMesh.new()

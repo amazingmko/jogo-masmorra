@@ -175,7 +175,7 @@ func refresh_stats(full_heal: bool = false) -> void:
 	if hero == null:
 		return
 	stats = GameState.stats_for(hero_id, buffs)
-	weapon_stats = stats.weapon
+	weapon_stats = kit.modify_weapon(stats.weapon) if kit else stats.weapon
 	move_speed = stats.move_speed
 	crit_chance = stats.crit_chance
 	health.damage_reduction = stats.damage_reduction
@@ -222,6 +222,8 @@ func receive_attack(amount: int, effect: int, effect_duration: float, effect_pow
 		return
 	if kit and kit.ignores_effect(effect):
 		effect = EnemyAttack.Effect.NONE
+	if amount > 0 and kit:
+		amount = maxi(int(round(amount * kit.incoming_factor())), 1)
 	if amount > 0:
 		landed = health.take_damage(amount, true, ignore_invuln) > 0
 	if landed:
@@ -642,7 +644,8 @@ func _update_marker() -> void:
 # ---------- formas da Druida da Mata ----------
 
 func is_shapeshifter() -> bool:
-	return hero != null and hero.hero_class == GameEnums.HeroClass.DRUID
+	# A Druida não troca mais de forma: luta em forma humana e vira Boto na ultimate (DruidKit).
+	return false
 
 
 ## Passa para a próxima forma: Onça → Sucuri → Boto → Onça.

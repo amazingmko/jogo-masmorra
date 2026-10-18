@@ -112,50 +112,49 @@ func _process(_d: float) -> bool:
 		_player.start_floor()
 	if _f == 135:
 		check(_kit.get_script().get_global_name() == &"DruidKit", "Druida tem o kit dela")
-		check(_kit.try_skill(), "Forma: troca para a Sucuri")
-		check(not _kit.try_skill(), "Forma tem recarga (%d s)" % _player.FORM_COOLDOWN)
-		# Instinto da Sucuri: aperta por mais tempo.
-		_a = _dummy(Vector3(1.2, 0.1, 0))
-		_a._constrict_left = 0.0
-	if _f == 137:
-		_player._target = _a
-		_player._facing = Vector3(1, 0, 0)
-		_player._attack()
-		check(_a._constrict_left > 1.5, "Instinto (Sucuri): o 1º golpe aperta por 2 s")
-		_player._attack_cooldown = 0.0
-		_a._constrict_immune = 0.0
-		_a._constrict_left = 0.0
-		_player._attack()
-		check(_a._constrict_left < 1.0, "depois, a Sucuri volta a apertar só 0,8 s")
-		# Instinto da Onça: salta até o alvo.
-		_kit._skill_cd = 0.0
-		_kit._charges = 1
-		_player._form_cooldown = 0.0
-		_player.set_form(_player.Form.ONCA)
-		_a.global_position = _player.global_position + Vector3(5.0, 0, 0)
+		check(_player.weapon_stats.is_ranged() and _player.form == 0, "Druida luta em forma humana, de longe (Cajado de Raiz)")
+		_a = _dummy(Vector3(4.0, 0.1, 0))
 		_a._constrict_left = 999.0
 		_player._target = _a
-		_pos = _player.global_position
-		_player._attack_cooldown = 0.0
-		_player._attack()
-		check(_player.global_position.distance_to(_pos) > 3.0, "Instinto (Onça): salta até o alvo (%.1f m)" % _player.global_position.distance_to(_pos))
-		# Instinto do Boto: cura.
-		_player.set_form(_player.Form.BOTO)
-		_player.health.health = 100
-		_player._target = _a
+		_player._facing = Vector3(1, 0, 0)
 		_player._release_shot()
-		check(_player.health.health > 100, "Instinto (Boto): o 1º disparo cura")
-		check(_kit._cycle_left > 0.0, "Ciclo da Mata: as 3 formas em 10 s dão o bônus de dano")
-		# Espírito Ancestral.
-		_kit.charge = 100.0
-		check(_kit.try_ultimate(), "Espírito Ancestral funciona")
+	if _f == 175:
+		check(_kit.seeds().size() >= 1, "Semente: o disparo plantou uma muda (%d)" % _kit.seeds().size())
 		_hp = _a.health.health
-		_a.global_position = _player.global_position + Vector3(1.5, 0, 0)
-	if _f == 140:
-		check(_kit.try_skill(), "Espírito Ancestral: troca de forma")
-	if _f == 155:
-		check(_kit.try_skill(), "Espírito Ancestral: troca de novo logo em seguida (sem a recarga de 4 s)")
-		check(_a.health.health < _hp, "Espírito Ancestral: cada troca solta uma explosão")
+		_player.health.health = 100
+		check(_kit.try_skill(), "Florescer funciona")
+		check(_kit.seeds().is_empty(), "Florescer: as mudas abriram")
+		check(_a.health.health < _hp, "Florescer: a flor machucou o inimigo em volta")
+		check(not _kit.try_skill(), "Florescer tem recarga")
+		var ws: float = _player.weapon_stats.attack_speed
+		_kit.charge = 100.0
+		check(_kit.try_ultimate(), "Despertar do Boto funciona")
+		check(_kit.is_boto() and is_instance_valid(_kit._boto), "Boto: aparece a bolha com o boto")
+		check(_player._model == null or not _player._model.visible, "Boto: o modelo da Druida some")
+		check(_player.weapon_stats.attack_speed > ws * 1.5, "Boto: o Canto sai mais rápido")
+		check(is_equal_approx(_kit.speed_factor(), 1.25), "Boto: anda 25% mais rápido")
+		_player.receive_attack(1, 2, 2.0, 0, Vector3.ZERO)
+		check(not _player.status.is_rooted(), "Boto: imune a raízes")
+		_player._target = _a
+		_player.health.health = 100
+		_hp = _a.health.health
+		_player._release_shot()
+	if _f == 205:
+		check(_a.health.health < _hp, "Canto: acertou o inimigo")
+		check(_player.health.health > 100, "Canto: cada acerto cura")
+		_kit._plant(_player.global_position + Vector3(1, 0, 0))
+		_kit._boto_left = 0.01
+	if _f == 210:
+		check(not _kit.is_boto() and _player.weapon_stats.attack_speed < 2.0, "fim do Boto: volta a Druida com o Cajado")
+		check(_player._model == null or _player._model.visible, "fim do Boto: o modelo volta")
+		check(_kit.seeds().is_empty(), "fim do Boto: as mudas florescem")
+		_a._awake = true
+		_pos = _player.global_position
+	if _f > 210 and _f < 300:
+		# Rastro de Seiva: andando em luta (8 m), planta mudas sozinha
+		_player.global_position = _pos + Vector3(0, 0, 0.1 * (_f - 210))
+	if _f == 300:
+		check(_kit.seeds().size() >= 2, "Rastro de Seiva: andando 9 m em luta plantou %d mudas" % _kit.seeds().size())
 		print("fim: ", "TUDO OK" if _ok else "COM FALHAS")
 		quit(0 if _ok else 1)
 	return false

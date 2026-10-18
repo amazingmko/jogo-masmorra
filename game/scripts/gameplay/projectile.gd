@@ -31,6 +31,8 @@ var crit_damage_bonus := 0.0
 var bounces := 0
 ## Chamado a cada inimigo atingido: on_hit.call(inimigo, projétil). Poderes da classe usam.
 var on_hit := Callable()
+## Chamado uma vez quando o disparo acaba (acertou, bateu ou chegou ao alcance): on_end.call(posição).
+var on_end := Callable()
 var _hit := {}
 
 var _traveled := 0.0
@@ -156,11 +158,13 @@ func _physics_process(delta: float) -> void:
 	if Layers.blocked(get_world_3d(), global_position, global_position + direction * step):
 		_spent = true
 		Vfx.particles(get_parent(), global_position, "faisca", 6, 0.25, Color(1, 1, 1, 0.6), 0.2, Vector2(0.5, 1.5), 180.0, -4.0)
+		_end()
 		queue_free()
 		return
 	global_position += direction * step
 	_traveled += step
 	if _traveled >= max_distance:
+		_end()
 		queue_free()
 
 
@@ -187,7 +191,16 @@ func _on_body_entered(body: Node3D) -> void:
 			damage = maxi(int(round(damage * pierce_factor)), 1)
 			return
 		_spent = true
+		_end()
 		queue_free()
 	elif not body.is_in_group("player"):
 		_spent = true
+		_end()
 		queue_free()
+
+
+func _end() -> void:
+	if on_end.is_valid():
+		var cb := on_end
+		on_end = Callable()
+		cb.call(global_position)
