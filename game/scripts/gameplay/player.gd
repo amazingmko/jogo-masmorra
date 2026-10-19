@@ -748,6 +748,10 @@ func _apply_model(new_hero: HeroData) -> void:
 	add_child(animator)
 	if animator.setup(_model):
 		_animator = animator
+		var stride: Array = HeroGear.STRIDE.get(new_hero.id, [])
+		if stride.size() == 2:
+			animator.walk_speed = stride[0]
+			animator.run_speed = stride[1]
 	else:
 		animator.queue_free()
 	_flash_material = StandardMaterial3D.new()

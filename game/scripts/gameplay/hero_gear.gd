@@ -51,6 +51,16 @@ const IMPACT := {
 	&"encantado": {"ataque1": 0.61, "ataque2": 0.58, "ataque3": 0.61},
 	&"druida": {"ataque1": 0.61, "ataque2": 0.61, "ataque3": 0.61},
 }
+## Passo natural de cada herói (m/s): caminhada e corrida do Mixamo, medidas no pé apoiado
+## (tests/flow_hero_feet.gd confere que o pé não desliza).
+const STRIDE := {
+	&"icamiaba": [1.2, 3.3],
+	&"mateira": [1.0, 3.5],
+	&"encantado": [0.84, 5.2],
+	&"druida": [1.54, 3.6],
+}
+
+
 static func has_timing(hero_id: StringName) -> bool:
 	return IMPACT.has(hero_id)
 
