@@ -20,7 +20,7 @@ Game asset, a single druid staff made from a living twisted tree root, dark brow
 ## 2. Bengala do Encantado
 O Encantado é o boto da lenda, elegante de chapéu e roupa clara: em vez de cajado de mago, uma bengala de galã.
 ```
-Game asset, a single elegant magic walking cane, polished pale wood shaft with thin silver-blue water swirl inlays, the handle carved as the head of a pink Amazon river dolphin (boto) with a long thin snout, a small glowing blue water orb held under the dolphin head, a tiny pink ribbon tied below the handle, stylized hand-painted World of Warcraft style, chunky proportions, side view, full object visible, vertical, isolated on plain white background, no hands, no character, no text
+Game asset, exactly ONE single magic walking cane, only one object in the image, standing vertically in the center. Polished pale wood shaft with thin silver-blue water swirl inlays, the curved handle at the top carved as the head of a pink Amazon river dolphin (boto) with a long thin snout, a small glowing blue water orb held under the dolphin head, a tiny pink ribbon tied below the handle, a small silver tip at the bottom. Stylized hand-painted World of Warcraft style, chunky proportions, side view, full object visible from top to bottom, isolated on plain white background. Do not draw a second cane, no duplicates, no variations, no multiple views, no hands, no character, no text
 ```
 
 ## 3. Harpia (o gavião-real da ultimate da Mateira)
