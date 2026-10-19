@@ -79,6 +79,6 @@ func _run() -> void:
 func _count_balls(parent: Node, seen: Dictionary) -> int:
 	var n := 0
 	for c in parent.get_children():
-		if not seen.has(c.get_instance_id()) and c is MeshInstance3D and c.mesh is SphereMesh and is_equal_approx((c.mesh as SphereMesh).radius, 0.16):
+		if not seen.has(c.get_instance_id()) and c is MeshInstance3D and c.has_meta("ourico"):
 			n += 1
 	return n

@@ -2027,18 +2027,21 @@ func _update_lobs(delta: float) -> void:
 func _throw_lob(spot: Vector3, a: EnemyAttack) -> void:
 	var hgt: float = _rig_height
 	var from := global_position + Vector3(0, hgt * 0.95, 0) + _aim_dir * 0.3
-	var ball := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = 0.16
-	sphere.height = 0.3
-	sphere.radial_segments = 8
-	sphere.rings = 4
-	ball.mesh = sphere
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.42, 0.27, 0.13)
-	m.roughness = 1.0
-	ball.material_override = m
-	ball.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var ball: MeshInstance3D = MobFx.prop("ourico_castanha", 0.42)  # o ouriço de castanha (modelo)
+	if ball == null:
+		ball = MeshInstance3D.new()
+		var sphere := SphereMesh.new()
+		sphere.radius = 0.16
+		sphere.height = 0.3
+		sphere.radial_segments = 8
+		sphere.rings = 4
+		ball.mesh = sphere
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(0.42, 0.27, 0.13)
+		m.roughness = 1.0
+		ball.material_override = m
+		ball.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	ball.set_meta("ourico", true)
 	get_parent().add_child(ball)
 	ball.global_position = from
 	var to := Vector3(spot.x, 0.15, spot.z)

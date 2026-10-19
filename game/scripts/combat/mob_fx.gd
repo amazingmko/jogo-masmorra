@@ -89,6 +89,11 @@ static func on_resolve(t: Telegraph) -> void:
 static func projectile_visual(p: EnemyProjectile) -> bool:
 	match p.attack_id:
 		&"pedrada":
+			var real := prop("pedra_macaco", 0.36)
+			if real:
+				p.add_child(real)
+				_spin(real, Vector3(13.0, 4.0, 0.0))
+				return true
 			var rock := MeshInstance3D.new()
 			var m := SphereMesh.new()
 			m.radius = 0.17
@@ -258,6 +263,11 @@ static func warm(parent: Node3D, at: Vector3) -> void:
 	rock.material_override = _solid(STONE)
 	parent.add_child(rock)
 	rock.global_position = at
+	for n in ["pedra_macaco", "ourico_castanha"]:
+		var pr := prop(n, 0.4)
+		if pr:
+			parent.add_child(pr)
+			pr.global_position = at
 
 
 # ---------- peças ----------
@@ -434,6 +444,36 @@ static func _web_decal(parent: Node, at: Vector3, size: float, life: float) -> v
 
 
 # ---------- ajudantes ----------
+
+static var _props := {}
+
+
+## Objeto 3D pequeno do jogo (pedra, ouriço) em game/art/ambiente/<nome>.glb, com o maior lado
+## medindo "size" e o centro na origem. Devolve null se o modelo não existir.
+static func prop(name: String, size: float) -> MeshInstance3D:
+	if not _props.has(name):
+		var path := "res://game/art/ambiente/%s.glb" % name
+		var mesh: Mesh = null
+		if ResourceLoader.exists(path):
+			var scene: Node = load(path).instantiate()
+			var found := scene.find_children("*", "MeshInstance3D", true, false)
+			if not found.is_empty():
+				mesh = (found[0] as MeshInstance3D).mesh
+			scene.free()
+		_props[name] = mesh
+	var m: Mesh = _props[name]
+	if m == null:
+		return null
+	var holder := MeshInstance3D.new()
+	var aabb := m.get_aabb()
+	var k := size / maxf(aabb.get_longest_axis_size(), 0.001)
+	var inner := MeshInstance3D.new()
+	inner.mesh = m
+	inner.scale = Vector3.ONE * k
+	inner.position = -aabb.get_center() * k
+	inner.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	holder.add_child(inner)
+	return holder
 
 static func _decal(parent: Node, at: Vector3, yaw: float, size: float, texture: String, color: Color, additive: bool) -> MeshInstance3D:
 	var mesh := MeshInstance3D.new()

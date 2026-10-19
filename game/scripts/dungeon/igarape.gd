@@ -151,6 +151,8 @@ func _bridge(at: Vector3, along: Vector3) -> void:
 	var length := HALF_WIDTH * 2.0 + MUD * 2.0 + 0.4   # vai de barranco a barranco
 	var planks := 6
 	var width := DungeonRoom.DOOR_W - 0.4
+	if ResourceLoader.exists(BRIDGE_MODEL) and _bridge_model(node, width, length):
+		return
 	for k in planks:
 		var plank := MeshInstance3D.new()
 		var bm := BoxMesh.new()
@@ -178,6 +180,31 @@ func _bridge(at: Vector3, along: Vector3) -> void:
 		beam.rotation.x = PI * 0.5
 		beam.position = Vector3(side * width * 0.35, 0.02, 0)
 		node.add_child(beam)
+
+
+const BRIDGE_MODEL := "res://game/art/ambiente/pinguela.glb"
+
+
+## A pinguela de verdade (modelo): as tábuas do modelo correm no eixo Z dele (o lado curto),
+## então Z vai na direção da trilha (de barranco a barranco) e X na largura da passagem.
+func _bridge_model(node: Node3D, width: float, length: float) -> bool:
+	var scene: Node = load(BRIDGE_MODEL).instantiate()
+	var found := scene.find_children("*", "MeshInstance3D", true, false)
+	if found.is_empty():
+		scene.free()
+		return false
+	var mesh: Mesh = (found[0] as MeshInstance3D).mesh
+	scene.free()
+	var aabb := mesh.get_aabb()
+	var sx := width / maxf(aabb.size.x, 0.001)
+	var sz := length / maxf(aabb.size.z, 0.001)
+	var sy := minf(sx, sz) * 0.8  # baixa: tábua não fica alta demais
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.scale = Vector3(sx, sy, sz)
+	mi.position = Vector3(-aabb.get_center().x * sx, -aabb.position.y * sy - 0.05, -aabb.get_center().z * sz)
+	node.add_child(mi)
+	return true
 
 
 # ---------- folhas boiando ----------

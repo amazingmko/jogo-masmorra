@@ -1,8 +1,8 @@
 class_name Harpy
 extends Node3D
 ## Chamado da Harpia (ultimate da Mateira): o gavião-real circula acima dela e mergulha
-## nos inimigos, começando pelo mais ferido. Visual provisório feito de formas simples
-## (até ter o modelo 3D da harpia).
+## nos inimigos, começando pelo mais ferido. Modelo 3D da harpia (game/art/herois/harpia.glb);
+## o bater de asas é feito no shader (as pontas das asas sobem e descem), sem esqueleto.
 
 const RANGE := 12.0
 const DIVE_EVERY := 0.75
@@ -26,12 +26,38 @@ var _next_dive := 0.4
 var _diving := false
 var _body: Node3D
 var _wings: Array[Node3D] = []
+var _wing_mat: ShaderMaterial
+
+const MODEL := "res://game/art/herois/harpia.glb"
+const WINGSPAN := 2.1
+## Asas batendo: o modelo tem a envergadura no eixo Z; quanto mais longe do corpo, mais sobe/desce.
+const WING_SHADER := """
+shader_type spatial;
+render_mode cull_disabled;
+uniform sampler2D tex : source_color, filter_linear_mipmap;
+uniform float flap = 0.0;
+uniform vec3 glow : source_color = vec3(0.0);
+void vertex() {
+	float w = max(abs(VERTEX.z) - 0.06, 0.0);
+	VERTEX.y += flap * w * (0.9 + w * 1.6);
+}
+void fragment() {
+	ALBEDO = texture(tex, UV).rgb;
+	ROUGHNESS = 1.0;
+	EMISSION = glow;
+}
+"""
+static var _wing_shader: Shader
 
 
 func _ready() -> void:
 	add_to_group("floor_effects")
 	_body = Node3D.new()
 	add_child(_body)
+	if ResourceLoader.exists(MODEL) and _build_model():
+		Lighting.no_shadow_receive(_body)
+		Vfx.particles(self, Vector3.ZERO, "faisca", 8, 0.6, Color("e8f5ff"), 0.25, Vector2(0.2, 0.6), 180.0, 0.0, true, false)
+		return
 	var grey := _mat(Color("8d8f96"))
 	var dark := _mat(Color("2b2a33"))
 	var white := _mat(Color("f2f0ea"))
@@ -63,8 +89,12 @@ func _process(delta: float) -> void:
 		if _fury_left <= 0.0:
 			_end_fury()
 	var flap := sin(_t * (22.0 if _diving else 9.0)) * 0.6
-	_wings[0].rotation.z = flap
-	_wings[1].rotation.z = -flap
+	if _wing_mat:
+		# mergulhando, as asas quase fecham; circulando, batem largo
+		_wing_mat.set_shader_parameter("flap", flap * (0.5 if _diving else 1.0))
+	else:
+		_wings[0].rotation.z = flap
+		_wings[1].rotation.z = -flap
 	if _diving:
 		return
 	var center := owner_player.global_position
@@ -133,6 +163,8 @@ func fury(seconds: float) -> void:
 	if not starting:
 		return
 	_body.scale = Vector3.ONE * 1.35
+	if _wing_mat:
+		_wing_mat.set_shader_parameter("glow", FURY_COLOR * 0.5)
 	for m in _body.find_children("*", "MeshInstance3D", true, false):
 		var mat := (m as MeshInstance3D).material_override as StandardMaterial3D
 		if mat:
@@ -146,6 +178,8 @@ func fury(seconds: float) -> void:
 
 func _end_fury() -> void:
 	_body.scale = Vector3.ONE
+	if _wing_mat:
+		_wing_mat.set_shader_parameter("glow", Color.BLACK)
 	for mat in _fury_mats:
 		mat.emission_enabled = false
 	_fury_mats.clear()
@@ -171,6 +205,39 @@ func _leave() -> void:
 	var t := create_tween()
 	t.tween_property(self, "global_position", global_position + Vector3(0, 8, 0), 0.6)
 	t.tween_callback(queue_free)
+
+
+## A harpia de verdade: cabeça do modelo (lado -X) para a frente (+Z do corpo), asas para os lados.
+func _build_model() -> bool:
+	var scene: Node = load(MODEL).instantiate()
+	var found := scene.find_children("*", "MeshInstance3D", true, false)
+	if found.is_empty():
+		scene.free()
+		return false
+	var src: MeshInstance3D = found[0]
+	var mesh: Mesh = src.mesh
+	var tex: Texture2D = null
+	var m0 := src.get_active_material(0) as StandardMaterial3D
+	if m0:
+		tex = m0.albedo_texture
+	scene.free()
+	if _wing_shader == null:
+		_wing_shader = Shader.new()
+		_wing_shader.code = WING_SHADER
+	_wing_mat = ShaderMaterial.new()
+	_wing_mat.shader = _wing_shader
+	_wing_mat.set_shader_parameter("tex", tex)
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = _wing_mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var aabb := mesh.get_aabb()
+	var k := WINGSPAN / maxf(aabb.size.z, 0.001)
+	mi.rotation.y = PI * 0.5
+	mi.scale = Vector3.ONE * k
+	mi.position = -(Basis(Vector3.UP, PI * 0.5) * aabb.get_center()) * k
+	_body.add_child(mi)
+	return true
 
 
 # ---------- formas ----------

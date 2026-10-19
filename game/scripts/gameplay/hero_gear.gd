@@ -39,6 +39,28 @@ const GEAR := {
 			"grip": Vector3(0.0, 0.03, 0.0),
 		},
 	],
+	&"druida": [
+		{  # Cajado de Raiz: na mão direita, de pé (topo do modelo, +Y, para o lado do polegar)
+			"scene": "res://game/art/armas/cajado_druida.glb",
+			"bone": "mixamorig_RightHand",
+			"offset": Vector3(0.0, 0.08, 0.02),
+			"basis": Basis(Vector3(0, 0, 1), Vector3(-1, 0, 0), Vector3(0, -1, 0)),
+			"size": 1.55,
+			"grip": Vector3(0.0, 0.45, 0.0),  # a amarração de corda
+			"upright": true,  # fica de pé na mão (ver UprightGear)
+		},
+	],
+	&"encantado": [
+		{  # bengala do boto: na mão direita, segura logo abaixo da cabeça do boto
+			"scene": "res://game/art/armas/cajado_encantado.glb",
+			"bone": "mixamorig_RightHand",
+			"offset": Vector3(0.0, 0.08, 0.02),
+			"basis": Basis(Vector3(0, 0, 1), Vector3(-1, 0, 0), Vector3(0, -1, 0)),
+			"size": 1.05,
+			"grip": Vector3(0.0, 0.78, 0.0),
+			"upright": true,  # fica de pé na mão (ver UprightGear)
+		},
+	],
 }
 
 
@@ -108,6 +130,15 @@ static func attach(model: Node, hero_id: StringName) -> Array[Node3D]:
 		var item: Node3D = load(piece.scene).instantiate()
 		var aabb := _aabb(item)
 		var k: float = piece.size / maxf(aabb.get_longest_axis_size(), 0.001)
+		if piece.get("upright", false):
+			var up := UprightGear.new()
+			up.model = model as Node3D
+			up.grip = piece.grip
+			up.k = k
+			holder.add_child(up)
+			up.add_child(item)
+			made.append(holder)
+			continue
 		var b: Basis = piece.basis
 		item.transform = Transform3D(b.scaled_local(Vector3.ONE * k), piece.offset - b * (piece.grip * k))
 		mount.add_child(item)
