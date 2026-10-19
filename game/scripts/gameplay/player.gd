@@ -441,6 +441,12 @@ func _melee_swing() -> void:
 	var reach := weapon_stats.attack_range
 	if _animator == null:
 		Fx.slash(get_parent(), global_position, _facing, reach)  # só para quem ainda é cápsula (sem animação de golpe)
+	else:
+		# rastro do golpe (imagem do corte), deitado à frente, na hora do impacto; alterna o lado no combo
+		var cut := Vfx.sprite(get_parent(), global_position + _facing * reach * 0.55 + Vector3(0, 0.9, 0), "corte",
+				reach * 1.25, Color(1.0, 0.95, 0.85, 0.95), 0.22, 1.15, false, atan2(_facing.x, _facing.z) + PI)
+		if _combo_step % 2 == 1:
+			(cut.material_override as StandardMaterial3D).uv1_scale = Vector3(-1, 1, 1)
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		var to_enemy: Vector3 = enemy.global_position - global_position
 		to_enemy.y = 0.0

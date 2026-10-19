@@ -103,16 +103,17 @@ static func projectile_visual(p: EnemyProjectile) -> bool:
 			_spin(rock, Vector3(13.0, 4.0, 0.0))
 			return true
 		&"cinco_olhos":
+			# o olho de fogo voando (imagem virada para a câmera), pulsando
 			var orb := MeshInstance3D.new()
-			var s := SphereMesh.new()
-			s.radius = 0.2
-			s.height = 0.4
-			s.radial_segments = 8
-			s.rings = 4
-			orb.mesh = s
-			orb.material_override = _glow(Color(1.0, 0.55, 0.15))
+			var q := QuadMesh.new()
+			q.size = Vector2(1.1, 0.55)
+			orb.mesh = q
+			orb.material_override = Vfx.sprite_material("olhar", Color(1.3, 1.2, 1.1, 1.0), true)
 			orb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			p.add_child(orb)
+			var pulse := orb.create_tween().set_loops()
+			pulse.tween_property(orb, "scale", Vector3.ONE * 1.15, 0.12)
+			pulse.tween_property(orb, "scale", Vector3.ONE, 0.12)
 			# rastro: faíscas que ficam no caminho
 			var trail := Vfx.particles(p, Vector3.ZERO, "faisca", 14, 0.35, Color(1.0, 0.6, 0.2, 0.9), 0.35, Vector2(0.0, 0.3), 180.0, 0.0, true, false)
 			trail.local_coords = false
@@ -134,16 +135,14 @@ static func projectile_visual(p: EnemyProjectile) -> bool:
 			fibers.local_coords = false
 			return true
 		&"pelos":
-			# tufinho de pelos urticantes: agulhas marrons com brilho
-			for k in 3:
-				var hair := MeshInstance3D.new()
-				var bx := BoxMesh.new()
-				bx.size = Vector3(0.03, 0.03, 0.26)
-				hair.mesh = bx
-				hair.material_override = _solid(Color(0.45, 0.3, 0.18))
-				hair.position = Vector3((k - 1) * 0.07, (k % 2) * 0.05, 0)
-				hair.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-				p.add_child(hair)
+			# tufo de pelos urticantes girando
+			var tuft := MeshInstance3D.new()
+			var tq := QuadMesh.new()
+			tq.size = Vector2.ONE * 0.75
+			tuft.mesh = tq
+			tuft.material_override = Vfx.sprite_material("pelos", Color(0.95, 0.8, 0.6, 1.0), true, false)
+			tuft.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			p.add_child(tuft)
 			var glint := Vfx.particles(p, Vector3.ZERO, "faisca", 6, 0.25, Color(1.0, 0.85, 0.6, 0.8), 0.12, Vector2(0.0, 0.2), 180.0, 0.0, true, false)
 			glint.local_coords = false
 			return true
@@ -189,11 +188,13 @@ static func projectile_end(parent: Node, at: Vector3, id: StringName) -> void:
 			Vfx.particles(parent, at, "poeira", 6, 0.45, Color(0.7, 0.66, 0.6, 0.6), 0.5, Vector2(0.5, 1.5), 180.0, -1.0, false)
 		&"cinco_olhos":
 			Vfx.particles(parent, at, "faisca", 10, 0.35, Color(1.0, 0.6, 0.2), 0.3, Vector2(2.0, 4.0), 180.0, -3.0)
+			Vfx.sprite(parent, at, "olhar", 1.2, Color(1.2, 1.0, 0.9, 0.9), 0.3, 1.8)
 		&"teia":
 			_web_decal(parent, at, 1.6, 2.5)
 			Vfx.particles(parent, at, "faisca", 10, 0.4, Color(1, 1, 1, 0.8), 0.2, Vector2(1.0, 2.5), 180.0, -3.0)
 		&"pelos":
 			Vfx.particles(parent, at, "poeira", 6, 0.6, Color(0.55, 0.4, 0.25, 0.6), 0.4, Vector2(0.5, 1.5), 180.0, -0.5, false)
+			Vfx.sprite(parent, at, "pelos", 1.0, Color(0.95, 0.8, 0.6, 0.9), 0.35, 1.7, true, 0.0, false)
 
 
 ## Investida do Mapinguari: poeira e torrões saindo dos pés enquanto corre.
@@ -312,6 +313,7 @@ static func _belly_bite(parent: Node, at: Vector3, yaw: float) -> void:
 	var spit := Vfx.particles(parent, front, "faisca", 14, 0.6, Color(0.85, 0.9, 0.35, 0.9), 0.22, Vector2(2.0, 4.5), 35.0, -9.0, false)
 	spit.direction = (fwd + Vector3(0, 0.4, 0)).normalized()
 	Vfx.ground_ring(parent, at + fwd * 1.6, "anel_som", Color(1.0, 0.6, 0.3, 0.8), 3.0, 0.3)
+	Vfx.sprite(parent, at + fwd * 1.4 + Vector3(0, 1.2, 0), "mordida", 2.6, Color(1.0, 0.75, 0.45, 1.0), 0.32, 1.1)
 
 
 ## Grito: anéis de som em sequência e folhas caindo das árvores em volta.
@@ -328,45 +330,38 @@ static func _scream(parent: Node, at: Vector3, radius: float) -> void:
 	leaves.explosiveness = 0.4
 
 
-## Árvores derrubadas: um tronco tomba de pé até deitar em cima do aviso, bem na hora do dano.
+## Árvores derrubadas: uma árvore da mata (o mesmo modelo da borda do mapa) é arrancada com raiz e
+## tudo e tomba até deitar em cima do aviso, bem na hora do dano.
 static func _falling_tree(parent: Node, at: Vector3, fall_time: float) -> void:
-	var length := 4.2
+	var length := 4.6
 	var pivot := Node3D.new()
 	parent.add_child(pivot)
 	var yaw := randf() * TAU
 	pivot.rotation.y = yaw
 	var fwd := Vector3(sin(yaw), 0, cos(yaw))
-	pivot.global_position = at - fwd * length * 0.5 + Vector3(0, 0.25, 0)
-	var trunk := MeshInstance3D.new()
-	var cyl := CylinderMesh.new()
-	cyl.top_radius = 0.22
-	cyl.bottom_radius = 0.32
-	cyl.height = length
-	cyl.radial_segments = 7
-	cyl.rings = 1
-	trunk.mesh = cyl
-	trunk.material_override = _solid(BARK)
-	trunk.position = Vector3(0, length * 0.5, 0)
-	trunk.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	pivot.add_child(trunk)
-	var crown := MeshInstance3D.new()
-	var s := SphereMesh.new()
-	s.radius = 0.9
-	s.height = 1.4
-	s.radial_segments = 7
-	s.rings = 3
-	crown.mesh = s
-	crown.material_override = _solid(Color(0.2, 0.42, 0.16))
-	crown.position = Vector3(0, length, 0)
-	crown.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	pivot.add_child(crown)
-	pivot.rotation.x = 0.15
+	var base_at := at - fwd * length * 0.55
+	pivot.global_position = base_at
+	var piece: Dictionary = RoomDecor._piece("arvore_borda")
+	var tree := MeshInstance3D.new()
+	tree.mesh = piece.mesh
+	# o modelo vem com 6 m; aqui a árvore tem o comprimento do aviso
+	tree.transform = Transform3D(Basis().scaled(Vector3.ONE * length / 6.0), Vector3.ZERO) * piece.base
+	tree.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	pivot.add_child(tree)
+	# raízes arrancadas: terra e lascas voando da base
+	chunks(parent, base_at + Vector3(0, 0.2, 0), Color(0.36, 0.25, 0.16), 10, 0.1, Vector2(1.5, 3.5))
+	Vfx.particles(parent, base_at + Vector3(0, 0.2, 0), "poeira", 10, 0.9, Color(0.55, 0.42, 0.3, 0.8), 1.0, Vector2(0.8, 2.0), 70.0, -1.0, false, true, 0.6)
+	pivot.rotation.x = 0.08
 	var t := pivot.create_tween()
 	t.tween_property(pivot, "rotation:x", PI * 0.5, maxf(fall_time, 0.05)).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	t.tween_property(pivot, "rotation:x", PI * 0.5 - 0.06, 0.08)
+	t.tween_property(pivot, "rotation:x", PI * 0.5 - 0.07, 0.08)
 	t.tween_property(pivot, "rotation:x", PI * 0.5, 0.1)
+	# no tombo, as folhas da copa se soltam
+	t.tween_callback(func() -> void:
+		if is_instance_valid(parent) and parent.is_inside_tree():
+			Vfx.particles(parent, at + fwd * 1.2 + Vector3(0, 0.8, 0), "folha", 14, 1.6, Color(1, 1, 1, 0.95), 0.4, Vector2(1.0, 3.0), 80.0, -2.5, false, true, 1.2))
 	t.tween_interval(0.8)
-	t.tween_property(pivot, "position:y", -0.8, 0.6)
+	t.tween_property(pivot, "position:y", -1.2, 0.6)
 	t.tween_callback(pivot.queue_free)
 
 
@@ -408,6 +403,8 @@ static func _bite(parent: Node, at: Vector3, yaw: float, reach: float, flash: Co
 	var fwd := Vector3(sin(yaw), 0, cos(yaw))
 	var spot := at + fwd * reach * 0.6
 	Vfx.ground_ring(parent, spot, "anel_som", flash, maxf(reach, 1.2), 0.22)
+	# os dentes fechando no ar, na frente do bicho
+	Vfx.sprite(parent, spot + Vector3(0, 0.8, 0), "mordida", clampf(reach * 1.1, 1.0, 2.4), Color(flash, 1.0), 0.28, 1.1)
 	Vfx.particles(parent, spot + Vector3(0, 0.6, 0), "faisca", 8, 0.3, flash, 0.25, Vector2(1.5, 3.0), 60.0, -4.0)
 	chunks(parent, spot + Vector3(0, 0.3, 0), chip, 5, 0.06, Vector2(1.0, 2.5))
 
@@ -416,7 +413,8 @@ static func _bite(parent: Node, at: Vector3, yaw: float, reach: float, flash: Co
 static func _venom(parent: Node, at: Vector3, yaw: float, reach: float, color: Color) -> void:
 	var fwd := Vector3(sin(yaw), 0, cos(yaw))
 	var spot := at + fwd * reach * 0.6
-	var drops := Vfx.particles(parent, spot + Vector3(0, 0.6, 0), "faisca", 12, 0.6, color, 0.18, Vector2(1.0, 3.0), 50.0, -9.0, false)
+	var drops := Vfx.particles(parent, spot + Vector3(0, 0.6, 0), "gota_veneno", 12, 0.6, color, 0.22, Vector2(1.0, 3.0), 50.0, -9.0, false)
+	Vfx.sprite(parent, spot + Vector3(0, 0.7, 0), "gota_veneno", 0.7, Color(color, 1.0), 0.3, 1.4)
 	drops.direction = (fwd + Vector3(0, 0.6, 0)).normalized()
 	var puddle := _decal(parent, spot, yaw, maxf(reach * 0.9, 0.8), "fumaca", Color(color, 0.55), false)
 	var t := puddle.create_tween()

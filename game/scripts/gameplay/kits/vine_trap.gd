@@ -24,20 +24,29 @@ func _ready() -> void:
 	add_to_group("floor_effects")
 	# Círculo de cipó trançado no chão e pontas de cipó em volta.
 	_ring = MeshInstance3D.new()
-	var torus := TorusMesh.new()
-	torus.inner_radius = RADIUS * 0.82
-	torus.outer_radius = RADIUS
-	torus.rings = 24
-	_ring.mesh = torus
-	_ring.scale = Vector3(1, 0.25, 1)
-	_ring.position.y = 0.05
+	if Vfx.tex("cipo_armadilha"):
+		# o laço de cipó pintado (imagem), deitado no chão
+		var quad := QuadMesh.new()
+		quad.size = Vector2.ONE * RADIUS * 2.3
+		quad.orientation = PlaneMesh.FACE_Y
+		_ring.mesh = quad
+		_ring.position.y = 0.05
+		_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	else:
+		var torus := TorusMesh.new()
+		torus.inner_radius = RADIUS * 0.82
+		torus.outer_radius = RADIUS
+		torus.rings = 24
+		_ring.mesh = torus
+		_ring.scale = Vector3(1, 0.25, 1)
+		_ring.position.y = 0.05
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color("4a5a24")
 	mat.roughness = 1.0
 	mat.emission_enabled = true
 	mat.emission = Color("6fdc7b")
 	mat.emission_energy_multiplier = 0.08
-	_ring.material_override = mat
+	_ring.material_override = Vfx.sprite_material("cipo_armadilha", Color(1.1, 1.1, 1.1, 1.0), false, false) if Vfx.tex("cipo_armadilha") else mat
 	add_child(_ring)
 	for i in 6:
 		var spike := MeshInstance3D.new()
@@ -52,9 +61,10 @@ func _ready() -> void:
 		spike.rotation = Vector3(0, -a, deg_to_rad(-25))
 		add_child(spike)
 		_spikes.append(spike)
-	var leaf := Vfx.icon(self, "folha", 0.12, 0.6, Color(1, 1, 1, 0.9))
-	leaf.billboard = BaseMaterial3D.BILLBOARD_DISABLED
-	leaf.rotation_degrees.x = -90
+	if not Vfx.tex("cipo_armadilha"):
+		var leaf := Vfx.icon(self, "folha", 0.12, 0.6, Color(1, 1, 1, 0.9))
+		leaf.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+		leaf.rotation_degrees.x = -90
 
 
 func _physics_process(delta: float) -> void:

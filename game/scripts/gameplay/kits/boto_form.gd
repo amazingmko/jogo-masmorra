@@ -6,6 +6,7 @@ extends Node3D
 const MODEL := "res://game/art/herois/boto.glb"
 const LENGTH := 1.5        # do focinho ao rabo (m)
 const HEIGHT := 1.05       # altura do meio da bolha
+const BUBBLE_ALPHA := 0.7
 
 var _boto: Node3D
 var _bubble: MeshInstance3D
@@ -17,18 +18,25 @@ var _pose: BotoPose
 func _ready() -> void:
 	# bolha de água
 	_bubble = MeshInstance3D.new()
-	var sm := SphereMesh.new()
-	sm.radius = 1.0
-	sm.height = 1.7
-	sm.radial_segments = 20
-	sm.rings = 10
-	_bubble.mesh = sm
-	_bubble_mat = StandardMaterial3D.new()
-	_bubble_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	_bubble_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_bubble_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	_bubble_mat.albedo_color = Color(0.45, 0.8, 1.0, 0.18)
-	_bubble_mat.rim_enabled = false
+	if Vfx.tex("bolha"):
+		# bolha pintada (imagem) sempre virada para a câmera, com o boto dentro
+		var q := QuadMesh.new()
+		q.size = Vector2.ONE * 2.3
+		_bubble.mesh = q
+		_bubble_mat = Vfx.sprite_material("bolha", Color(1, 1, 1, BUBBLE_ALPHA), true)
+		_bubble_mat.render_priority = 1  # desenha depois do boto (fica por cima, transparente)
+	else:
+		var sm := SphereMesh.new()
+		sm.radius = 1.0
+		sm.height = 1.7
+		sm.radial_segments = 20
+		sm.rings = 10
+		_bubble.mesh = sm
+		_bubble_mat = StandardMaterial3D.new()
+		_bubble_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_bubble_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_bubble_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_bubble_mat.albedo_color = Color(0.45, 0.8, 1.0, 0.18)
 	_bubble.material_override = _bubble_mat
 	_bubble.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_bubble.position.y = HEIGHT
@@ -66,7 +74,8 @@ func _process(delta: float) -> void:
 	_bubble.position.y = HEIGHT + sin(_t * 2.2) * 0.04
 	var wob := 1.0 + sin(_t * 3.1) * 0.03
 	_bubble.scale = Vector3(wob, 2.0 - wob, wob)
-	_bubble_mat.albedo_color.a = 0.16 + sin(_t * 4.0) * 0.03
+	var base_a := BUBBLE_ALPHA if Vfx.tex("bolha") else 0.16
+	_bubble_mat.albedo_color.a = base_a + sin(_t * 4.0) * 0.05
 
 
 ## Ondinha na bolha a cada Canto.

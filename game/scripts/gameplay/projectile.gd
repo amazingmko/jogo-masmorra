@@ -33,6 +33,12 @@ var bounces := 0
 var on_hit := Callable()
 ## Chamado uma vez quando o disparo acaba (acertou, bateu ou chegou ao alcance): on_end.call(posição).
 var on_end := Callable()
+## Imagem do disparo (virada para a câmera) e a do acerto. Vazio = a do elemento (água, natureza).
+var sprite := ""
+var sprite_size := 0.7
+var sprite_color := Color.WHITE
+var hit_sprite := ""
+const ELEMENT_SPRITES := {GameEnums.Element.WATER: ["bola_agua", "respingo"], GameEnums.Element.NATURE: ["semente", ""]}
 var _hit := {}
 
 var _traveled := 0.0
@@ -75,6 +81,24 @@ func _ready() -> void:
 	if arrow:
 		_build_arrow()
 	else:
+		var pair: Array = ELEMENT_SPRITES.get(element, ["", ""])
+		if sprite == "":
+			sprite = pair[0]
+		if hit_sprite == "":
+			hit_sprite = pair[1]
+	if not arrow and sprite != "" and Vfx.tex(sprite):
+		var img := MeshInstance3D.new()
+		var q := QuadMesh.new()
+		q.size = Vector2.ONE * sprite_size
+		img.mesh = q
+		img.material_override = Vfx.sprite_material(sprite, sprite_color, true)
+		img.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(img)
+		# pulsa de leve enquanto voa
+		var pulse := img.create_tween().set_loops()
+		pulse.tween_property(img, "scale", Vector3.ONE * 1.12, 0.15)
+		pulse.tween_property(img, "scale", Vector3.ONE, 0.15)
+	elif not arrow:
 		var mesh := MeshInstance3D.new()
 		var visual := SphereMesh.new()
 		visual.radius = 0.18
@@ -182,6 +206,8 @@ func _on_body_entered(body: Node3D) -> void:
 		if hit.crit and crit_damage_bonus > 0.0:
 			hit.amount = int(round(hit.amount * (1.0 + crit_damage_bonus)))
 		body.take_hit(hit.amount, hit.crit, direction)
+		if hit_sprite != "" and is_inside_tree():
+			Vfx.sprite(get_parent(), global_position, hit_sprite, 1.1, Color(1, 1, 1, 0.95), 0.3, 1.6)
 		if on_hit.is_valid():
 			on_hit.call(body, self)
 		if bounces > 0 and _bounce_from(body):

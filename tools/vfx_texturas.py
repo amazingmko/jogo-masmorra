@@ -19,7 +19,37 @@ from PIL import Image, ImageDraw, ImageFilter
 OUT = os.path.join(os.path.dirname(__file__), '..', 'game', 'art', 'vfx')
 SIZES = {'casco_hex': 512, 'onda_choque': 512, 'poeira': 128, 'folha': 128, 'faisca': 64,
          'sapo_muiraquita': 256, 'simbolo_provocado': 128,
-         'garra': 256, 'fumaca': 128, 'anel_som': 256, 'teia': 256}
+         'garra': 256, 'fumaca': 256, 'anel_som': 256, 'teia': 512,
+         # só imagem da IA (sem versão provisória):
+         'mordida': 256, 'gota_veneno': 128, 'olhar': 256, 'pelos': 256, 'aviso_circulo': 512,
+         'corte': 512, 'cipo_armadilha': 512, 'bola_agua': 256, 'respingo': 256, 'onda_pororoca': 1024,
+         'escamas_agua': 512, 'semente': 128, 'flor': 256, 'onda_canto': 256, 'bolha': 256, 'cura': 256}
+ONLY_AI = {'mordida', 'gota_veneno', 'olhar', 'pelos', 'aviso_circulo', 'corte', 'cipo_armadilha', 'bola_agua',
+           'respingo', 'onda_pororoca', 'escamas_agua', 'semente', 'flor', 'onda_canto', 'bolha', 'cura'}
+# texturas que repetem e as primeiras (já aprovadas assim): usa o quadrado do centro
+TILE = {'casco_hex', 'escamas_agua', 'onda_choque', 'poeira', 'folha', 'faisca', 'sapo_muiraquita', 'simbolo_provocado'}
+WIDE = {'onda_pororoca'}               # fica retangular (2:1)
+
+
+def fit_content(img, name):
+    """Recorta em volta do desenho (o que não é preto), com margem, em quadrado (ou 2:1 nas largas)."""
+    w, h = img.size
+    if name in TILE:
+        m = min(w, h)
+        return img.crop(((w - m) // 2, (h - m) // 2, (w + m) // 2, (h + m) // 2))
+    a = np.asarray(img.convert('L')).astype(np.float32)
+    ys, xs = np.where(a > 24)
+    if len(xs) == 0:
+        return img
+    x0, x1, y0, y1 = xs.min(), xs.max(), ys.min(), ys.max()
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    ratio = 2.0 if name in WIDE else 1.0
+    half_h = max((y1 - y0) / 2, (x1 - x0) / 2 / ratio) * 1.06 + 4
+    half_w = half_h * ratio
+    box = (int(cx - half_w), int(cy - half_h), int(cx + half_w), int(cy + half_h))
+    big = Image.new('RGB', (w * 3, h * 3), 'black')   # cabe a margem mesmo saindo da imagem
+    big.paste(img.convert('RGB'), (w, h))
+    return big.crop((box[0] + w, box[1] + h, box[2] + w, box[3] + h))
 
 
 def save_rgba(name, rgb, alpha):
@@ -167,7 +197,7 @@ if __name__ == '__main__':
     if mode == 'provisorias':
         only = sys.argv[2:]
         for name, s in SIZES.items():
-            if only and name not in only:
+            if name in ONLY_AI or (only and name not in only):
                 continue
             rgb, alpha = from_black(draw(name, s))
             save_rgba(name, rgb, alpha)
@@ -180,12 +210,8 @@ if __name__ == '__main__':
                          if os.path.exists(os.path.join(src, name + ext))), None)
             if path is None:
                 continue
-            img = Image.open(path)
-            w, h = img.size
-            if w != h:  # IA às vezes entrega retangular: usa o quadrado do centro
-                m = min(w, h)
-                img = img.crop(((w - m) // 2, (h - m) // 2, (w + m) // 2, (h + m) // 2))
-            img = img.resize((s, s), Image.LANCZOS)
+            img = fit_content(Image.open(path), name)
+            img = img.resize((s, s // 2) if name in WIDE else (s, s), Image.LANCZOS)
             rgb, alpha = from_black(img)
             save_rgba(name, rgb, alpha)
             print('preparada:', name)

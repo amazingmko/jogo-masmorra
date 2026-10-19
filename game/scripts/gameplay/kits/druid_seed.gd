@@ -86,30 +86,35 @@ func bloom() -> void:
 	remove_from_group("druid_seeds")
 	var p := get_parent()
 	var at := global_position
-	# flor que abre e some
-	var flower := Node3D.new()
-	p.add_child(flower)
-	flower.global_position = at + Vector3(0, 0.25, 0)
-	for i in 5:
-		var petal := MeshInstance3D.new()
-		var sm := SphereMesh.new()
-		sm.radius = 0.12
-		sm.height = 0.06
-		sm.radial_segments = 6
-		sm.rings = 2
-		petal.mesh = sm
-		petal.material_override = _mat(Color(1.0, 0.55, 0.8) if i % 2 == 0 else Color(1.0, 0.85, 0.95))
-		var a := TAU * i / 5.0
-		petal.position = Vector3(cos(a) * 0.13, 0, sin(a) * 0.13)
-		petal.rotation.y = -a
-		petal.scale = Vector3(1.0, 1.0, 1.6)
-		flower.add_child(petal)
-	flower.scale = Vector3.ONE * 0.2
-	var t := flower.create_tween()
-	t.tween_property(flower, "scale", Vector3.ONE * 1.6, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	t.tween_interval(0.25)
-	t.tween_property(flower, "scale", Vector3.ZERO, 0.25)
-	t.tween_callback(flower.queue_free)
+	# flor de maracujá (imagem) que abre deitada no chão, gira um pouco e some
+	if Vfx.tex("flor"):
+		var flower := Vfx.sprite(p, at + Vector3(0, 0.12, 0), "flor", 1.5, Color(1.1, 1.1, 1.1, 1.0), 0.75, 1.5, false, randf() * TAU, false)
+		flower.create_tween().tween_property(flower, "rotation:y", 0.8, 0.75).as_relative()
+		Vfx.sprite(p, at + Vector3(0, 0.6, 0), "flor", 0.7, Color(1.2, 1.0, 1.1, 0.8), 0.45, 1.8)
+	else:
+		var flower := Node3D.new()
+		p.add_child(flower)
+		flower.global_position = at + Vector3(0, 0.25, 0)
+		for i in 5:
+			var petal := MeshInstance3D.new()
+			var sm := SphereMesh.new()
+			sm.radius = 0.12
+			sm.height = 0.06
+			sm.radial_segments = 6
+			sm.rings = 2
+			petal.mesh = sm
+			petal.material_override = _mat(Color(1.0, 0.55, 0.8) if i % 2 == 0 else Color(1.0, 0.85, 0.95))
+			var a := TAU * i / 5.0
+			petal.position = Vector3(cos(a) * 0.13, 0, sin(a) * 0.13)
+			petal.rotation.y = -a
+			petal.scale = Vector3(1.0, 1.0, 1.6)
+			flower.add_child(petal)
+		flower.scale = Vector3.ONE * 0.2
+		var t := flower.create_tween()
+		t.tween_property(flower, "scale", Vector3.ONE * 1.6, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		t.tween_interval(0.25)
+		t.tween_property(flower, "scale", Vector3.ZERO, 0.25)
+		t.tween_callback(flower.queue_free)
 	Vfx.particles(p, at + Vector3(0, 0.4, 0), "folha", 8, 0.8, Color(1.0, 0.7, 0.9, 0.95), 0.25, Vector2(1.0, 2.5), 80.0, -2.0)
 	Vfx.particles(p, at + Vector3(0, 0.3, 0), "faisca", 10, 0.5, Color(0.7, 1.0, 0.6, 0.9), 0.22, Vector2(0.5, 2.0), 120.0, -0.5)
 	queue_free()

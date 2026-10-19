@@ -43,6 +43,7 @@ var _boto_extended := 0.0
 var _boto: BotoForm
 var _drowsy := {}      # id do inimigo -> [sementes, tempo desde a primeira]
 var _heal_acc := 0.0
+var _heal_fx_at := 0
 
 
 func skill_name() -> String:
@@ -103,6 +104,7 @@ func modify_projectile(p: Projectile) -> void:
 	p.element = GameEnums.Element.NATURE
 	p.on_hit = _on_seed_hit
 	p.on_end = _plant
+	p.sprite_size = 0.55
 
 
 func _on_seed_hit(enemy: Node3D, _p: Projectile) -> void:
@@ -202,6 +204,7 @@ func bloom_all(from_skill: bool) -> int:
 	if healed > 0:
 		player.health.heal(healed)
 		Fx.float_text(player.get_parent(), player.global_position + Vector3(0, 2.4, 0), "+%d" % healed, Color("6fdc7b"))
+		Vfx.heal(player, true)
 	if from_skill:
 		Vfx.ground_ring(player.get_parent(), player.global_position, "anel_som", Color(1.0, 0.7, 0.9, 0.7), 3.0, 0.4)
 	return list.size()
@@ -315,25 +318,20 @@ func _make_canto(p: Projectile) -> void:
 	p.pierce_factor = 1.0
 	p.element = GameEnums.Element.WATER
 	p.on_hit = _on_canto_hit
-	var ring := MeshInstance3D.new()
-	var q := QuadMesh.new()
-	q.size = Vector2.ONE * 1.1
-	ring.mesh = q
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	m.albedo_texture = Vfx.tex("anel_som")
-	m.albedo_color = Color(1.0, 0.7, 0.9, 0.9)
-	ring.material_override = m
-	p.add_child(ring)
+	# o Canto é uma onda de som rosa (imagem), sem respingo d'água
+	p.sprite = "onda_canto"
+	p.sprite_size = 1.3
+	p.hit_sprite = "onda_canto"
 	if is_instance_valid(_boto):
 		_boto.pulse()
 
 
 func _on_canto_hit(enemy: Node3D, _p: Projectile) -> void:
 	player.health.heal(maxi(int(round(player.health.max_health * CANTO_HEAL * (1.0 + tv("canto_doce") / 100.0))), 1))
+	var now := Time.get_ticks_msec()
+	if now - _heal_fx_at > 400:  # um brilho de cura por vez (o Canto pega vários de uma vez)
+		_heal_fx_at = now
+		Vfx.heal(player)
 	if t("boto_ancestral") > 0 and _boto_extended < BOTO_EXTEND_MAX:
 		var add := minf(tv("boto_ancestral"), BOTO_EXTEND_MAX - _boto_extended)
 		_boto_left += add

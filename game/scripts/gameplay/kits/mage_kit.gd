@@ -81,7 +81,6 @@ func try_skill() -> bool:
 
 
 func _use_skill() -> bool:
-	player.play_kit_animation("espelho", 0.5, "")
 	var origin := player.global_position
 	var dir := player.facing()
 	dir.y = 0.0
@@ -104,6 +103,7 @@ func _use_skill() -> bool:
 			if enemy.global_position.distance_to(clone.global_position) <= LURE_RADIUS and enemy.has_method("lure"):
 				enemy.lure(clone, clone.lifetime)
 	player.dash(dir, BLINK_DISTANCE)  # não atravessa nem fica preso em obstáculo
+	player.play_kit_animation("espelho", 0.5, "")
 	if t("iara") > 0:
 		_iara_left = tv("iara")
 		_iara_clone = weakref(clone)
@@ -119,15 +119,23 @@ func _use_skill() -> bool:
 func _show_bubble(seconds: float) -> void:
 	if not is_instance_valid(_bubble_fx):
 		_bubble_fx = MeshInstance3D.new()
-		var sphere := SphereMesh.new()
-		sphere.radius = 0.95
-		sphere.height = 1.9
-		_bubble_fx.mesh = sphere
-		var m := StandardMaterial3D.new()
-		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		m.albedo_color = Color(0.45, 0.8, 1.0, 0.22)
-		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		var m: StandardMaterial3D
+		if Vfx.tex("bolha"):
+			# a bolha pintada (imagem), virada para a câmera
+			var q := QuadMesh.new()
+			q.size = Vector2.ONE * 2.1
+			_bubble_fx.mesh = q
+			m = Vfx.sprite_material("bolha", Color(0.8, 0.95, 1.2, 0.6), true)
+		else:
+			var sphere := SphereMesh.new()
+			sphere.radius = 0.95
+			sphere.height = 1.9
+			_bubble_fx.mesh = sphere
+			m = StandardMaterial3D.new()
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.albedo_color = Color(0.45, 0.8, 1.0, 0.22)
+			m.cull_mode = BaseMaterial3D.CULL_DISABLED
 		_bubble_fx.material_override = m
 		_bubble_fx.position.y = 0.95
 		player.add_child(_bubble_fx)

@@ -50,9 +50,8 @@ Os efeitos já funcionam com texturas provisórias desenhadas por código (`game
 Para trocar pelas versões pintadas por IA:
 
 1. Gerar cada imagem no Gemini/ChatGPT com **fundo preto puro**, quadrada, sem texto (prompts no chat / abaixo).
-2. Salvar em `arte/vfx/` com o nome exato: `casco_hex.png`, `onda_choque.png`, `poeira.png`, `folha.png`,
-   `faisca.png`, `sapo_muiraquita.png`, `simbolo_provocado.png` (pode ser .jpg; pode mandar só algumas).
-3. Preparar (o preto vira transparente): `python3 tools/vfx_texturas.py preparar arte/vfx`
+2. Salvar em `arte/vfx/` com o nome exato (lista completa e prompts em `arte/vfx/PROMPTS.md`; pode ser .jpg).
+3. Preparar (o preto vira transparente; recorta em volta do desenho): `python3 tools/vfx_texturas.py preparar arte/vfx`
 
 Efeitos no código: `game/scripts/combat/vfx.gd`. Fotos para conferir: `tests/shot_powers.gd`.
 

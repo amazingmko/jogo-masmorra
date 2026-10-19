@@ -210,11 +210,19 @@ func _build() -> void:
 	_fill_mat = _mat(Color(color.r, color.g, color.b, 0.2))
 	match shape:
 		Shape.CIRCLE, Shape.MEGA:
-			var ring := TorusMesh.new()
-			ring.inner_radius = radius - 0.08
-			ring.outer_radius = radius
-			ring.rings = 48
-			_add_mesh(ring, outline_mat)
+			if shape == Shape.CIRCLE and Vfx.tex("aviso_circulo"):
+				# círculo rúnico (imagem), girando devagar
+				var quad := QuadMesh.new()
+				quad.size = Vector2.ONE * radius * 2.12
+				quad.orientation = PlaneMesh.FACE_Y
+				var rune := _add_mesh(quad, Vfx.sprite_material("aviso_circulo", Color(color.r, color.g, color.b, 0.95)), Vector3(0, 0.02, 0))
+				rune.create_tween().set_loops().tween_property(rune, "rotation:y", TAU, 9.0).as_relative()
+			else:
+				var ring := TorusMesh.new()
+				ring.inner_radius = radius - 0.08
+				ring.outer_radius = radius
+				ring.rings = 48
+				_add_mesh(ring, outline_mat)
 			var disc := CylinderMesh.new()
 			disc.top_radius = radius
 			disc.bottom_radius = radius

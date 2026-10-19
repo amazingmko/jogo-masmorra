@@ -131,6 +131,72 @@ static func icon(parent: Node3D, texture_name: String, height: float, size: floa
 	return s
 
 
+## Imagem que aparece, cresce e some (impactos: mordida, respingo, cura...).
+##  billboard: virada para a câmera; senão, deitada no chão girada por "yaw".
+static func sprite(parent: Node, at: Vector3, texture_name: String, size: float, color: Color, life: float,
+		grow := 1.35, billboard := true, yaw := 0.0, additive := true) -> MeshInstance3D:
+	var mesh := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	var t := tex(texture_name)
+	var aspect := float(t.get_width()) / float(t.get_height()) if t else 1.0
+	quad.size = Vector2(size * aspect, size) if aspect >= 1.0 else Vector2(size, size / aspect)
+	if not billboard:
+		quad.orientation = PlaneMesh.FACE_Y
+	mesh.mesh = quad
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	if billboard:
+		m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		m.billboard_keep_scale = true
+	if additive:
+		m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.albedo_texture = t
+	m.albedo_color = color
+	mesh.material_override = m
+	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mesh)
+	if mesh.is_inside_tree():
+		mesh.global_position = at
+	else:
+		mesh.position = at
+	if not billboard:
+		mesh.rotation.y = yaw
+	mesh.scale = Vector3.ONE * 0.6
+	var tw := mesh.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(mesh, "scale", Vector3.ONE * grow, life).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_property(m, "albedo_color:a", 0.0, life).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	tw.chain().tween_callback(mesh.queue_free)
+	return mesh
+
+
+## Material de imagem para formas que duram (onda, disparo, armadilha).
+static func sprite_material(texture_name: String, color: Color, billboard := false, additive := true) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	if billboard:
+		m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		m.billboard_keep_scale = true
+	if additive:
+		m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.albedo_texture = tex(texture_name)
+	m.albedo_color = color
+	return m
+
+
+## Cura: brilho verde com folhinhas subindo do herói.
+static func heal(owner: Node3D, big := false) -> void:
+	if not is_instance_valid(owner) or not owner.is_inside_tree():
+		return
+	var s := sprite(owner, owner.global_position + Vector3(0, 0.9, 0), "cura", 1.8 if big else 1.2, Color(1, 1, 1, 0.9), 0.7, 1.5)
+	s.create_tween().tween_property(s, "position:y", 1.6, 0.7)
+	particles(owner.get_parent(), owner.global_position + Vector3(0, 0.5, 0), "folha", 6 if big else 3, 1.0, Color(0.7, 1.0, 0.6, 0.9), 0.25, Vector2(0.5, 1.5), 40.0, 0.5, false, true, 0.5)
+
+
 # ---------- poderes da Icamiaba ----------
 
 ## Provocar: onda laranja que racha o chão, poeira e folhas subindo, faíscas no escudo.
@@ -215,6 +281,7 @@ static func muiraquita(owner: Node3D) -> void:
 	t.tween_property(s, "modulate:a", 0.0, 1.1).set_delay(0.4)
 	t.chain().tween_callback(s.queue_free)
 	particles(owner.get_parent(), owner.global_position + Vector3(0, 1.0, 0), "faisca", 30, 0.9, Color("6fdc7b"), 0.5, Vector2(3.0, 6.0), 180.0, -2.0)
+	heal(owner, true)
 
 
 ## Revide pronto: brilho dourado contínuo na mão da lança. Devolve as partículas (para apagar).

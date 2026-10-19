@@ -29,6 +29,32 @@ func _ready() -> void:
 	direction = direction.normalized() if direction.length() > 0.01 else Vector3.FORWARD
 	look_at(global_position + direction, Vector3.UP)
 	_wave = MeshInstance3D.new()
+	if Vfx.tex("onda_pororoca"):
+		# a onda pintada (imagem): parede de água inclinada para trás, assim a câmera de cima
+		# sempre a vê de frente, para qualquer lado que ela vá
+		var h := 2.6 if not returning else 1.8
+		var quad := QuadMesh.new()
+		quad.size = Vector2(width * 1.1, h)
+		_wave.mesh = quad
+		_wave.position = Vector3(0, h * 0.38, 0.3)
+		_wave.rotation.x = deg_to_rad(-40)
+		_wave.material_override = Vfx.sprite_material("onda_pororoca", Color(1.15, 1.15, 1.2, 0.95), false, false)
+		_wave.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(_wave)
+		var bob := _wave.create_tween().set_loops()
+		bob.tween_property(_wave, "scale", Vector3(1.0, 1.08, 1.0), 0.25).set_trans(Tween.TRANS_SINE)
+		bob.tween_property(_wave, "scale", Vector3.ONE, 0.25).set_trans(Tween.TRANS_SINE)
+		var spray := Vfx.particles(self, Vector3(0, 1.4, 0), "respingo", 10, 0.5, Color(1, 1, 1, 0.8), 0.9, Vector2(1.0, 2.5), 60.0, -6.0, true, false)
+		spray.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+		spray.emission_box_extents = Vector3(width * 0.5, 0.2, 0.3)
+	else:
+		_build_box_wave()
+	var foam := Vfx.particles(self, Vector3(0, 1.3, 0), "faisca", 30, 0.5, Color(0.85, 0.95, 1.0), 0.35, Vector2(1.0, 2.5), 60.0, -6.0, true, false)
+	foam.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	foam.emission_box_extents = Vector3(width * 0.5, 0.2, 0.3)
+
+
+func _build_box_wave() -> void:
 	var box := BoxMesh.new()
 	box.size = Vector3(width, 1.6 if not returning else 1.1, 0.9)
 	_wave.mesh = box
@@ -42,9 +68,6 @@ func _ready() -> void:
 	mat.roughness = 0.15
 	_wave.material_override = mat
 	add_child(_wave)
-	var foam := Vfx.particles(self, Vector3(0, 1.3, 0), "faisca", 30, 0.5, Color(0.85, 0.95, 1.0), 0.35, Vector2(1.0, 2.5), 60.0, -6.0, true, false)
-	foam.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
-	foam.emission_box_extents = Vector3(width * 0.5, 0.2, 0.3)
 
 
 func _physics_process(delta: float) -> void:

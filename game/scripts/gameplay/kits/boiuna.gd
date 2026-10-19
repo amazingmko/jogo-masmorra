@@ -28,6 +28,13 @@ func _ready() -> void:
 	mat.emission = Color(0.25, 0.55, 1.0)
 	mat.emission_energy_multiplier = 0.35
 	mat.roughness = 0.15
+	if Vfx.tex("escamas_agua"):
+		# escamas de água pintadas (imagem) na pele da cobra
+		mat.albedo_texture = Vfx.tex("escamas_agua")
+		mat.emission_texture = Vfx.tex("escamas_agua")
+		mat.albedo_color = Color(0.85, 1.0, 1.0, 0.8)
+		mat.emission = Color(0.6, 0.85, 1.0)
+		mat.uv1_scale = Vector3(2, 1, 1)
 	for i in SEGMENTS:
 		var seg := MeshInstance3D.new()
 		var sphere := SphereMesh.new()
