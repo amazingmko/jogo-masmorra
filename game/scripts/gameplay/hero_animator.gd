@@ -17,6 +17,9 @@ const COMBO_RESET := 1.1  # segundos sem atacar e o combo volta ao primeiro golp
 ## Partes do esqueleto (Mixamo) que pertencem ao tronco.
 const UPPER := ["Spine", "Neck", "Head", "Shoulder", "Arm", "Hand"]
 
+## Velocidade (m/s) em que a caminhada/corrida do modelo casa com o chão (HeroGear.STRIDE).
+var walk_speed := WALK_SPEED
+var run_speed := RUN_SPEED
 var _anim: AnimationPlayer
 var _tree: AnimationTree
 var _act: AnimationNodeOneShot
@@ -198,12 +201,12 @@ func update(delta: float, ground_speed: float, move_speed: float) -> void:
 			_twist.angle = lerp_angle(_twist.angle, _aim_angle, clampf(delta * 10.0, 0.0, 1.0))
 	if _aim_active and ground_speed > 0.15:
 		# Mirando andando: passo de caminhada (para trás quando ela recua atirando).
-		var s := clampf(ground_speed / WALK_SPEED, 0.8, 2.2)
+		var s := clampf(ground_speed / walk_speed, 0.5, 2.2)
 		_set_loco("walk", -s if _legs_reverse else s)
-	elif ground_speed > move_speed * 0.45:
-		_set_loco("run", clampf(ground_speed / RUN_SPEED, 0.7, 1.8))
+	elif ground_speed > _run_from(move_speed):
+		_set_loco("run", clampf(ground_speed / run_speed, 0.5, 1.8))
 	elif ground_speed > 0.15:
-		_set_loco("walk", clampf(ground_speed / WALK_SPEED, 0.8, 2.0))
+		_set_loco("walk", clampf(ground_speed / walk_speed, 0.4, 2.2))
 	else:
 		_set_loco("idle", 1.0)
 
@@ -327,3 +330,9 @@ func revive() -> void:
 	_combo = 0
 	_tree.set("parameters/life/transition_request", "vivo")
 	_set_loco("idle", 1.0)
+
+
+## A partir de que velocidade troca a caminhada pela corrida: no meio entre o passo natural de
+## cada uma (assim nenhuma das duas precisa acelerar ou frear demais e o pé não desliza).
+func _run_from(move_speed: float) -> float:
+	return minf(sqrt(walk_speed * run_speed) * 1.05, move_speed * 0.6)
