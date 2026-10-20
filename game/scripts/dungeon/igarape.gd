@@ -11,6 +11,7 @@ const MEANDER := 0.5           # quanto a curva se afasta da linha (m)
 const LEAF_COUNT := 7
 const LEAF_SPEED := 0.45       # m/s
 const TEX_DIR := "res://game/art/chao/%s"
+const WATER_Y := 0.03            # altura da superfície da água
 
 var path := PackedVector3Array()    # linha do meio, no mundo (y = 0)
 var _lengths := PackedFloat32Array()
@@ -91,7 +92,7 @@ func _build_water() -> void:
 		for k in [i, i + 1]:
 			var d := _dir_at(k)
 			var side := Vector3(-d.z, 0, d.x)
-			var c := path[k] + Vector3(0, 0.03, 0)
+			var c := path[k] + Vector3(0, WATER_Y, 0)
 			segs.append([c - side * HALF_WIDTH, c + side * HALF_WIDTH, _lengths[k] / (HALF_WIDTH * 2.0)])
 		var a = segs[0]
 		var b = segs[1]
@@ -190,7 +191,7 @@ func _bridge(at: Vector3, along: Vector3) -> void:
 
 
 const BRIDGE_MODEL := "res://game/art/ambiente/pinguela.glb"
-const PLANK_TOP := 0.92  # altura do tampo das tábuas no modelo (fração da altura; as cordas ficam acima)
+const PLANK_TOP := 0.8  # altura das tábuas mais baixas no modelo (fração da altura; as cordas ficam acima)
 
 
 ## A pinguela de verdade (modelo): as tábuas do modelo correm no eixo Z dele (o lado curto),
@@ -213,7 +214,8 @@ func _bridge_model(node: Node3D, width: float, length: float) -> bool:
 	# o herói anda no chão (altura 0): o tampo das tábuas fica rente ao chão e as toras de baixo
 	# entram no barranco; assim o pé pisa em cima da madeira, sem afundar nela
 	var top := aabb.position.y + aabb.size.y * PLANK_TOP
-	mi.position = Vector3(-aabb.get_center().x * sx, -top * sy + 0.03, -aabb.get_center().z * sz)
+	# tábuas mais baixas logo acima da água (que fica a 3 cm do chão): a água passa por baixo
+	mi.position = Vector3(-aabb.get_center().x * sx, -top * sy + WATER_Y + 0.03, -aabb.get_center().z * sz)
 	node.add_child(mi)
 	return true
 

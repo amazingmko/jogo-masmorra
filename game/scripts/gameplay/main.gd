@@ -208,9 +208,10 @@ func debug_jump_to_floor(target: int) -> void:
 ## Portal: a tela de carregamento aparece antes, e o andar novo é montado por trás dela
 ## (sem a tela "congelar" no andar velho enquanto monta).
 func _portal_to_next_floor() -> void:
-	if _changing_floor:
+	if _changing_floor or _run_over:
 		return
 	_changing_floor = true
+	_hud.hide_panel()  # a pergunta do acampamento, se ficou aberta
 	var run := _run_id
 	if _loading:
 		_loading.visible = true
@@ -606,7 +607,12 @@ func _on_prop_activated(prop: RoomProp) -> void:
 			# Fora da colisão do portal: montar o andar novo dentro dela não é permitido.
 			_portal_to_next_floor.call_deferred()
 		RoomProp.Kind.CAMP:
-			_finish.call_deferred(false, true)
+			_hud.ask("Acampamento", "Voltar à base agora, levando tudo o que coletou?\nOu continuar descendo até o chefe pelo portal.",
+				"Voltar à base", "Continuar", func(back: bool) -> void:
+					if back:
+						_finish(false, true)
+					else:
+						prop.used = false)  # dá para usar a fogueira de novo (saindo e voltando a ela)
 
 
 # ---------- fim da run ----------

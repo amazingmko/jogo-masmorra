@@ -26,6 +26,8 @@ var _panel: PanelContainer
 var _panel_title: Label
 var _panel_text: Label
 var _panel_button: Button
+var _panel_button2: Button
+var _ask_callback := Callable()
 var _buff_panel: PanelContainer
 var _buff_cards: HBoxContainer
 var _status_row: HBoxContainer
@@ -152,11 +154,36 @@ func show_toast(text: String, color: Color = Color.WHITE) -> void:
 
 
 func show_panel(title: String, text: String, button_text: String = "Recomeçar") -> void:
+	_ask_callback = Callable()
 	_panel_title.text = title
 	_panel_text.text = text
 	_panel_button.text = button_text
+	_panel_button2.visible = false
 	_panel.visible = true
 	_hide_controls()
+
+
+## Pergunta com duas respostas (ex.: voltar do acampamento?). callback(true) para a 1ª, (false) para a 2ª.
+func ask(title: String, text: String, yes_text: String, no_text: String, callback: Callable) -> void:
+	show_panel(title, text, yes_text)
+	_panel_button2.text = no_text
+	_panel_button2.visible = true
+	_ask_callback = callback
+
+
+func is_asking() -> bool:
+	return _panel.visible and _ask_callback.is_valid()
+
+
+func _on_panel_button(first: bool) -> void:
+	if _ask_callback.is_valid():
+		var cb := _ask_callback
+		_ask_callback = Callable()
+		hide_panel()
+		cb.call(first)
+		return
+	if first:
+		restart_requested.emit()
 
 
 ## Mostra até 3 buffs para escolher. A run fica pausada até a escolha.
@@ -376,8 +403,18 @@ func _build_panel() -> void:
 	_panel_button.custom_minimum_size = Vector2(200, 56)
 	_panel_button.add_theme_font_size_override("font_size", 22)
 	_panel_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_panel_button.pressed.connect(func() -> void: restart_requested.emit())
-	box.add_child(_panel_button)
+	_panel_button.pressed.connect(_on_panel_button.bind(true))
+	_panel_button2 = Button.new()
+	_panel_button2.custom_minimum_size = Vector2(200, 56)
+	_panel_button2.add_theme_font_size_override("font_size", 22)
+	_panel_button2.pressed.connect(_on_panel_button.bind(false))
+	_panel_button2.visible = false
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 24)
+	buttons.add_child(_panel_button)
+	buttons.add_child(_panel_button2)
+	box.add_child(buttons)
 	_panel.visible = false
 
 
