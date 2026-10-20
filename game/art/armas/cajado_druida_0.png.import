@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ckhr321yxvmyp"
-path="res://.godot/imported/cajado_druida_0.png-acd8e4dc0c1ce5a8fc3572405713e2e6.ctex"
+path.s3tc="res://.godot/imported/cajado_druida_0.png-acd8e4dc0c1ce5a8fc3572405713e2e6.s3tc.ctex"
+path.etc2="res://.godot/imported/cajado_druida_0.png-acd8e4dc0c1ce5a8fc3572405713e2e6.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "22d0b5d1b93d429d0d5a7323304b4be9"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://game/art/armas/cajado_druida_0.png"
-dest_files=["res://.godot/imported/cajado_druida_0.png-acd8e4dc0c1ce5a8fc3572405713e2e6.ctex"]
+dest_files=["res://.godot/imported/cajado_druida_0.png-acd8e4dc0c1ce5a8fc3572405713e2e6.s3tc.ctex", "res://.godot/imported/cajado_druida_0.png-acd8e4dc0c1ce5a8fc3572405713e2e6.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -40,4 +42,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0
