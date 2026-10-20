@@ -1,0 +1,98 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://game/scripts/resources/enemy_attack.gd" id="1_2rge2"]
+[ext_resource type="Script" path="res://game/scripts/resources/enemy_data.gd" id="2_uwklt"]
+
+[sub_resource type="Resource" id="Resource_2rge2"]
+script = ExtResource("1_2rge2")
+id = &"bote_onca"
+display_name = "Bote"
+kind = 1
+weight = 9
+range_min = 3.0
+range_max = 9.0
+cooldown = 4.0
+recover = 0.8
+damage = 38
+radius = 1.8
+length = 10.0
+speed = 18.0
+color = Color(1, 0.5411765, 0.23921569, 1)
+
+[sub_resource type="Resource" id="Resource_uwklt"]
+script = ExtResource("1_2rge2")
+id = &"patada"
+display_name = "Patada"
+cooldown = 1.8
+windup = 0.4
+recover = 0.4
+damage = 24
+radius = 2.7
+cone_half_angle = 70.0
+
+[sub_resource type="Resource" id="Resource_3or5a"]
+script = ExtResource("1_2rge2")
+id = &"mordida_cranio"
+display_name = "Mordida no Crânio"
+weight = 6
+range_max = 2.2
+cooldown = 4.0
+windup = 0.75
+recover = 0.7
+damage = 50
+radius = 2.9
+cone_half_angle = 35.0
+
+[sub_resource type="Resource" id="Resource_imskp"]
+script = ExtResource("1_2rge2")
+id = &"esturro"
+display_name = "Esturro"
+weight = 5
+range_max = 4.5
+cooldown = 12.0
+min_threat = 0.0
+windup = 0.8
+recover = 0.5
+damage = 6
+radius = 6.0
+color = Color(1, 0.827451, 0.3019608, 1)
+effect = 4
+effect_duration = 1.0
+
+[sub_resource type="Resource" id="Resource_alfa1"]
+script = ExtResource("1_2rge2")
+id = &"chamado_alfa"
+display_name = "Chamado da Alfa"
+kind = 6
+weight = 7
+range_max = 30.0
+cooldown = 22.0
+below_health = 0.6
+windup = 1.0
+recover = 0.5
+damage = 0
+count = 1
+color = Color(1, 0.7, 0.2, 1)
+summon_id = &"onca_pintada"
+
+[resource]
+script = ExtResource("2_uwklt")
+id = &"onca_alfa"
+display_name = "Onça-Pintada Alfa"
+color = Color(0.7882353, 0.6039216, 0.22745098, 1)
+body_scale = 1.9
+model_id = &"onca_pintada"
+model_scale = 1.55
+max_health = 2200
+damage = 42
+move_speed = 3.6
+is_boss = true
+movement = 1
+preferred_distance = 2.5
+
+quadruped = true
+eye_count = 2
+spotted = true
+attacks = Array[ExtResource("1_2rge2")]([SubResource("Resource_2rge2"), SubResource("Resource_uwklt"), SubResource("Resource_3or5a"), SubResource("Resource_imskp"), SubResource("Resource_alfa1")])
+drop_table_id = &"bau_covil"
+xp_reward = 40

@@ -1,29 +1,34 @@
 extends Node3D
 ## Controle da run (fase 3).
-## Uma run = 5 andares gerados aleatoriamente. Em cada andar: entrar nas salas, limpar as de combate
+## Uma run = 10 andares gerados aleatoriamente. Em cada andar: entrar nas salas, limpar as de combate
 ## (as portas fecham até o último inimigo cair), abrir baús, usar a fonte e achar o portal de saída.
-## No portal, desce direto (a força vem do equipamento fabricado, não de bênçãos da run). No 5º andar, o chefe está na sala mais distante.
+## No portal, desce direto (a força vem do equipamento fabricado, não de bênçãos da run).
+## Andar 5: a Onça-Pintada Alfa (mini-chefe) e o Acampamento: voltar à base com o que já tem ou descer.
+## Andar 10: o chefe (Mapinguari), na sala mais distante.
 ## Todo loot e XP vão para o herói na hora: mesmo perdendo, a run rende avanço.
 ## O herói e o equipamento vêm do hub (GameState.selected_hero).
 ##
 ## PC: WASD anda · Espaço ataca · R nova run · G salva
 
-const FLOORS := 5
-const ROOMS_PER_FLOOR := [6, 7, 8, 8, 8]
+const FLOORS := 10
+const ROOMS_PER_FLOOR := [5, 6, 6, 7, 6, 7, 7, 8, 8, 8]
 const BOSS_ID := &"mapinguari"
+## Mini-chefe no meio do mundo, e o acampamento depois dele.
+const MINIBOSS_FLOOR := 5
+const MINIBOSS_ID := &"onca_alfa"
 ## Terra Firme: bichos que podem aparecer a partir de cada andar (peso = chance relativa).
 ## Queixadas e formigas nascem em grupo (EnemyData.group_min/max).
 const ENEMY_POOL := [
 	{"id": &"queixada", "from_floor": 1, "weight": 5},
 	{"id": &"formiga_fogo", "from_floor": 1, "weight": 4},
 	{"id": &"macaco_prego", "from_floor": 1, "weight": 3},
-	{"id": &"aranha_caranguejeira", "from_floor": 2, "weight": 3},
-	{"id": &"jararaca", "from_floor": 2, "weight": 2},
-	{"id": &"onca_pintada", "from_floor": 3, "weight": 2},
+	{"id": &"aranha_caranguejeira", "from_floor": 3, "weight": 3},
+	{"id": &"jararaca", "from_floor": 4, "weight": 2},
+	{"id": &"onca_pintada", "from_floor": 6, "weight": 2},
 ]
-## Quanto o dano e a vida dos inimigos crescem por andar.
-const DAMAGE_PER_FLOOR := 0.10
-const HEALTH_PER_FLOOR := 0.15
+## Quanto o dano e a vida dos inimigos crescem por andar (10 andares: no 10º, +81% de vida e +54% de dano).
+const DAMAGE_PER_FLOOR := 0.06
+const HEALTH_PER_FLOOR := 0.09
 const HUB_SCENE := "res://game/scenes/hub.tscn"
 ## XP extra por sala limpa e por vencer o chefe.
 const XP_ROOM_CLEAR := 4
@@ -224,7 +229,7 @@ func _next_floor() -> void:
 	floor_number += 1
 	_clear_floor()
 	layout = DungeonLayout.new()
-	layout.generate(_rng, ROOMS_PER_FLOOR[floor_number - 1], floor_number == FLOORS)
+	layout.generate(_rng, ROOMS_PER_FLOOR[floor_number - 1], _is_boss_floor())
 	_maybe_place_den()
 	builder = DungeonBuilder.new()
 	builder.build(layout, _dungeon, _rng)
@@ -246,8 +251,8 @@ func _next_floor() -> void:
 	_hud.minimap.show_layout(layout)
 	_hud.set_wave("Andar %d/%d · %s%s" % [floor_number, FLOORS, Difficulty.name_of(difficulty),
 		"" if full_rewards else " · sem energia"])
-	_hud.show_toast("Andar %d — encontre o %s%s" % [floor_number,
-		"chefe" if floor_number == FLOORS else "portal azul",
+	_hud.show_toast("Andar %d — encontre %s%s" % [floor_number,
+		"o chefe" if floor_number == FLOORS else ("a Onça Alfa" if floor_number == MINIBOSS_FLOOR else "o portal azul"),
 		"  (teste: tecla T cria bonecos de treino)" if OS.is_debug_build() else ""], Color("4db8ff"))
 	GameState.save()
 
@@ -285,17 +290,19 @@ func _on_room_entered(room: DungeonRoom) -> void:
 		_hud.show_toast("COVIL FURIOSO! Só furiosos aqui. Vença e leve o baú grande.", Color("ff3b3b"))
 		_spawn_wave(room, 3 + floor_number / 2, [])
 	elif room.type == DungeonLayout.RoomType.BOSS:
-		var boss := _spawn(BOSS_ID, room)
+		var mini := floor_number == MINIBOSS_FLOOR
+		var boss := _spawn(MINIBOSS_ID if mini else BOSS_ID, room)
 		if boss:
 			_hud.show_boss(boss)
-			_hud.show_toast("O %s acordou! Que fedor..." % boss.data.display_name, Color("e05555"))
+			_hud.show_toast("A %s ruge no meio da mata!" % boss.data.display_name if mini
+				else "O %s acordou! Que fedor..." % boss.data.display_name, Color("e05555"))
 	else:
 		# A luta da sala pode se estender: depois da 1ª onda, chegam de 1 a 4 ondas extras,
 		# com mais chance e mais ondas nos andares fundos e nas dificuldades altas.
 		room.wave_number = 1
 		room.waves_left = _roll_extra_waves()
 		room.wave_total = 1 + room.waves_left
-		_spawn_wave(room, 3 + floor_number / 2 + _rng.randi_range(0, 1), [])
+		_spawn_wave(room, wave_budget(), [])
 
 
 ## Talvez transforme uma sala de combate fora do caminho principal num Covil Furioso.
@@ -325,6 +332,47 @@ func _maybe_place_den() -> int:
 	return -1
 
 
+## Se só sobraram bichos de tocaia ainda dormindo (jararaca meio apagada no canto), eles acordam e
+## vêm: senão o herói podia ficar preso numa sala de portas fechadas sem achar o último bicho.
+func _wake_hidden_leftovers(room: DungeonRoom) -> void:
+	var left := []
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e.home_room == room and e.state != Enemy.State.DEAD:
+			if e._awake:
+				return
+			left.append(e)
+	if left.is_empty():
+		return
+	var run := _run_id
+	get_tree().create_timer(1.5, false).timeout.connect(func() -> void:
+		if run != _run_id:
+			return
+		for e in left:
+			if is_instance_valid(e) and not e._awake:
+				e._wake())
+
+
+## Acampamento (andar 5, depois da Onça Alfa): a fogueira leva de volta à base com tudo o que já
+## foi coletado; o portal desce para a segunda metade do mundo.
+func _spawn_camp(room: DungeonRoom) -> void:
+	# do lado da sala oposto ao herói (se nascessem em cima dele, disparariam sozinhos)
+	var away: Vector3 = room.center() - _player.global_position
+	away.y = 0.0
+	away = away.normalized() if away.length() > 0.5 else Vector3.FORWARD
+	var base: Vector3 = room.center() + away * 2.5
+	var side := Vector3(-away.z, 0, away.x)
+	var camp := RoomProp.create(RoomProp.Kind.CAMP)
+	_dungeon.add_child(camp)
+	camp.global_position = base - side * 2.2
+	camp.activated.connect(_on_prop_activated)
+	var portal := RoomProp.create(RoomProp.Kind.PORTAL)
+	_dungeon.add_child(portal)
+	portal.global_position = base + side * 2.2
+	portal.activated.connect(_on_prop_activated)
+	_hud.show_toast("Acampamento! Fogueira: voltar à base com o que coletou. Portal: descer até o chefe.", Color("ffb54d"))
+	_stats.camp = true
+
+
 ## Baú grande do covil: aparece no meio da sala quando o último furioso cai.
 func _spawn_den_chest(room: DungeonRoom) -> void:
 	var chest := RoomProp.create(RoomProp.Kind.CHEST)
@@ -341,16 +389,26 @@ func _spawn_den_chest(room: DungeonRoom) -> void:
 
 ## Quantas ondas extras a sala vai ter (0 = só a primeira).
 func _roll_extra_waves() -> int:
-	var chance := clampf(0.35 + 0.08 * (floor_number - 1) + 0.12 * difficulty, 0.0, 0.95)
+	var chance := clampf(0.3 + 0.05 * (floor_number - 1) + 0.12 * difficulty, 0.0, 0.95)
 	if _rng.randf() >= chance:
 		return 0
-	var most := 2 + mini(2, (floor_number - 1) / 2 + difficulty)
+	var most := 1 + mini(3, (floor_number - 1) / 3 + difficulty)
 	return _rng.randi_range(1, most)
+
+
+## Vagas da 1ª onda de uma sala: 3 no 1º andar, chegando a 7-8 no 10º.
+func wave_budget() -> int:
+	return 3 + (floor_number - 1) / 2 + _rng.randi_range(0, 1)
+
+
+## Andar com sala de chefe (o mini-chefe no 5º, o chefe no 10º).
+func _is_boss_floor() -> bool:
+	return floor_number == FLOORS or floor_number == MINIBOSS_FLOOR
 
 
 ## Chance de um inimigo da onda vir furioso.
 func _elite_chance(wave: int) -> float:
-	return clampf(0.06 + 0.05 * (floor_number - 1) + 0.08 * difficulty + 0.06 * (wave - 1), 0.0, 0.8)
+	return clampf(0.04 + 0.035 * (floor_number - 1) + 0.08 * difficulty + 0.05 * (wave - 1), 0.0, 0.8)
 
 
 ## Põe uma onda na sala. budget = "vagas": um grupo ocupa vagas conforme a vida somada
@@ -506,6 +564,8 @@ func _on_enemy_died(enemy: Enemy) -> void:
 	if room == null or not is_instance_valid(room):
 		return
 	room.alive -= 1
+	if room.alive > 0 and not room.cleared:
+		_wake_hidden_leftovers(room)
 	if room.alive > 0 or room.cleared or room.wave_pending:
 		return
 	if room.waves_left > 0 and room.type != DungeonLayout.RoomType.BOSS:
@@ -517,7 +577,9 @@ func _on_enemy_died(enemy: Enemy) -> void:
 		_spawn_den_chest.call_deferred(room)
 	room.open_doors()
 	_give_xp(XP_ROOM_CLEAR)
-	if room.type == DungeonLayout.RoomType.BOSS:
+	if room.type == DungeonLayout.RoomType.BOSS and floor_number == MINIBOSS_FLOOR:
+		_spawn_camp.call_deferred(room)
+	elif room.type == DungeonLayout.RoomType.BOSS:
 		var run := _run_id
 		get_tree().create_timer(2.0).timeout.connect(func() -> void:
 			if run == _run_id and not _run_over:
@@ -543,6 +605,8 @@ func _on_prop_activated(prop: RoomProp) -> void:
 		RoomProp.Kind.PORTAL:
 			# Fora da colisão do portal: montar o andar novo dentro dela não é permitido.
 			_portal_to_next_floor.call_deferred()
+		RoomProp.Kind.CAMP:
+			_finish.call_deferred(false, true)
 
 
 # ---------- fim da run ----------
@@ -561,7 +625,7 @@ func on_loot_collected(item: ItemData, qty: int, instance: Dictionary = {}) -> v
 
 ## Contexto de loot: dificuldade (mais reagentes e troféus) e energia (recompensa completa ou não).
 func _loot_context(profile: String) -> Dictionary:
-	var ilvl := clampi(floor_number * 2 - _rng.randi_range(0, 1), 1, 10)
+	var ilvl := clampi(floor_number - _rng.randi_range(0, 1), 1, 10)
 	return {"ilvl": ilvl, "profile": profile, "hero": _player.hero, "difficulty": difficulty,
 		"reward_mult": Difficulty.REWARD_MULT[difficulty], "full_rewards": full_rewards}
 
@@ -590,10 +654,13 @@ func _on_player_died() -> void:
 	_finish(false)
 
 
-func _finish(victory: bool) -> void:
+## camp: saiu pelo acampamento (andar 5) levando o que coletou; não conta como vitória.
+func _finish(victory: bool, camp := false) -> void:
 	if _run_over:
 		return
 	_run_over = true
+	if camp:
+		_give_xp(XP_RUN_VICTORY / 2)
 	if victory:
 		_give_xp(XP_RUN_VICTORY)
 		var first_clear := GameState.highest_cleared < difficulty
@@ -622,4 +689,4 @@ func _finish(victory: bool) -> void:
 	if level_now > int(_stats.level_start):
 		level_text = "subiu do nível %d para o %d!" % [_stats.level_start, level_now]
 	lines.append("+%d XP · %s · tudo já está no inventário   (semente %d)" % [_stats.xp, level_text, run_seed])
-	_hud.show_panel("Vitória!" if victory else "Você caiu", "\n".join(lines), "Voltar à base")
+	_hud.show_panel("Vitória!" if victory else ("De volta do acampamento" if camp else "Você caiu"), "\n".join(lines), "Voltar à base")

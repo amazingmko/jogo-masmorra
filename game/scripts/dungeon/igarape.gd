@@ -128,22 +128,29 @@ func _dir_at(i: int) -> Vector3:
 
 ## Se a trilha cruza o igarapé, põe uma pinguela de tábuas no cruzamento.
 func _maybe_bridge(center_line: PackedVector3Array) -> void:
+	# o ponto da trilha mais perto da água: se a trilha encosta no igarapé (mesmo só de raspão),
+	# a pinguela vai ali
+	var best := INF
+	var best_p := Vector3.ZERO
+	var best_dir := Vector3.FORWARD
 	for i in center_line.size() - 1:
 		var a := center_line[i]
 		var b := center_line[i + 1]
 		for s in 6:
 			var p := a.lerp(b, s / 5.0)
-			if distance_to(path, p) < HALF_WIDTH * 0.5:
-				var along := (b - a)
-				along.y = 0.0
-				_bridge(p, along.normalized())
-				return
+			var d := distance_to(path, p)
+			if d < best:
+				best = d
+				best_p = p
+				best_dir = Vector3(b.x - a.x, 0.0, b.z - a.z)
+	if best < HALF_WIDTH:
+		_bridge(best_p, best_dir.normalized())
 
 
 func _bridge(at: Vector3, along: Vector3) -> void:
 	var node := Node3D.new()
 	node.name = "Pinguela"
-	add_child(node)
+	add_child(node, true)  # nome legível também na 2ª pinguela (Pinguela2), para achar pelo nome
 	node.global_position = Vector3(at.x, 0, at.z)
 	node.rotation.y = atan2(along.x, along.z)
 	var rng := RandomNumberGenerator.new()
@@ -183,6 +190,7 @@ func _bridge(at: Vector3, along: Vector3) -> void:
 
 
 const BRIDGE_MODEL := "res://game/art/ambiente/pinguela.glb"
+const PLANK_TOP := 0.92  # altura do tampo das tábuas no modelo (fração da altura; as cordas ficam acima)
 
 
 ## A pinguela de verdade (modelo): as tábuas do modelo correm no eixo Z dele (o lado curto),
@@ -198,11 +206,14 @@ func _bridge_model(node: Node3D, width: float, length: float) -> bool:
 	var aabb := mesh.get_aabb()
 	var sx := width / maxf(aabb.size.x, 0.001)
 	var sz := length / maxf(aabb.size.z, 0.001)
-	var sy := minf(sx, sz) * 0.8  # baixa: tábua não fica alta demais
+	var sy := minf(sx, sz) * 0.5  # achatada: a pinguela é baixa
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	mi.scale = Vector3(sx, sy, sz)
-	mi.position = Vector3(-aabb.get_center().x * sx, -aabb.position.y * sy - 0.05, -aabb.get_center().z * sz)
+	# o herói anda no chão (altura 0): o tampo das tábuas fica rente ao chão e as toras de baixo
+	# entram no barranco; assim o pé pisa em cima da madeira, sem afundar nela
+	var top := aabb.position.y + aabb.size.y * PLANK_TOP
+	mi.position = Vector3(-aabb.get_center().x * sx, -top * sy + 0.03, -aabb.get_center().z * sz)
 	node.add_child(mi)
 	return true
 
