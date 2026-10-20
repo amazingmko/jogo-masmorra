@@ -37,6 +37,8 @@ var _pre_fx_done := false
 var _t := 0.0
 var _resolved := false
 var _linger_tick := 0.0
+## Área que prende (teia no chão): prende uma vez; só prende de novo se o herói sair e pisar outra vez.
+var _holding := false
 var _fill: MeshInstance3D
 var _fill_mat: StandardMaterial3D
 
@@ -92,11 +94,18 @@ func _process(delta: float) -> void:
 			_resolve()
 	elif linger > 0.0:
 		_linger_tick += delta
-		if _linger_tick >= 0.5:
-			_linger_tick = 0.0
-			var player := _player()
-			if player and contains(player.global_position):
+		var player := _player()
+		var inside: bool = player != null and contains(player.global_position)
+		if not inside:
+			_holding = false
+		elif effect == EnemyAttack.Effect.ROOT:
+			# prende na hora em que pisa; parado dentro (ou ainda preso) não prende de novo
+			if not _holding:
+				_holding = true
 				player.receive_attack(0, effect, effect_duration, effect_power, global_position)
+		elif _linger_tick >= 0.5:
+			_linger_tick = 0.0
+			player.receive_attack(0, effect, effect_duration, effect_power, global_position)
 		if _t >= duration + linger:
 			queue_free()
 
@@ -168,6 +177,7 @@ func _resolve() -> void:
 			var amount := damage + int(round(damage_percent * player.health.max_health))
 			player.receive_attack(amount, effect, effect_duration, effect_power, global_position, shape == Shape.MEGA)
 			hit = true
+			_holding = effect == EnemyAttack.Effect.ROOT
 	resolved.emit(hit)
 	if not visual_only:
 		MobFx.on_resolve(self)
