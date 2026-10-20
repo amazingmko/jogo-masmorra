@@ -10,6 +10,9 @@ enum Movement { CHASE, STRAFE, SKITTER, KITE }
 @export var color: Color = Color("c95b5b")
 ## Tamanho do corpo (1 = tamanho do herói).
 @export_range(0.4, 3.0) var body_scale: float = 1.0
+## Usa o modelo/esqueleto de outro bicho (ex.: a Onça Alfa usa o da onça), maior por model_scale.
+@export var model_id: StringName
+@export var model_scale: float = 1.0
 
 @export_group("Atributos")
 @export var max_health: int = 20

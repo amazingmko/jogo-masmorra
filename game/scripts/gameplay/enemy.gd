@@ -1467,7 +1467,7 @@ static func _bicho_material(art: Dictionary, fade: bool) -> ShaderMaterial:
 
 ## Troca a cápsula pelo modelo 3D (se existir). Devolve falso se não tem modelo.
 func _build_model() -> bool:
-	var art := _art(data.id)
+	var art := _art(_model_id())
 	if art.is_empty():
 		return false
 	_pose = Node3D.new()
@@ -1552,7 +1552,7 @@ func _show_weak_spot(on: bool) -> void:
 
 ## Movimento do ataque no shader (ver bicho.gdshader: 0 bote, 1 garrada, 2 pancada, 3 arremesso, 5 rugido).
 func _golpe_for(a: EnemyAttack) -> int:
-	var biped := (_anim != null and not _bone_procedural()) or (_model != null and int(_art(data.id).modo) == 1)
+	var biped := (_anim != null and not _bone_procedural()) or (_model != null and int(_art(_model_id()).modo) == 1)
 	match a.kind:
 		EnemyAttack.Kind.MELEE:
 			if biped:
@@ -1663,12 +1663,21 @@ func _bone_procedural() -> bool:
 	return _quad != null or _arthro != null or _serp != null
 
 
+## O modelo deste bicho (o próprio id, ou o de outro bicho, como a Onça Alfa usando o da onça).
+func _model_id() -> StringName:
+	return data.model_id if data.model_id != &"" else data.id
+
+
 func _rig_info() -> Dictionary:
-	return RIG.get(data.id, RIG_QUAD.get(data.id, {}))
+	var info: Dictionary = RIG.get(_model_id(), RIG_QUAD.get(_model_id(), {}))
+	if data.model_scale != 1.0 and info.has("comprimento"):
+		info = info.duplicate()
+		info.comprimento = float(info.comprimento) * data.model_scale
+	return info
 
 
 func _build_rig() -> bool:
-	var path: String = RIG_PATH % data.id
+	var path: String = RIG_PATH % _model_id()
 	if _rig_info().is_empty() or not ResourceLoader.exists(path):
 		return false
 	var scene: Node3D = load(path).instantiate()

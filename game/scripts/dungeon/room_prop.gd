@@ -1,11 +1,11 @@
 class_name RoomProp
 extends Area3D
-## Objeto especial de uma sala: baú, fonte de cura ou portal de saída.
+## Objeto especial de uma sala: baú, fonte de cura, portal de saída ou a fogueira do acampamento.
 ## Ativa uma vez quando o herói encosta e avisa com o sinal `activated`.
 
 signal activated(prop: RoomProp)
 
-enum Kind { CHEST, FOUNTAIN, PORTAL }
+enum Kind { CHEST, FOUNTAIN, PORTAL, CAMP }
 
 var kind: Kind = Kind.CHEST
 var used := false
@@ -20,7 +20,7 @@ var _treasure: Node3D
 static func create(prop_kind: Kind) -> RoomProp:
 	var p := RoomProp.new()
 	p.kind = prop_kind
-	p.name = ["Bau", "Fonte", "Portal"][prop_kind]
+	p.name = ["Bau", "Fonte", "Portal", "Fogueira"][prop_kind]
 	return p
 
 
@@ -35,8 +35,10 @@ func _ready() -> void:
 	shape.shape = cyl
 	shape.position.y = 1.0
 	add_child(shape)
-	var art: String = ["bau", "fonte", "portal"][kind]
-	if ResourceLoader.exists(RoomDecor.ART % art):
+	var art: String = ["bau", "fonte", "portal", "fogueira"][kind]
+	if kind == Kind.CAMP:
+		_build_campfire()
+	elif ResourceLoader.exists(RoomDecor.ART % art):
 		match kind:
 			Kind.CHEST:
 				_build_chest_model()
@@ -304,3 +306,37 @@ func _build_portal() -> void:
 	var core_mat := _mat(Color(0.3, 0.7, 1.0, 0.6), true)
 	core_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_mesh(core, Vector3(0, 0.04, 0), core_mat)
+
+
+## Fogueira do acampamento: toras em pirâmide, pedras em volta, fogo, fumaça e luz quente.
+func _build_campfire() -> void:
+	var bark := _mat(Color("5a3b22"), false)
+	for i in 5:
+		var log := CylinderMesh.new()
+		log.top_radius = 0.07
+		log.bottom_radius = 0.09
+		log.height = 0.9
+		log.radial_segments = 6
+		var a := TAU * i / 5.0
+		var m := _mesh(log, Vector3(cos(a) * 0.22, 0.32, sin(a) * 0.22), bark)
+		m.rotation = Vector3(sin(a) * 0.55, 0, -cos(a) * 0.55)
+	var stone := _mat(Color("7a7468"), false)
+	for i in 8:
+		var s := SphereMesh.new()
+		s.radius = 0.13
+		s.height = 0.18
+		s.radial_segments = 6
+		s.rings = 3
+		var a := TAU * i / 8.0
+		_mesh(s, Vector3(cos(a) * 0.62, 0.06, sin(a) * 0.62), stone)
+	Vfx.particles(self, Vector3(0, 0.45, 0), "faisca", 22, 0.7, Color(1.0, 0.55, 0.15, 0.95), 0.35, Vector2(0.6, 1.6), 20.0, 1.2, true, false, 0.15)
+	Vfx.particles(self, Vector3(0, 0.6, 0), "fumaca", 6, 2.2, Color(0.4, 0.38, 0.35, 0.35), 0.9, Vector2(0.4, 0.9), 15.0, 0.4, false, false)
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.6, 0.3)
+	light.light_energy = 2.5
+	light.omni_range = 5.0
+	light.position = Vector3(0, 0.8, 0)
+	add_child(light)
+	var flicker := light.create_tween().set_loops()
+	flicker.tween_property(light, "light_energy", 1.8, 0.12)
+	flicker.tween_property(light, "light_energy", 2.6, 0.15)

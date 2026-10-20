@@ -9,7 +9,7 @@ extends SceneTree
 ##   ... -- hero=encantado shot=/caminho/foto.png shot_at=20
 ## (Autoloads e classes que dependem deles ficam sem tipo aqui: este script compila antes deles existirem.)
 
-const MAX_SECONDS := 900
+const MAX_SECONDS := 2100
 
 var _main: Node
 var _frames := 0
@@ -245,6 +245,10 @@ func _choose_target(player: Node3D) -> Vector3:
 			goal_index = idx
 			break
 	if cur.index == goal_index:
+		# acampamento (andar 5): depois da Onça Alfa, o robô segue sempre pelo portal até o chefe
+		for portal in _main.find_children("Portal", "Area3D", true, false):
+			if not portal.used and cur.contains(portal.global_position):
+				return portal.global_position
 		return cur.center()  # baú, portal ou centro da sala do chefe
 	var path: Array = layout.path(cur.index, goal_index)
 	if path.size() < 2:

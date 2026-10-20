@@ -128,22 +128,29 @@ func _dir_at(i: int) -> Vector3:
 
 ## Se a trilha cruza o igarapé, põe uma pinguela de tábuas no cruzamento.
 func _maybe_bridge(center_line: PackedVector3Array) -> void:
+	# o ponto da trilha mais perto da água: se a trilha encosta no igarapé (mesmo só de raspão),
+	# a pinguela vai ali
+	var best := INF
+	var best_p := Vector3.ZERO
+	var best_dir := Vector3.FORWARD
 	for i in center_line.size() - 1:
 		var a := center_line[i]
 		var b := center_line[i + 1]
 		for s in 6:
 			var p := a.lerp(b, s / 5.0)
-			if distance_to(path, p) < HALF_WIDTH * 0.5:
-				var along := (b - a)
-				along.y = 0.0
-				_bridge(p, along.normalized())
-				return
+			var d := distance_to(path, p)
+			if d < best:
+				best = d
+				best_p = p
+				best_dir = Vector3(b.x - a.x, 0.0, b.z - a.z)
+	if best < HALF_WIDTH:
+		_bridge(best_p, best_dir.normalized())
 
 
 func _bridge(at: Vector3, along: Vector3) -> void:
 	var node := Node3D.new()
 	node.name = "Pinguela"
-	add_child(node)
+	add_child(node, true)  # nome legível também na 2ª pinguela (Pinguela2), para achar pelo nome
 	node.global_position = Vector3(at.x, 0, at.z)
 	node.rotation.y = atan2(along.x, along.z)
 	var rng := RandomNumberGenerator.new()
