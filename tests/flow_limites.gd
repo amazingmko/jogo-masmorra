@@ -52,13 +52,16 @@ func _run() -> void:
 		floors += 1
 		var wet := 0
 		var worst := 99.0
+		var water: PackedVector3Array = ig.path
+		for prop in m.builder.props.values():
+			prop.used = true  # o portal não pode levar o herói para outro andar no meio do teste
 		for room in m.builder.rooms:
 			room.cleared = true
 			room.open_doors()
 		for e in get_nodes_in_group("enemies"):
 			e.queue_free()
 		for room in m.builder.rooms:
-			if Igarape.distance_to(ig.path, room.center()) > 14.0:
+			if Igarape.distance_to(water, room.center()) > 14.0:
 				continue  # só as clareiras perto do igarapé
 			for a in 8:
 				p.global_position = room.center() + Vector3(0, 0.1, 0)
@@ -68,7 +71,7 @@ func _run() -> void:
 				for i in 110:
 					p.touch_move = dir
 					await physics_frame
-					var d := Igarape.distance_to(ig.path, p.global_position)
+					var d := Igarape.distance_to(water, p.global_position)
 					if d < Igarape.HALF_WIDTH - 0.15 and not _on_bridge(m, p.global_position):
 						wet += 1
 						worst = minf(worst, d)
