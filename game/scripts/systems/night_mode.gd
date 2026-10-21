@@ -78,6 +78,7 @@ func setup(world: WorldEnvironment, sun_light: DirectionalLight3D, hero: Node3D,
 	_lamp.omni_range = 7.0
 	_lamp.omni_attenuation = 1.2
 	_lamp.position = Vector3(0, 1.6, 0)
+	_lamp.light_cull_mask = 0xFFFFF & ~Layers.WATER_VISUAL  # não reflete no igarapé
 	_lamp.light_energy = 0.0
 	_lamp.visible = false
 	hero.add_child(_lamp)
@@ -127,8 +128,7 @@ func _apply(k: float) -> void:
 	if ambience and ambience.has_method("set_night"):
 		ambience.set_night(k)
 	_water(k)
-	for m: StandardMaterial3D in _glow_mats.values():
-		m.emission_energy_multiplier = 1.6 * k  # os cogumelos acendem junto com o anoitecer
+	_spore_alpha(k)  # os esporos dos cogumelos acendem junto com o anoitecer
 
 
 # ---------- olhos ----------
@@ -144,31 +144,74 @@ func _add_eyes(enemy: Node3D) -> void:
 
 # ---------- cogumelos e água ----------
 
-var _glow_mats := {}
+## Cogumelos à noite: o modelo continua com a pintura dele; o que acende são esporos verdes
+## flutuando em cima de cada um (um MultiMesh de pontinhos de luz por grupo de cogumelos).
+const SPORE_COLOR := Color(0.55, 1.0, 0.65)
+var _spores: Array[MultiMeshInstance3D] = []
+var _spore_mat: StandardMaterial3D
 
 
 func _mushrooms(on: bool) -> void:
-	if dungeon == null:
+	for n in _spores:
+		if is_instance_valid(n):
+			n.queue_free()
+	_spores.clear()
+	if dungeon == null or not on:
 		return
+	if _spore_mat == null:
+		_spore_mat = StandardMaterial3D.new()
+		_spore_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_spore_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_spore_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		_spore_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		_spore_mat.albedo_texture = Vfx.tex("faisca")
+		_spore_mat.vertex_color_use_as_albedo = true
+		_spore_mat.albedo_color = SPORE_COLOR * 1.6
+		_spore_mat.no_depth_test = false
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.22, 0.22)
+	quad.material = _spore_mat
 	for mmi: MultiMeshInstance3D in dungeon.find_children("Decor_*", "MultiMeshInstance3D", true, false):
-		if String(mmi.get_meta("kind", "")) != "cogumelos":
+		if String(mmi.get_meta("kind", "")) != "cogumelos" or mmi.multimesh == null:
 			continue
-		if not on:
-			mmi.material_override = null
+		var count := mmi.multimesh.instance_count
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
+		mm.mesh = quad
+		mm.instance_count = count * 3
+		var rng := RandomNumberGenerator.new()
+		rng.seed = count * 7919
+		for i in count:
+			var at: Vector3 = mmi.multimesh.get_instance_transform(i).origin
+			for j in 3:
+				var off := Vector3(rng.randf_range(-0.18, 0.18), rng.randf_range(0.2, 0.55), rng.randf_range(-0.18, 0.18))
+				mm.set_instance_transform(i * 3 + j, Transform3D(Basis().scaled(Vector3.ONE * rng.randf_range(0.5, 1.1)), at + off))
+				mm.set_instance_color(i * 3 + j, Color(1, 1, 1, 0.0))
+		var node := MultiMeshInstance3D.new()
+		node.name = "Esporos"
+		node.multimesh = mm
+		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mmi.add_child(node)
+		_spores.append(node)
+	_spore_alpha(amount)
+
+
+## Os esporos acendem com o anoitecer e piscam devagar, cada um no seu tempo.
+func _spore_alpha(k: float) -> void:
+	var t := Time.get_ticks_msec() / 1000.0
+	for node in _spores:
+		if not is_instance_valid(node):
 			continue
-		var mesh := mmi.multimesh.mesh if mmi.multimesh else null
-		if mesh == null or mesh.get_surface_count() == 0:
-			continue
-		if not _glow_mats.has(mesh):
-			var src := mesh.surface_get_material(0) as StandardMaterial3D
-			var m := (src.duplicate() if src else StandardMaterial3D.new()) as StandardMaterial3D
-			m.emission_enabled = true
-			m.emission = Color(0.35, 1.0, 0.55)
-			m.emission_energy_multiplier = 1.6 * amount
-			if src and src.albedo_texture:
-				m.emission_texture = src.albedo_texture
-			_glow_mats[mesh] = m
-		mmi.material_override = _glow_mats[mesh]
+		var mm := node.multimesh
+		for i in mm.instance_count:
+			var blink := 0.55 + 0.45 * sin(t * 1.3 + i * 2.39)
+			mm.set_instance_color(i, Color(1, 1, 1, k * blink))
+
+
+func _process(_delta: float) -> void:
+	if amount > 0.01 and not _spores.is_empty():
+		_spore_alpha(amount)
 
 
 func _water(k: float) -> void:

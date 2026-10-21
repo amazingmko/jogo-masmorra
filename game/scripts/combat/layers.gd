@@ -8,6 +8,8 @@ const PICKUPS := 8    # camada 4: itens no chão
 
 ## Camada de desenho (não de colisão) só do herói: a luz de preenchimento dele não clareia o cenário.
 const HERO_VISUAL := 2
+## Camada de desenho só da água: a tocha do herói (noite) não reflete nela.
+const WATER_VISUAL := 4
 
 
 ## Nada sólido (parede, pilar, pedra, tronco) entre os dois pontos? Golpes e magias não atravessam

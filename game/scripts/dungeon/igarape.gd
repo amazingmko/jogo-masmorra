@@ -102,6 +102,7 @@ func _build_water() -> void:
 	var mi := MeshInstance3D.new()
 	mi.name = "Agua"
 	mi.mesh = mesh
+	mi.layers = Layers.WATER_VISUAL
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://game/shaders/agua_igarape.gdshader")
@@ -159,6 +160,7 @@ func _bridge(at: Vector3, along: Vector3) -> void:
 	var length := HALF_WIDTH * 2.0 + MUD * 2.0 + 0.4   # vai de barranco a barranco
 	var planks := 6
 	var width := DungeonRoom.DOOR_W - 0.4
+	_bridge_rails(node, width, length)
 	if ResourceLoader.exists(BRIDGE_MODEL) and _bridge_model(node, width, length):
 		return
 	for k in planks:
@@ -188,6 +190,23 @@ func _bridge(at: Vector3, along: Vector3) -> void:
 		beam.rotation.x = PI * 0.5
 		beam.position = Vector3(side * width * 0.35, 0.02, 0)
 		node.add_child(beam)
+
+
+## Paredes invisíveis dos dois lados da pinguela: o herói atravessa por cima dela e não entra
+## na água pelos lados.
+func _bridge_rails(node: Node3D, width: float, length: float) -> void:
+	for side in [-1.0, 1.0]:
+		var body := StaticBody3D.new()
+		body.name = "BeiraPinguela"
+		body.collision_layer = Layers.WORLD
+		body.collision_mask = 0
+		var shape := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = Vector3(0.2, 2.0, length + 0.6)
+		shape.shape = box
+		body.add_child(shape)
+		body.position = Vector3(side * (width * 0.5 + 0.1), 1.0, 0)
+		node.add_child(body)
 
 
 const BRIDGE_MODEL := "res://game/art/ambiente/pinguela.glb"
