@@ -97,3 +97,21 @@ func _quad(texture_name: String, color: Color, additive: bool, size: float) -> Q
 	m.albedo_texture = Vfx.tex(texture_name)
 	q.material = m
 	return q
+
+
+## Noite (0 a 1): mais um enxame de vaga-lumes, maiores e mais brilhantes, que acende no anoitecer.
+var _night_flies: CPUParticles3D
+
+
+func set_night(k: float) -> void:
+	if _fireflies == null:
+		return
+	if _night_flies == null:
+		_night_flies = _fireflies.duplicate() as CPUParticles3D
+		_night_flies.amount = 60
+		_night_flies.mesh = _quad("faisca", FIREFLY_COLOR, true, 0.24)
+		add_child(_night_flies)
+	_night_flies.emitting = k > 0.05
+	_night_flies.visible = k > 0.05
+	var m := (_night_flies.mesh as QuadMesh).material as StandardMaterial3D
+	m.albedo_color = Color(FIREFLY_COLOR, k)

@@ -9,6 +9,8 @@ uniform vec3 tom : source_color = vec3(0.62, 0.78, 0.82);
 uniform vec3 ceu : source_color = vec3(0.55, 0.7, 0.62);
 uniform float velocidade = 0.12;
 uniform float brilho = 0.6;
+// Noite (0 a 1): água mais escura e a lua refletida, um brilho prateado que tremula na correnteza.
+uniform float lua = 0.0;
 
 void fragment() {
 	vec2 uv = UV;
@@ -22,7 +24,13 @@ void fragment() {
 	// reflexo da copa/céu nas ondinhas claras da pintura, andando junto com a correnteza
 	float onda = smoothstep(0.024, 0.042, dot(b, vec3(0.33)));
 	float onda2 = smoothstep(0.026, 0.045, dot(a, vec3(0.33)));
-	cor += ceu * (onda * 0.35 + onda2 * 0.2);
+	cor += ceu * (onda * 0.35 + onda2 * 0.2) * (1.0 - lua);
+	if (lua > 0.0) {
+		cor *= 1.0 - lua * 0.45;
+		float faixa = 1.0 - smoothstep(0.0, 0.35, abs(uv.x - 0.5 - sin(uv.y * 0.8 + TIME * 0.5) * 0.12));
+		float tremor = 0.6 + 0.4 * sin(uv.y * 9.0 - TIME * 3.0 + uv.x * 6.0);
+		cor += vec3(0.75, 0.85, 1.0) * (onda * 0.9 + onda2 * 0.5 + faixa * 0.25 * tremor) * lua;
+	}
 	ALBEDO = cor;
 	ROUGHNESS = 0.18;
 	SPECULAR = brilho;

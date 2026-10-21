@@ -16,6 +16,9 @@ const BOSS_ID := &"mapinguari"
 ## Mini-chefe no meio do mundo, e o acampamento depois dele.
 const MINIBOSS_FLOOR := 5
 const MINIBOSS_ID := &"onca_alfa"
+## A noite cai no Acampamento: a 2ª metade do mundo é de noite (mais perigosa, rende mais).
+const NIGHTFALL_SECONDS := 4.0
+const NIGHT_REWARD := 1.3
 ## Terra Firme: bichos que podem aparecer a partir de cada andar (peso = chance relativa).
 ## Queixadas e formigas nascem em grupo (EnemyData.group_min/max).
 const ENEMY_POOL := [
@@ -70,6 +73,7 @@ var _loading_fade: ColorRect
 var _loading_label: Label
 var _loading_frames := 0
 var _warmup: Warmup
+var night: NightMode
 
 @onready var _player: Player = $Player
 @onready var _hud: Hud = $HUD
@@ -91,6 +95,10 @@ func _ready() -> void:
 	ambience.name = "Ambiente"
 	ambience.target = _player
 	add_child(ambience)
+	night = NightMode.new()
+	night.name = "Noite"
+	add_child(night)
+	night.setup($WorldEnvironment, $Sun, _player, _dungeon, ambience)
 	_build_loading()
 	new_run()
 
@@ -161,6 +169,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_T:
 			if OS.is_debug_build():
 				spawn_training_dummies()
+		KEY_N:
+			if OS.is_debug_build():  # teste: alterna dia/noite
+				night.set_night(not night.is_night, 1.5)
 
 
 ## Só na versão de desenvolvimento (tecla T): 3 bonecos de treino perto do herói. Andam e
@@ -240,6 +251,8 @@ func _next_floor() -> void:
 	for prop in builder.props.values():
 		prop.activated.connect(_on_prop_activated)
 
+	# 2ª metade do mundo (depois do Acampamento): noite
+	night.set_night(floor_number > MINIBOSS_FLOOR)
 	_current_room = null
 	_alive = 0
 	var start := builder.rooms[layout.start_index]
@@ -370,7 +383,8 @@ func _spawn_camp(room: DungeonRoom) -> void:
 	_dungeon.add_child(portal)
 	portal.global_position = base + side * 2.2
 	portal.activated.connect(_on_prop_activated)
-	_hud.show_toast("Acampamento! Fogueira: voltar à base com o que coletou. Portal: descer até o chefe.", Color("ffb54d"))
+	_hud.show_toast("A noite caiu na mata... Fogueira: voltar à base com o que coletou. Portal: descer na escuridão.", Color("ffb54d"))
+	night.set_night(true, NIGHTFALL_SECONDS)
 	_stats.camp = true
 
 
@@ -508,6 +522,8 @@ func _spawn(enemy_id: StringName, room: DungeonRoom, at: Vector3 = Vector3.INF, 
 	room.alive += 1
 	add_child(enemy)
 	enemy.global_position = at if at != Vector3.INF else room.random_point(_rng, _player.global_position, 5.0)
+	if night.is_night:
+		night.on_enemy_spawned(enemy)
 	enemy.reset_physics_interpolation()
 	enemy.died.connect(_on_enemy_died)
 	enemy.summon_requested.connect(_on_summon_requested)
@@ -633,7 +649,8 @@ func on_loot_collected(item: ItemData, qty: int, instance: Dictionary = {}) -> v
 func _loot_context(profile: String) -> Dictionary:
 	var ilvl := clampi(floor_number - _rng.randi_range(0, 1), 1, 10)
 	return {"ilvl": ilvl, "profile": profile, "hero": _player.hero, "difficulty": difficulty,
-		"reward_mult": Difficulty.REWARD_MULT[difficulty], "full_rewards": full_rewards}
+		"reward_mult": Difficulty.REWARD_MULT[difficulty] * (NIGHT_REWARD if night and night.is_night else 1.0),
+		"full_rewards": full_rewards, "night": night != null and night.is_night}
 
 
 func _give_xp(amount: int) -> void:
