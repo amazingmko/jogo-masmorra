@@ -13,7 +13,7 @@ const ART := "res://game/art/ambiente/%s.glb"
 ## (os modelos do Tripo vêm com proporções livres; o toco da sumaúma, por exemplo, é largo e baixo).
 const SIZE := {
 	"arvore_borda": ["h", 6.0], "palmeira": ["h", 5.5], "sumauma": ["w", 2.6], "moita": ["w", 1.7],
-	"samambaia": ["w", 0.85], "bromelia": ["w", 0.6], "cogumelos": ["h", 0.3],
+	"samambaia": ["w", 0.85], "bromelia": ["w", 0.6], "cogumelos": ["h", 0.4],
 	"pedra_musgo": ["w", 1.4], "tronco_caido": ["w", 2.6],
 	"bau": ["w", 1.6], "fonte": ["w", 2.6], "portal": ["w", 3.2],
 }

@@ -22,7 +22,7 @@ import trimesh
 from PIL import Image
 
 
-FOLHAGEM = {"moita", "samambaia", "arvore_borda", "palmeira", "bromelia", "cogumelos"}
+FOLHAGEM = {"moita", "samambaia", "arvore_borda", "palmeira", "bromelia"}
 
 
 def finish(mesh: trimesh.Trimesh, name: str, texture: Image.Image, dst: str) -> None:

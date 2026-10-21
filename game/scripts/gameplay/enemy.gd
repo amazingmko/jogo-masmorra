@@ -38,6 +38,7 @@ var is_summon := false
 var enraged := false
 ## Furioso (elite): definido pela run antes de entrar na cena (vida e dano já multiplicados lá).
 var elite := false
+var _hp_bar: EnemyHealthBar
 ## Perigo da sala (0 a 1), definido pela run antes de entrar na cena.
 var threat := 0.0
 var tactic: Tactic = Tactic.PRESS
@@ -191,6 +192,8 @@ func _ready() -> void:
 	add_child(health)
 	health.died.connect(_on_died)
 	health.changed.connect(_on_health_changed)
+	if not is_boss:  # chefes já têm a barra grande no topo da tela
+		_hp_bar = EnemyHealthBar.attach(self, health, 2.0 * data.body_scale, elite)
 	_player = get_tree().get_first_node_in_group("player")
 
 	_attacks = data.attacks.duplicate()
