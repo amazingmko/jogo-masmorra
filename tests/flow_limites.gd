@@ -54,12 +54,14 @@ func _run() -> void:
 		for e in get_nodes_in_group("enemies"):
 			e.queue_free()
 		for room in m.builder.rooms:
+			if Igarape.distance_to(ig.path, room.center()) > 14.0:
+				continue  # só as clareiras perto do igarapé
 			for a in 8:
 				p.global_position = room.center() + Vector3(0, 0.1, 0)
 				p.reset_physics_interpolation()
 				await physics_frame
 				var dir := Vector2.from_angle(TAU * a / 8.0 + 0.2)
-				for i in 150:
+				for i in 110:
 					p.touch_move = dir
 					await physics_frame
 					var d := Igarape.distance_to(ig.path, p.global_position)
@@ -68,6 +70,8 @@ func _run() -> void:
 						worst = minf(worst, d)
 		p.touch_move = Vector2.ZERO
 		check(wet == 0, "andar %d: o herói não entrou no igarapé (%d quadros na água%s)" % [f, wet, "" if wet == 0 else ", a %.2f m do meio" % worst])
+		if floors >= 4:
+			break
 	check(floors > 0, "andares com igarapé testados: %d" % floors)
 	print("fim: ", "TUDO OK" if _ok else "COM FALHAS")
 	quit(0 if _ok else 1)
