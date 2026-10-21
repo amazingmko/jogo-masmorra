@@ -60,6 +60,18 @@ func _run() -> void:
 	for w in m.find_children("Agua", "MeshInstance3D", true, false):
 		water_ok = water_ok and float(w.material_override.get_shader_parameter("lua")) > 0.99
 	check(water_ok, "a lua no igarapé")
+	var lamp: OmniLight3D = p.get_node("Tocha")
+	check((lamp.light_cull_mask & Layers.WATER_VISUAL) == 0, "a tocha não ilumina (nem reflete) a água")
+	var has_mush := false
+	for d in m.find_children("Decor_*", "MultiMeshInstance3D", true, false):
+		has_mush = has_mush or String(d.get_meta("kind", "")) == "cogumelos"
+	if has_mush:
+		check(not n._spores.is_empty() and m.find_children("Esporos", "MultiMeshInstance3D", true, false).size() > 0, "esporos acesos em cima dos cogumelos")
+		var no_override := true
+		for d in m.find_children("Decor_*", "MultiMeshInstance3D", true, false):
+			if String(d.get_meta("kind", "")) == "cogumelos" and d.material_override != null:
+				no_override = false
+		check(no_override, "os cogumelos mantêm a pintura (sem material de brilho por cima)")
 	check(float(m._loot_context("normal").reward_mult) > 1.2, "de noite rende mais reagentes")
 	# tecla de teste
 	n.set_night(false)
