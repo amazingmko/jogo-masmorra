@@ -56,7 +56,7 @@ func _ready() -> void:
 	_body = Node3D.new()
 	add_child(_body)
 	# rastro de vento atrás dela (mais forte no mergulho)
-	_trail = RibbonTrail.follow(self, 0.55, Color(0.85, 0.93, 1.0), 0.22)
+	_trail = RibbonTrail.follow(self, 0.35, Color(0.85, 0.93, 1.0), 0.18)
 	if ResourceLoader.exists(MODEL) and _build_model():
 		Lighting.no_shadow_receive(_body)
 		Vfx.particles(self, Vector3.ZERO, "faisca", 8, 0.6, Color("e8f5ff"), 0.25, Vector2(0.2, 0.6), 180.0, 0.0, true, false)
@@ -189,7 +189,7 @@ func fury(seconds: float) -> void:
 func _end_fury() -> void:
 	_body.scale = Vector3.ONE
 	if is_instance_valid(_trail):
-		_trail.width = 0.55
+		_trail.width = 0.35
 		_trail._mat.set_shader_parameter("color", Color(0.85, 0.93, 1.0))
 	if _wing_mat:
 		_wing_mat.set_shader_parameter("glow", Color.BLACK)

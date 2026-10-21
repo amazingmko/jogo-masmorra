@@ -219,7 +219,7 @@ static func provoke(parent: Node, at: Vector3, radius: float, targets: Array = [
 	for e in targets:
 		if is_instance_valid(e):
 			FxKit.beam(parent, at + Vector3(0, 0.5, 0), (e as Node3D).global_position + Vector3(0, 0.5, 0), 0.45, Color(1.0, 0.55, 0.2), 0.4)
-	particles(parent, at + Vector3(0, 0.2, 0), "poeira", 20, 0.9, Color(0.8, 0.68, 0.5, 0.7), 1.3, Vector2(2.0, 4.5), 80.0, -1.5, false, true, 1.0)
+	particles(parent, at + Vector3(0, 0.2, 0), "poeira", 14, 0.8, Color(0.8, 0.68, 0.5, 0.55), 0.9, Vector2(2.0, 4.5), 80.0, -1.5, false, true, 1.0)
 	particles(parent, at + Vector3(0, 0.4, 0), "folha", 12, 1.5, Color(1, 1, 1, 0.95), 0.45, Vector2(3.0, 6.0), 55.0, -7.0, false, true, 1.5)
 	particles(parent, at + Vector3(0, 1.2, 0), "faisca", 12, 0.5, Color("ffb066"), 0.5, Vector2(2.0, 4.0), 180.0, 0.0)
 
