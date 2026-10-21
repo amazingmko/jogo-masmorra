@@ -40,7 +40,67 @@ var _linger_tick := 0.0
 ## Área que prende (teia no chão): prende uma vez; só prende de novo se o herói sair e pisar outra vez.
 var _holding := false
 var _fill: MeshInstance3D
-var _fill_mat: StandardMaterial3D
+var _fill_mat: ShaderMaterial
+
+## Aviso "vivo" num shader só: contorno com tracejado correndo, preenchimento que cresce do
+## centro (ou da origem, na linha) com a frente acesa, listras andando e pisca no fim.
+const SHADER := """
+shader_type spatial;
+render_mode unshaded, cull_disabled, depth_draw_never, shadows_disabled, blend_mix;
+uniform vec4 color : source_color = vec4(0.88, 0.33, 0.33, 1.0);
+uniform float progress = 0.0;
+uniform float flash = 0.0;
+uniform float alpha_mul = 1.0;
+uniform float half_angle = 3.1416;   // cone (radianos); círculo = PI
+uniform float is_line = 0.0;
+uniform float length_m = 6.0;
+uniform float size_m = 3.0;          // diâmetro (círculo) ou largura (linha), para a borda ter espessura certa
+void fragment() {
+	float inside;
+	float edge;
+	float fill;
+	float front;
+	float stripes;
+	if (is_line > 0.5) {
+		float x = abs(UV.x - 0.5) * 2.0;      // 0 no meio, 1 na borda
+		float y = UV.y;                       // 0 = quem ataca, 1 = ponta (UV.y cresce para +Z)
+		float bw = 0.12 / size_m * 2.0;
+		inside = 1.0;
+		edge = step(1.0 - bw * 2.0, x) + step(1.0 - 0.06 / length_m * 2.0, y);
+		fill = step(y, progress);
+		front = smoothstep(0.05, 0.0, abs(y - progress)) * step(0.01, progress);
+		// setas (chevrons) correndo para a frente
+		float v = fract(y * length_m / 1.1 - x * 0.35 - TIME * 1.8);
+		stripes = smoothstep(0.0, 0.08, v) * (1.0 - smoothstep(0.28, 0.36, v));
+	} else {
+		vec2 p = UV * 2.0 - 1.0;              // p.y = frente (+Z do aviso)
+		float r = length(p);
+		float a = atan(p.x, p.y);
+		float bw = 0.14 / size_m * 2.0;
+		inside = step(r, 1.0) * step(abs(a), half_angle);
+		float ang_edge = (half_angle < 3.1) ? step(half_angle - bw / max(r, 0.15), abs(a)) : 0.0;
+		edge = step(1.0 - bw, r) + ang_edge;
+		// tracejado correndo em volta da borda
+		float dash = step(0.45, fract(a * 6.0 / 3.1416 * max(size_m * 0.5, 1.0) * 0.5 - TIME * 1.2));
+		edge *= mix(0.65, 1.0, dash);
+		fill = step(r, progress);
+		front = smoothstep(0.06, 0.0, abs(r - progress)) * step(0.01, progress);
+		float v = fract((p.x + p.y) * size_m * 0.9 - TIME * 1.2);
+		stripes = smoothstep(0.0, 0.1, v) * (1.0 - smoothstep(0.35, 0.45, v));
+	}
+	// pisca forte no fim (último quarto)
+	float blink = progress > 0.72 ? 0.5 + 0.5 * sin(TIME * 30.0) : 0.0;
+	float a_out = clamp(edge, 0.0, 1.0) * 0.9;
+	float a_fill = fill * (0.3 + 0.25 * progress + stripes * 0.12 + blink * 0.15);
+	float a_bg = 0.08 + stripes * 0.05;
+	vec3 c = color.rgb;
+	c = mix(c, vec3(1.0, 0.95, 0.85), front * 0.8 + clamp(edge, 0.0, 1.0) * 0.15);
+	c = mix(c, vec3(1.0), flash);
+	ALBEDO = c;
+	ALPHA = inside * clamp(max(max(a_out, a_fill), max(a_bg, front)) + flash * 0.6, 0.0, 1.0) * alpha_mul;
+}
+"""
+static var _shader: Shader
 
 
 ## Cria o aviso de um ataque. origin: posição no chão; direction: para onde o ataque aponta.
@@ -182,12 +242,13 @@ func _resolve() -> void:
 	if not visual_only:
 		MobFx.on_resolve(self)
 	# Pisca e some (ou fica como poça).
-	_fill_mat.albedo_color = Color(1, 1, 1, 0.7)
+	_fill_mat.set_shader_parameter("flash", 1.0)
 	var tween := create_tween()
+	tween.tween_method(func(v: float) -> void: _fill_mat.set_shader_parameter("flash", v), 1.0, 0.0, 0.18)
 	if linger > 0.0:
-		tween.tween_property(_fill_mat, "albedo_color", Color(color.r, color.g, color.b, 0.28), 0.2)
+		tween.parallel().tween_method(func(v: float) -> void: _fill_mat.set_shader_parameter("alpha_mul", v), 1.0, 0.6, 0.2)
 	else:
-		tween.tween_property(_fill_mat, "albedo_color:a", 0.0, 0.18)
+		tween.parallel().tween_method(func(v: float) -> void: _fill_mat.set_shader_parameter("alpha_mul", v), 1.0, 0.0, 0.2)
 		tween.tween_callback(queue_free)
 
 
@@ -216,55 +277,43 @@ func _add_mesh(mesh: Mesh, mat: Material, pos := Vector3.ZERO) -> MeshInstance3D
 
 
 func _build() -> void:
-	var outline_mat := _mat(Color(color.r, color.g, color.b, 0.55))
-	_fill_mat = _mat(Color(color.r, color.g, color.b, 0.2))
+	if _shader == null:
+		_shader = Shader.new()
+		_shader.code = SHADER
+	_fill_mat = ShaderMaterial.new()
+	_fill_mat.shader = _shader
+	_fill_mat.set_shader_parameter("color", color)
+	_fill_mat.render_priority = 1
+	var quad := QuadMesh.new()
+	quad.orientation = PlaneMesh.FACE_Y
 	match shape:
-		Shape.CIRCLE, Shape.MEGA:
+		Shape.CIRCLE, Shape.MEGA, Shape.CONE:
+			quad.size = Vector2.ONE * radius * 2.0
+			_fill_mat.set_shader_parameter("size_m", radius * 2.0)
+			if shape == Shape.CONE:
+				_fill_mat.set_shader_parameter("half_angle", deg_to_rad(half_angle_deg))
+			_fill = _add_mesh(quad, _fill_mat, Vector3(0, 0.01, 0))
 			if shape == Shape.CIRCLE and Vfx.tex("aviso_circulo"):
-				# círculo rúnico (imagem), girando devagar
-				var quad := QuadMesh.new()
-				quad.size = Vector2.ONE * radius * 2.12
-				quad.orientation = PlaneMesh.FACE_Y
-				var rune := _add_mesh(quad, Vfx.sprite_material("aviso_circulo", Color(color.r, color.g, color.b, 0.95)), Vector3(0, 0.02, 0))
+				# círculo rúnico (imagem) por cima, girando devagar
+				var rq := QuadMesh.new()
+				rq.size = Vector2.ONE * radius * 2.12
+				rq.orientation = PlaneMesh.FACE_Y
+				var rune := _add_mesh(rq, Vfx.sprite_material("aviso_circulo", Color(color.r, color.g, color.b, 0.55)), Vector3(0, 0.02, 0))
 				rune.create_tween().set_loops().tween_property(rune, "rotation:y", TAU, 9.0).as_relative()
-			else:
-				var ring := TorusMesh.new()
-				ring.inner_radius = radius - 0.08
-				ring.outer_radius = radius
-				ring.rings = 48
-				_add_mesh(ring, outline_mat)
-			var disc := CylinderMesh.new()
-			disc.top_radius = radius
-			disc.bottom_radius = radius
-			disc.height = 0.02
-			disc.radial_segments = 48
-			_fill = _add_mesh(disc, _fill_mat)
 			if shape == Shape.MEGA:
 				_build_safe_zones()
 		Shape.LINE:
-			var frame := BoxMesh.new()
-			frame.size = Vector3(width, 0.01, length)
-			_add_mesh(frame, outline_mat, Vector3(0, 0, length * 0.5))
-			var bar := BoxMesh.new()
-			bar.size = Vector3(width, 0.02, length)
-			_fill = _add_mesh(bar, _fill_mat, Vector3(0, 0.01, length * 0.5))
-		Shape.CONE:
-			_add_mesh(_cone_mesh(radius, half_angle_deg), outline_mat)
-			_fill = _add_mesh(_cone_mesh(radius, half_angle_deg), _fill_mat, Vector3(0, 0.01, 0))
+			quad.size = Vector2(width, length)
+			_fill_mat.set_shader_parameter("is_line", 1.0)
+			_fill_mat.set_shader_parameter("size_m", width)
+			_fill_mat.set_shader_parameter("length_m", length)
+			_fill = _add_mesh(quad, _fill_mat, Vector3(0, 0.01, length * 0.5))
 	_set_fill(0.0)
 
 
 func _set_fill(p: float) -> void:
-	if _fill == null:
-		return
-	var s := lerpf(0.1, 1.0, p)
-	match shape:
-		Shape.LINE:
-			_fill.scale = Vector3(1, 1, s)
-			_fill.position.z = length * s * 0.5
-		_:
-			_fill.scale = Vector3(s, 1, s)
-	_fill_mat.albedo_color.a = lerpf(0.15, 0.5, p)
+	if _fill_mat:
+		_fill_mat.set_shader_parameter("progress", p)
 
 
 func _build_safe_zones() -> void:

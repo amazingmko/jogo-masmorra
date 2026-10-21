@@ -10,33 +10,26 @@ const BUBBLE_ALPHA := 0.7
 
 var _boto: Node3D
 var _bubble: MeshInstance3D
-var _bubble_mat: StandardMaterial3D
+var _bubble_mat: ShaderMaterial
 var _t := 0.0
 var _pose: BotoPose
 
 
 func _ready() -> void:
-	# bolha de água
+	# bolha de água de verdade (a mesma da Bolha Protetora): borda acesa, reflexo de arco-íris,
+	# superfície tremendo; o boto nada dentro
 	_bubble = MeshInstance3D.new()
-	if Vfx.tex("bolha"):
-		# bolha pintada (imagem) sempre virada para a câmera, com o boto dentro
-		var q := QuadMesh.new()
-		q.size = Vector2.ONE * 2.3
-		_bubble.mesh = q
-		_bubble_mat = Vfx.sprite_material("bolha", Color(1, 1, 1, BUBBLE_ALPHA), true)
-		_bubble_mat.render_priority = 1  # desenha depois do boto (fica por cima, transparente)
-	else:
-		var sm := SphereMesh.new()
-		sm.radius = 1.0
-		sm.height = 1.7
-		sm.radial_segments = 20
-		sm.rings = 10
-		_bubble.mesh = sm
-		_bubble_mat = StandardMaterial3D.new()
-		_bubble_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		_bubble_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		_bubble_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-		_bubble_mat.albedo_color = Color(0.45, 0.8, 1.0, 0.18)
+	var sm := SphereMesh.new()
+	sm.radius = 1.1
+	sm.height = 2.0
+	sm.radial_segments = 32
+	sm.rings = 16
+	_bubble.mesh = sm
+	var sh := Shader.new()
+	sh.code = MageKit.BUBBLE_SHADER
+	_bubble_mat = ShaderMaterial.new()
+	_bubble_mat.shader = sh
+	_bubble_mat.render_priority = 1
 	_bubble.material_override = _bubble_mat
 	_bubble.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_bubble.position.y = HEIGHT
@@ -62,6 +55,9 @@ func _ready() -> void:
 			skels[0].add_child(_pose)
 	# brilho verde das marcas de folha (o modelo já tem a pintura; aqui só uma aura leve)
 	Vfx.particles(self, global_position + Vector3(0, HEIGHT, 0), "folha", 6, 1.4, Color(0.6, 1.0, 0.6, 0.7), 0.18, Vector2(0.2, 0.5), 180.0, 0.0, true, false, 0.7)
+	if is_inside_tree():
+		FxKit.ground_wave(get_parent(), global_position, 2.6, Color(1.0, 0.6, 0.85), 0.4, 0.0, 0.0, Color(0.85, 0.95, 1.0))
+		Vfx.particles(get_parent(), global_position + Vector3(0, 0.4, 0), "respingo", 14, 0.6, Color(1, 1, 1, 0.9), 0.6, Vector2(2.0, 4.0), 50.0, -9.0, false)
 	scale = Vector3.ONE * 0.2
 	create_tween().tween_property(self, "scale", Vector3.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
@@ -74,18 +70,20 @@ func _process(delta: float) -> void:
 	_bubble.position.y = HEIGHT + sin(_t * 2.2) * 0.04
 	var wob := 1.0 + sin(_t * 3.1) * 0.03
 	_bubble.scale = Vector3(wob, 2.0 - wob, wob)
-	var base_a := BUBBLE_ALPHA if Vfx.tex("bolha") else 0.16
-	_bubble_mat.albedo_color.a = base_a + sin(_t * 4.0) * 0.05
 
 
 ## Ondinha na bolha a cada Canto.
 func pulse() -> void:
+	if is_inside_tree():
+		FxKit.ground_wave(get_parent(), global_position, 2.2, Color(1.0, 0.65, 0.9), 0.3)
 	var t := _bubble.create_tween()
 	t.tween_property(_bubble, "scale", Vector3.ONE * 1.12, 0.07)
 	t.tween_property(_bubble, "scale", Vector3.ONE, 0.15)
 
 
 func vanish() -> void:
+	if is_inside_tree():
+		Vfx.particles(get_parent(), global_position + Vector3(0, HEIGHT, 0), "respingo", 16, 0.6, Color(0.85, 0.95, 1.0, 0.9), 0.5, Vector2(2.0, 4.5), 180.0, -8.0, false)
 	var t := create_tween()
 	t.tween_property(self, "scale", Vector3.ONE * 0.1, 0.2)
 	t.tween_callback(queue_free)

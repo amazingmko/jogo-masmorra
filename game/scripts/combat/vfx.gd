@@ -12,11 +12,36 @@ uniform vec4 tint : source_color = vec4(0.95, 0.78, 0.38, 1.0);
 uniform vec4 rim_color : source_color = vec4(0.45, 1.0, 0.6, 1.0);
 uniform float hit = 0.0;
 uniform float fade = 1.0;
+uniform float appear = 1.0;     // 0 → 1: a cúpula sobe do chão até o topo
+uniform float shatter = 0.0;    // 0 → 1: estilhaça em pedaços com borda acesa
+uniform float radius = 1.7;
+varying float v_h;
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) {
+	vec2 i = floor(p); vec2 f = fract(p);
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+void vertex() {
+	v_h = clamp(VERTEX.y / radius, 0.0, 1.0);
+}
 void fragment() {
 	vec2 uv = UV * vec2(5.0, 2.5) + vec2(TIME * 0.025, 0.0);
 	float plates = texture(hex_tex, uv).a;
+	float n = noise(UV * vec2(18.0, 9.0));
+	// subindo do chão: só aparece até a linha "appear", que brilha
+	float line = appear * 1.12 - n * 0.1;
+	if (v_h > line) discard;
+	float front = smoothstep(line - 0.1, line, v_h) * step(appear, 0.999);
+	// estilhaçando: placas somem pelo ruído, a borda de cada buraco acende
+	float cell = noise(floor(uv * 2.0) + 0.5);
+	if (cell < shatter) discard;
+	float crack = smoothstep(shatter + 0.12, shatter, cell) * step(0.001, shatter);
 	float rim = pow(1.0 - abs(dot(NORMAL, VIEW)), 2.2);
+	// faixa de energia que sobe pela cúpula sem parar
+	float band = smoothstep(0.06, 0.0, abs(fract(v_h * 1.2 - TIME * 0.7) - 0.5) - 0.42);
 	vec3 col = tint.rgb * plates * (0.45 + hit * 1.6) + rim_color.rgb * rim * (0.8 + hit);
+	col += rim_color.rgb * band * 0.35 + vec3(1.0, 0.95, 0.7) * (front * 1.6 + crack * 2.0);
 	ALBEDO = col * fade;
 }
 """
@@ -92,28 +117,12 @@ static func particles(parent: Node, at: Vector3, texture_name: String, amount: i
 	return p
 
 
-## Marca no chão que cresce e some (onda de choque).
+## Marca no chão que cresce e some (onda de choque). Agora é a onda "viva" do FxKit:
+## "onda_choque" racha o chão e levanta poeira; "anel_som" é só o anel de som.
 static func ground_ring(parent: Node, at: Vector3, texture_name: String, color: Color, to_size: float, time: float) -> void:
-	var mesh := MeshInstance3D.new()
-	var quad := QuadMesh.new()
-	quad.size = Vector2.ONE
-	quad.orientation = PlaneMesh.FACE_Y
-	mesh.mesh = quad
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	m.albedo_texture = tex(texture_name)
-	m.albedo_color = color
-	mesh.material_override = m
-	parent.add_child(mesh)
-	mesh.global_position = at + Vector3(0, 0.06, 0)
-	mesh.scale = Vector3.ONE * 0.6
-	var tween := mesh.create_tween()
-	tween.set_parallel(true)
-	tween.tween_property(mesh, "scale", Vector3.ONE * to_size, time).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tween.tween_property(m, "albedo_color:a", 0.0, time * 1.3).set_ease(Tween.EASE_IN)
-	tween.chain().tween_callback(mesh.queue_free)
+	var heavy := texture_name == "onda_choque"
+	FxKit.ground_wave(parent, at, to_size * 0.5, Color(color.r, color.g, color.b, 1.0), maxf(time, 0.2),
+			0.7 if heavy else 0.0, 0.8 if heavy else 0.0)
 
 
 ## Figura sempre virada para a câmera (símbolos sobre a cabeça).
@@ -195,15 +204,23 @@ static func heal(owner: Node3D, big := false) -> void:
 	var s := sprite(owner, owner.global_position + Vector3(0, 0.9, 0), "cura", 1.8 if big else 1.2, Color(1, 1, 1, 0.9), 0.7, 1.5)
 	s.create_tween().tween_property(s, "position:y", 1.6, 0.7)
 	particles(owner.get_parent(), owner.global_position + Vector3(0, 0.5, 0), "folha", 6 if big else 3, 1.0, Color(0.7, 1.0, 0.6, 0.9), 0.25, Vector2(0.5, 1.5), 40.0, 0.5, false, true, 0.5)
+	if big:
+		FxKit.ground_wave(owner.get_parent(), owner.global_position, 1.5, Color(0.45, 1.0, 0.5), 0.35)
 
 
 # ---------- poderes da Icamiaba ----------
 
-## Provocar: onda laranja que racha o chão, poeira e folhas subindo, faíscas no escudo.
-static func provoke(parent: Node, at: Vector3, radius: float) -> void:
-	ground_ring(parent, at, "onda_choque", Color(1.0, 0.62, 0.3, 0.55), radius * 2.0, 0.5)
-	particles(parent, at + Vector3(0, 0.2, 0), "poeira", 26, 0.9, Color(0.8, 0.68, 0.5, 0.7), 1.3, Vector2(2.0, 4.5), 80.0, -1.5, false, true, 1.0)
-	particles(parent, at + Vector3(0, 0.4, 0), "folha", 14, 1.5, Color(1, 1, 1, 0.95), 0.45, Vector2(3.0, 6.0), 55.0, -7.0, false, true, 1.5)
+## Provocar: o grito racha o chão numa onda laranja (com poeira), estoura no escudo e um laço
+## de energia corre até cada inimigo provocado.
+static func provoke(parent: Node, at: Vector3, radius: float, targets: Array = []) -> void:
+	FxKit.ground_wave(parent, at, radius, Color(1.0, 0.55, 0.2), 0.45, 1.0, 1.0)
+	FxKit.ground_wave(parent, at, radius * 0.55, Color(1.0, 0.8, 0.45), 0.3)
+	FxKit.impact(parent, at + Vector3(0, 1.3, 0), 2.4, Color(1.0, 0.62, 0.25), 0.3, 9.0)
+	for e in targets:
+		if is_instance_valid(e):
+			FxKit.beam(parent, at + Vector3(0, 0.5, 0), (e as Node3D).global_position + Vector3(0, 0.5, 0), 0.45, Color(1.0, 0.55, 0.2), 0.4)
+	particles(parent, at + Vector3(0, 0.2, 0), "poeira", 20, 0.9, Color(0.8, 0.68, 0.5, 0.7), 1.3, Vector2(2.0, 4.5), 80.0, -1.5, false, true, 1.0)
+	particles(parent, at + Vector3(0, 0.4, 0), "folha", 12, 1.5, Color(1, 1, 1, 0.95), 0.45, Vector2(3.0, 6.0), 55.0, -7.0, false, true, 1.5)
 	particles(parent, at + Vector3(0, 1.2, 0), "faisca", 12, 0.5, Color("ffb066"), 0.5, Vector2(2.0, 4.0), 180.0, 0.0)
 
 
@@ -241,12 +258,19 @@ static func shell_dome(owner: Node3D, radius: float, seconds: float) -> MeshInst
 	var m := ShaderMaterial.new()
 	m.shader = _dome_shader
 	m.set_shader_parameter("hex_tex", tex("casco_hex"))
+	m.set_shader_parameter("radius", radius)
+	m.set_shader_parameter("appear", 0.0)
 	mesh.material_override = m
 	owner.add_child(mesh)
-	mesh.scale = Vector3.ONE * 0.2
+	mesh.scale = Vector3(0.85, 1.0, 0.85)
+	if owner.is_inside_tree():
+		FxKit.ground_wave(owner.get_parent(), owner.global_position, radius * 1.9, Color(1.0, 0.8, 0.4), 0.4, 1.0, 0.6)
+	var rise := mesh.create_tween()
+	rise.tween_method(func(v: float) -> void: m.set_shader_parameter("appear", v), 0.0, 1.0, 0.4) \
+			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	var sparks := particles(mesh, Vector3(0, 0.1, 0), "faisca", 18, 1.4, Color("8dffb0"), 0.35, Vector2(0.6, 1.4), 25.0, 0.4, true, false, radius * 0.9)
 	var grow := mesh.create_tween()
-	grow.tween_property(mesh, "scale", Vector3.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	grow.tween_property(mesh, "scale", Vector3.ONE, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	var life := mesh.create_tween()
 	life.tween_interval(maxf(seconds - 0.35, 0.1))
 	life.tween_callback(func() -> void:
@@ -257,7 +281,7 @@ static func shell_dome(owner: Node3D, radius: float, seconds: float) -> MeshInst
 		particles(owner.get_parent(), at + Vector3(0, radius * 0.5, 0), "faisca", 26, 0.7, Color("e8c26a"), 0.55, Vector2(3.0, 6.0), 120.0, -9.0)
 		particles(owner.get_parent(), at + Vector3(0, radius * 0.4, 0), "faisca", 14, 0.9, Color("8dffb0"), 0.4, Vector2(1.5, 3.5), 180.0, -4.0)
 		var end := mesh.create_tween()
-		end.tween_method(func(v: float) -> void: m.set_shader_parameter("fade", v), 1.0, 0.0, 0.35)
+		end.tween_method(func(v: float) -> void: m.set_shader_parameter("shatter", v), 0.0, 1.05, 0.4)
 		end.tween_callback(mesh.queue_free))
 	return mesh
 
@@ -267,6 +291,8 @@ static func shell_hit(dome: MeshInstance3D) -> void:
 	if not is_instance_valid(dome):
 		return
 	var m := dome.material_override as ShaderMaterial
+	if dome.is_inside_tree():
+		FxKit.impact(dome.get_parent().get_parent(), dome.global_position + Vector3(0, 1.0, 0), 1.6, Color(1.0, 0.85, 0.45), 0.18)
 	var t := dome.create_tween()
 	t.tween_method(func(v: float) -> void: m.set_shader_parameter("hit", v), 1.0, 0.0, 0.3)
 
@@ -281,6 +307,8 @@ static func muiraquita(owner: Node3D) -> void:
 	t.tween_property(s, "modulate:a", 0.0, 1.1).set_delay(0.4)
 	t.chain().tween_callback(s.queue_free)
 	particles(owner.get_parent(), owner.global_position + Vector3(0, 1.0, 0), "faisca", 30, 0.9, Color("6fdc7b"), 0.5, Vector2(3.0, 6.0), 180.0, -2.0)
+	FxKit.ground_wave(owner.get_parent(), owner.global_position, 3.0, Color(0.4, 1.0, 0.55), 0.5)
+	FxKit.impact(owner.get_parent(), owner.global_position + Vector3(0, 1.2, 0), 2.6, Color(0.45, 1.0, 0.55), 0.35, 6.0)
 	heal(owner, true)
 
 
@@ -289,7 +317,8 @@ static func revide_glow(hand: Node3D) -> CPUParticles3D:
 	return particles(hand, Vector3.ZERO, "faisca", 10, 0.5, Color("ffe08a"), 0.3, Vector2(0.2, 0.6), 180.0, 0.5, true, false)
 
 
-## Revide gasto: explosão dourada à frente.
+## Revide gasto: estrela dourada à frente e o chão racha.
 static func revide_strike(parent: Node, at: Vector3) -> void:
-	particles(parent, at, "faisca", 20, 0.45, Color("ffd36b"), 0.6, Vector2(3.0, 6.0), 70.0, 0.0)
-	ground_ring(parent, Vector3(at.x, 0.0, at.z), "onda_choque", Color("ffe08a"), 2.2, 0.3)
+	FxKit.impact(parent, at, 2.2, Color(1.0, 0.82, 0.4), 0.25, 8.0)
+	particles(parent, at, "faisca", 16, 0.45, Color("ffd36b"), 0.5, Vector2(3.0, 6.0), 70.0, 0.0)
+	FxKit.ground_wave(parent, Vector3(at.x, 0.0, at.z), 1.6, Color(1.0, 0.8, 0.4), 0.3, 0.8)

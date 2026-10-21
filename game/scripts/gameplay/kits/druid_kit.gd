@@ -206,7 +206,8 @@ func bloom_all(from_skill: bool) -> int:
 		Fx.float_text(player.get_parent(), player.global_position + Vector3(0, 2.4, 0), "+%d" % healed, Color("6fdc7b"))
 		Vfx.heal(player, true)
 	if from_skill:
-		Vfx.ground_ring(player.get_parent(), player.global_position, "anel_som", Color(1.0, 0.7, 0.9, 0.7), 3.0, 0.4)
+		FxKit.ground_wave(player.get_parent(), player.global_position, 3.2, Color(1.0, 0.6, 0.85), 0.45, 0.0, 0.0, Color(1.0, 0.95, 1.0))
+		FxKit.impact(player.get_parent(), player.global_position + Vector3(0, 1.3, 0), 2.2, Color(0.6, 1.0, 0.55), 0.3, 10.0)
 	return list.size()
 
 

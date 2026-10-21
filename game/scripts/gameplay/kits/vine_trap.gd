@@ -17,54 +17,113 @@ var timbo_dps := 0.0
 const TIMBO_TIME := 4.0
 var _left := LIFETIME
 var _ring: MeshInstance3D
-var _spikes: Array[MeshInstance3D] = []
+
+
+const VINE_SHADER := """
+shader_type spatial;
+render_mode cull_disabled, shadows_disabled;
+uniform float grow = 0.0;      // 0 → 1: o cipó brota do chão
+uniform float curl = 0.0;      // quanto a ponta enrola (fecha em volta do preso)
+uniform float sway = 1.0;
+uniform float seed = 0.0;
+varying float v_s;
+void vertex() {
+	float s = UV.x;                       // 0 = raiz, 1 = ponta
+	v_s = s;
+	// balança devagar; a ponta mais que a raiz
+	VERTEX.x += sin(TIME * 2.2 + seed + s * 3.0) * 0.06 * s * sway;
+	// enrolar: a ponta dobra para dentro (eixo -Z do cipó) e para baixo
+	float c = curl * s * s;
+	VERTEX.z -= c * 0.9;
+	VERTEX.y -= c * c * 0.35;
+	// brotar: o que passou do "grow" encolhe para dentro da ponta
+	VERTEX.y *= mix(0.25, 1.0, clamp(grow, 0.0, 1.0));
+}
+void fragment() {
+	if (v_s > grow) discard;
+	float stripe = smoothstep(0.35, 0.5, abs(fract(UV.x * 9.0 + UV.y * 1.5) - 0.5));
+	vec3 base = mix(vec3(0.16, 0.26, 0.08), vec3(0.42, 0.62, 0.18), v_s);
+	ALBEDO = mix(base, base * 0.6, stripe * 0.5);
+	ROUGHNESS = 0.9;
+	// a ponta acende de leve (magia da mata)
+	EMISSION = vec3(0.3, 0.9, 0.35) * smoothstep(0.8, 1.0, v_s) * 0.6;
+}
+"""
+static var _vine_shader: Shader
+static var _vine_mesh: ArrayMesh
+const VINES := 7
+var _vines: Array[Node3D] = []
+var _vine_mat: ShaderMaterial
 
 
 func _ready() -> void:
 	add_to_group("floor_effects")
-	# Círculo de cipó trançado no chão e pontas de cipó em volta.
+	# o laço de cipó pintado no chão (imagem), por baixo dos cipós que brotam
 	_ring = MeshInstance3D.new()
-	if Vfx.tex("cipo_armadilha"):
-		# o laço de cipó pintado (imagem), deitado no chão
-		var quad := QuadMesh.new()
-		quad.size = Vector2.ONE * RADIUS * 2.3
-		quad.orientation = PlaneMesh.FACE_Y
-		_ring.mesh = quad
-		_ring.position.y = 0.05
-		_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	else:
-		var torus := TorusMesh.new()
-		torus.inner_radius = RADIUS * 0.82
-		torus.outer_radius = RADIUS
-		torus.rings = 24
-		_ring.mesh = torus
-		_ring.scale = Vector3(1, 0.25, 1)
-		_ring.position.y = 0.05
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color("4a5a24")
-	mat.roughness = 1.0
-	mat.emission_enabled = true
-	mat.emission = Color("6fdc7b")
-	mat.emission_energy_multiplier = 0.08
-	_ring.material_override = Vfx.sprite_material("cipo_armadilha", Color(1.1, 1.1, 1.1, 1.0), false, false) if Vfx.tex("cipo_armadilha") else mat
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE * RADIUS * 2.3
+	quad.orientation = PlaneMesh.FACE_Y
+	_ring.mesh = quad
+	_ring.position.y = 0.05
+	_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_ring.material_override = Vfx.sprite_material("cipo_armadilha", Color(1.0, 1.0, 1.0, 0.85), false, false)
 	add_child(_ring)
-	for i in 6:
-		var spike := MeshInstance3D.new()
-		var cone := CylinderMesh.new()
-		cone.top_radius = 0.0
-		cone.bottom_radius = 0.07
-		cone.height = 0.35
-		spike.mesh = cone
-		spike.material_override = mat
-		var a := TAU * i / 6.0
-		spike.position = Vector3(cos(a), 0.1, sin(a)) * RADIUS * 0.9
-		spike.rotation = Vector3(0, -a, deg_to_rad(-25))
-		add_child(spike)
-		_spikes.append(spike)
-	if not Vfx.tex("cipo_armadilha"):
-		var leaf := Vfx.icon(self, "folha", 0.12, 0.6, Color(1, 1, 1, 0.9))
-		leaf.billboard = BaseMaterial3D.BILLBOARD_DISABLED
-		leaf.rotation_degrees.x = -90
+	# cipós de verdade: tubos que brotam do chão em volta do laço, inclinados para fora,
+	# balançando, com a ponta acesa
+	if _vine_shader == null:
+		_vine_shader = Shader.new()
+		_vine_shader.code = VINE_SHADER
+		_vine_mesh = _make_vine()
+	_vine_mat = ShaderMaterial.new()
+	_vine_mat.shader = _vine_shader
+	_vine_mat.set_shader_parameter("seed", randf() * 10.0)
+	for i in VINES:
+		var a := TAU * i / VINES + randf_range(-0.2, 0.2)
+		var holder := Node3D.new()
+		holder.position = Vector3(cos(a), 0.0, sin(a)) * RADIUS * 0.85
+		holder.rotation.y = -a + PI * 0.5        # -Z do cipó aponta para o centro
+		holder.rotation.x = deg_to_rad(-28.0)    # inclinado para fora
+		holder.scale = Vector3.ONE * randf_range(0.8, 1.15)
+		var vine := MeshInstance3D.new()
+		vine.mesh = _vine_mesh
+		vine.material_override = _vine_mat
+		vine.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		holder.add_child(vine)
+		add_child(holder)
+		_vines.append(holder)
+	var grow := create_tween()
+	grow.tween_method(func(v: float) -> void: _vine_mat.set_shader_parameter("grow", v), 0.0, 1.0, 0.35) \
+			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if is_inside_tree():
+		FxKit.ground_wave(get_parent(), global_position, RADIUS * 1.3, Color(0.45, 0.85, 0.3), 0.3)
+
+
+## Um cipó: tubo afinando, com uma curva suave, raiz em (0,0,0) e ponta para cima (~0,9 m).
+static func _make_vine() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var steps := 10
+	var sides := 6
+	for i in steps + 1:
+		var s := float(i) / steps
+		var center := Vector3(0, s * 0.95, -sin(s * 1.6) * 0.18)
+		var r := lerpf(0.075, 0.012, s)
+		for j in sides + 1:
+			var a := TAU * j / sides
+			var n := Vector3(cos(a), 0, sin(a))
+			st.set_normal(n)
+			st.set_uv(Vector2(s, float(j) / sides))
+			st.add_vertex(center + n * r)
+	for i in steps:
+		for j in sides:
+			var k := i * (sides + 1) + j
+			st.add_index(k)
+			st.add_index(k + sides + 1)
+			st.add_index(k + 1)
+			st.add_index(k + 1)
+			st.add_index(k + sides + 1)
+			st.add_index(k + sides + 2)
+	return st.commit()
 
 
 func _physics_process(delta: float) -> void:
@@ -93,16 +152,25 @@ func _catch(enemy: Node3D) -> void:
 		enemy.mark("presa", mark_bonus, hold_time)
 
 
-## Fecha em volta do bicho: os cipós sobem e se enrolam, depois somem.
+## Fecha em volta do bicho: os cipós se esticam para cima, inclinam para dentro e enrolam a
+## ponta em volta dele; folhas voam e o laço do chão aperta.
 func _snap(enemy: Node3D) -> void:
 	set_physics_process(false)
 	global_position = Vector3(enemy.global_position.x, global_position.y, enemy.global_position.z)
 	Vfx.particles(get_parent(), global_position + Vector3(0, 0.3, 0), "folha", 12, 1.0, Color(1, 1, 1, 0.9), 0.35, Vector2(2.0, 4.0), 60.0, -6.0, false)
+	FxKit.impact(get_parent(), global_position + Vector3(0, 0.8, 0), 1.8, Color(0.5, 1.0, 0.4), 0.2)
+	var size := 1.0
+	if "data" in enemy and enemy.data:
+		size = clampf(enemy.data.body_scale, 0.7, 2.0)
 	var t := create_tween()
 	t.set_parallel(true)
-	for spike in _spikes:
-		t.tween_property(spike, "scale", Vector3(1.4, 4.0, 1.4), 0.15)
-		t.tween_property(spike, "position", Vector3(spike.position.x * 0.45, 0.6, spike.position.z * 0.45), 0.15)
+	for v in _vines:
+		var flat := Vector3(v.position.x, 0, v.position.z)
+		t.tween_property(v, "position", flat.normalized() * 0.55 * size, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		t.tween_property(v, "rotation:x", deg_to_rad(12.0), 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		t.tween_property(v, "scale", Vector3(1.3, 1.5 * size, 1.3), 0.16)
+	t.tween_method(func(c: float) -> void: _vine_mat.set_shader_parameter("curl", c), 0.0, 1.4, 0.2)
+	t.tween_method(func(c: float) -> void: _vine_mat.set_shader_parameter("sway", c), 1.0, 0.25, 0.2)
 	t.tween_property(_ring, "scale", Vector3(0.55, 0.8, 0.55), 0.15)
 	t.chain().tween_interval(hold_time)
 	if timbo_radius > 0.0:
@@ -118,11 +186,14 @@ func _explode_timbo() -> void:
 		if to.length() <= timbo_radius and enemy.has_method("poison"):
 			enemy.poison(timbo_dps, TIMBO_TIME)
 	Vfx.particles(get_parent(), global_position + Vector3(0, 0.4, 0), "poeira", 24, 1.2, Color("8be06b"), 0.9, Vector2(1.5, 3.5), 180.0, -0.5, false)
-	Vfx.ground_ring(get_parent(), global_position, "onda_choque", Color("8be06b"), timbo_radius * 2.0, 0.5)
+	FxKit.ground_wave(get_parent(), global_position, timbo_radius, Color(0.55, 0.9, 0.3), 0.45, 0.0, 1.0)
+	FxKit.impact(get_parent(), global_position + Vector3(0, 0.8, 0), 2.4, Color(0.55, 1.0, 0.35), 0.3)
 
 
+## Os cipós voltam para a terra (encolhem até a raiz) e o laço some.
 func _vanish() -> void:
 	set_physics_process(false)
-	var t := create_tween()
-	t.tween_property(self, "scale", Vector3(0.01, 0.01, 0.01), 0.3)
-	t.tween_callback(queue_free)
+	var t := create_tween().set_parallel()
+	t.tween_method(func(v: float) -> void: _vine_mat.set_shader_parameter("grow", v), 1.0, 0.0, 0.3)
+	t.tween_property(_ring, "scale", Vector3(0.01, 1.0, 0.01), 0.3)
+	t.chain().tween_callback(queue_free)

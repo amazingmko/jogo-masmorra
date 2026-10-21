@@ -24,12 +24,32 @@ shader_type spatial;
 render_mode unshaded, blend_mix, cull_back, depth_draw_opaque;
 uniform sampler2D ripple : source_color, repeat_enable, filter_linear_mipmap;
 uniform float fade = 1.0;
+uniform float appear = 5.0;     // altura (m) até onde a cópia já subiu da poça
+varying float v_y;
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) {
+	vec2 i = floor(p); vec2 f = fract(p);
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+void vertex() {
+	v_y = (MODEL_MATRIX * vec4(VERTEX, 1.0)).y;
+}
 void fragment() {
+	if (v_y > appear) discard;
 	float rim = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 2.0);
+	// água escorrendo pelo corpo (listras descendo) e a textura de ondinhas
+	float flow = noise(vec2(UV.x * 26.0, v_y * 4.0 + TIME * 3.0));
 	vec2 uv = UV * 3.0 + vec2(TIME * 0.08, TIME * 0.21);
 	vec3 rip = texture(ripple, uv).rgb;
-	ALBEDO = mix(vec3(0.18, 0.5, 0.95), vec3(0.85, 0.97, 1.0), rim) + rip * 0.25;
-	ALPHA = clamp((0.38 + rim * 0.6) * fade, 0.0, 1.0);
+	vec3 c = vec3(0.1, 0.42, 0.85);
+	if (rim + flow * 0.3 > 0.45) c = vec3(0.3, 0.7, 1.0);
+	if (rim + flow * 0.3 > 0.85) c = vec3(0.85, 0.97, 1.0);
+	c += rip * 0.18;
+	float front = smoothstep(appear - 0.12, appear, v_y) * step(appear, 4.0);
+	c = mix(c, vec3(0.95, 1.0, 1.0), front);
+	ALBEDO = c;
+	ALPHA = clamp((0.5 + rim * 0.5 + front) * fade, 0.0, 1.0);
 }
 """
 static var _water_shader: Shader
@@ -56,6 +76,27 @@ func _ready() -> void:
 	if is_instance_valid(owner_player) and owner_player._model:
 		_copy_model()
 	Vfx.particles(self, Vector3(0, 0.9, 0), "faisca", 6, 0.8, Color(0.5, 0.8, 1.0, 0.8), 0.2, Vector2(0.1, 0.4), 180.0, -1.0, true, false)
+	# poça embaixo da cópia (ela sobe da água)
+	var pool := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = Vector2.ONE * 1.6
+	q.orientation = PlaneMesh.FACE_Y
+	pool.mesh = q
+	pool.material_override = Vfx.sprite_material("respingo", Color(0.55, 0.85, 1.0, 0.75), false, false)
+	pool.position.y = 0.05
+	pool.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(pool)
+	if is_inside_tree():
+		FxKit.ground_wave(get_parent(), global_position, 1.6, Color(0.45, 0.8, 1.0), 0.3)
+	var mats: Array = []
+	if _model:
+		for mi: MeshInstance3D in _model.find_children("*", "MeshInstance3D", true, false):
+			if mi.material_override is ShaderMaterial and not mats.has(mi.material_override):
+				mats.append(mi.material_override)
+	var rise := create_tween()
+	rise.tween_method(func(v: float) -> void:
+		for m in mats:
+			(m as ShaderMaterial).set_shader_parameter("appear", v), -0.1, 2.4, 0.3)
 
 
 ## Copia já (a pose de agora, antes do passo de dança do Espelho); o lugar é acertado no quadro
@@ -134,7 +175,9 @@ func _explode() -> void:
 			if foam_chance > 0.0 and enemy.has_method("foam"):
 				enemy.foam(foam_chance, 3.0)
 	Vfx.particles(get_parent(), global_position + Vector3(0, 0.6, 0), "faisca", 26, 0.6, Color(0.5, 0.8, 1.0), 0.45, Vector2(3.0, 6.0), 180.0, -9.0)
-	Vfx.ground_ring(get_parent(), global_position, "onda_choque", Color(0.4, 0.75, 1.0), radius * 2.0, 0.4)
+	Vfx.particles(get_parent(), global_position + Vector3(0, 1.0, 0), "respingo", 14, 0.6, Color(1, 1, 1, 0.9), 0.7, Vector2(3.0, 6.0), 70.0, -12.0, false)
+	FxKit.ground_wave(get_parent(), global_position, radius, Color(0.4, 0.78, 1.0), 0.4, 0.0, 0.0, Color(0.9, 0.98, 1.0))
+	FxKit.impact(get_parent(), global_position + Vector3(0, 1.0, 0), 2.6, Color(0.45, 0.8, 1.0), 0.25, 8.0)
 	Vfx.sprite(get_parent(), global_position + Vector3(0, 0.9, 0), "respingo", radius * 1.6, Color(1, 1, 1, 0.95), 0.4, 1.4)
 	Vfx.sprite(get_parent(), global_position + Vector3(0, 0.1, 0), "respingo", radius * 2.0, Color(1, 1, 1, 0.8), 0.45, 1.3, false, randf() * TAU)
 	queue_free()

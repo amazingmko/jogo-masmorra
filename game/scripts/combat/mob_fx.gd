@@ -83,6 +83,12 @@ static func on_resolve(t: Telegraph) -> void:
 			_venom(parent, at, t.rotation.y, t.radius, Color(0.75, 0.08, 0.1))
 		&"bafo":
 			_bafo_fog(t)
+		_:
+			# qualquer outro golpe: a área estala no chão na cor do ataque
+			if t.shape == Telegraph.Shape.CIRCLE:
+				FxKit.ground_wave(parent, at, t.radius, Color(t.color.r, t.color.g, t.color.b), 0.25)
+			elif t.shape == Telegraph.Shape.LINE:
+				FxKit.impact(parent, t.to_global(Vector3(0, 0.8, t.length)), 1.6, t.color, 0.2)
 
 
 ## Visual de um disparo. Devolve false para usar a bolinha padrão.

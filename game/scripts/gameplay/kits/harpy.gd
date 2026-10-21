@@ -27,6 +27,7 @@ var _diving := false
 var _body: Node3D
 var _wings: Array[Node3D] = []
 var _wing_mat: ShaderMaterial
+var _trail: RibbonTrail
 
 const MODEL := "res://game/art/herois/harpia.glb"
 const WINGSPAN := 2.1
@@ -54,6 +55,8 @@ func _ready() -> void:
 	add_to_group("floor_effects")
 	_body = Node3D.new()
 	add_child(_body)
+	# rastro de vento atrás dela (mais forte no mergulho)
+	_trail = RibbonTrail.follow(self, 0.55, Color(0.85, 0.93, 1.0), 0.22)
 	if ResourceLoader.exists(MODEL) and _build_model():
 		Lighting.no_shadow_receive(_body)
 		Vfx.particles(self, Vector3.ZERO, "faisca", 8, 0.6, Color("e8f5ff"), 0.25, Vector2(0.2, 0.6), 180.0, 0.0, true, false)
@@ -140,7 +143,11 @@ func _dive(prey: Node3D) -> void:
 		var target: Node3D = prey_ref.get_ref()
 		if is_instance_valid(target) and is_instance_valid(owner_player) and target.has_method("take_hit"):
 			target.take_hit(_dive_damage(), false, (target.global_position - owner_player.global_position).normalized())
-			Vfx.particles(get_parent(), hit_at, "faisca", 10, 0.35, Color("e8f5ff"), 0.4, Vector2(2.0, 4.0), 180.0, 0.0))
+			var c := FURY_COLOR if _fury_left > 0.0 else Color("e8f5ff")
+			FxKit.impact(get_parent(), hit_at, 1.9, c, 0.22, 5.0)
+			FxKit.ground_wave(get_parent(), target.global_position, 1.3, Color(0.85, 0.8, 0.7), 0.25, 0.0, 1.0)
+			Vfx.sprite(get_parent(), hit_at, "corte", 1.5, Color(1, 1, 1, 0.9), 0.2, 1.2, true)
+			Vfx.particles(get_parent(), hit_at, "faisca", 10, 0.35, c, 0.4, Vector2(2.0, 4.0), 180.0, 0.0))
 	t.tween_property(self, "global_position", hit_at + Vector3(0, ORBIT_HEIGHT, 0), 0.3).set_ease(Tween.EASE_OUT)
 	t.tween_callback(func() -> void:
 		_diving = false
@@ -163,6 +170,9 @@ func fury(seconds: float) -> void:
 	if not starting:
 		return
 	_body.scale = Vector3.ONE * 1.35
+	if is_instance_valid(_trail):
+		_trail.width = 0.9
+		_trail._mat.set_shader_parameter("color", FURY_COLOR)
 	if _wing_mat:
 		_wing_mat.set_shader_parameter("glow", FURY_COLOR * 0.5)
 	for m in _body.find_children("*", "MeshInstance3D", true, false):
@@ -178,6 +188,9 @@ func fury(seconds: float) -> void:
 
 func _end_fury() -> void:
 	_body.scale = Vector3.ONE
+	if is_instance_valid(_trail):
+		_trail.width = 0.55
+		_trail._mat.set_shader_parameter("color", Color(0.85, 0.93, 1.0))
 	if _wing_mat:
 		_wing_mat.set_shader_parameter("glow", Color.BLACK)
 	for mat in _fury_mats:

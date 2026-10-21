@@ -43,6 +43,8 @@ func _ready() -> void:
 	if direction.length() > 0.01:
 		rotation.y = atan2(direction.x, direction.z)
 	body_entered.connect(_on_body_entered)
+	if is_inside_tree():
+		RibbonTrail.follow(self, 0.35, color, 0.15)
 	if MobFx.projectile_visual(self):
 		return
 	var mesh := MeshInstance3D.new()
@@ -79,5 +81,6 @@ func _on_body_entered(body: Node3D) -> void:
 	if body.is_in_group("player"):
 		body.receive_attack(damage, effect, effect_duration, effect_power, global_position)
 		MobFx.projectile_hit_player(body, attack_id, effect_duration)
+		FxKit.impact(get_parent(), global_position, 1.2, color, 0.18)
 	MobFx.projectile_end(get_parent(), global_position, attack_id)
 	queue_free()

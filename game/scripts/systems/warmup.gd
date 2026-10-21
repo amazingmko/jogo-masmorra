@@ -57,6 +57,11 @@ func _spawn_all() -> void:
 	Vfx.ground_ring(parent, at, "onda_choque", Color(1, 1, 1, 0.8), 2.0, 0.3)
 	Vfx.provoke(parent, at, 2.0)
 	MobFx.warm(parent, at)
+	FxKit.warm(parent, at)
+	var wave := MeshInstance3D.new()
+	wave.mesh = WaveMesh.build(2.0, 1.0, 0.5, 4, 3)
+	wave.material_override = WaveMesh.material(2.0)
+	add_child(wave)
 	# imagens de impacto (virada para a câmera / deitada; somando luz / misturando) e a água da cópia
 	Vfx.sprite(parent, at, "respingo", 1.0, Color.WHITE, 0.2)
 	Vfx.sprite(parent, at, "flor", 1.0, Color.WHITE, 0.2, 1.3, false, 0.0, false)

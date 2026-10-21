@@ -103,6 +103,11 @@ func _use_skill() -> bool:
 			if enemy.global_position.distance_to(clone.global_position) <= LURE_RADIUS and enemy.has_method("lure"):
 				enemy.lure(clone, clone.lifetime)
 	player.dash(dir, BLINK_DISTANCE)  # não atravessa nem fica preso em obstáculo
+	# rastro de água no passo de dança (some sozinho quando para de seguir)
+	var streak := RibbonTrail.follow(player, 1.0, Color(0.45, 0.82, 1.0), 0.3)
+	player.get_tree().create_timer(0.25, false).timeout.connect(func() -> void:
+		if is_instance_valid(streak):
+			streak.target = null)
 	player.play_kit_animation("espelho", 0.5, "")
 	if t("iara") > 0:
 		_iara_left = tv("iara")
@@ -115,32 +120,68 @@ func _use_skill() -> bool:
 	return true
 
 
-## Bolha azul em volta do Encantado enquanto o escudo da Bolha Protetora dura.
+const BUBBLE_SHADER := """
+shader_type spatial;
+render_mode unshaded, blend_add, cull_back, depth_draw_never, shadows_disabled;
+uniform float pop = 0.0;
+void vertex() {
+	// a bolha treme como água (ondas correndo pela superfície)
+	float w = sin(VERTEX.y * 7.0 + TIME * 6.0) * 0.03 + sin(VERTEX.x * 6.0 - TIME * 5.0) * 0.03;
+	VERTEX += NORMAL * (w + pop * 0.35);
+}
+void fragment() {
+	float rim = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 2.4);
+	// reflexo de arco-íris de bolha de sabão girando
+	float h = fract(dot(NORMAL, vec3(0.5, 0.8, 0.3)) * 1.5 + TIME * 0.15);
+	vec3 rainbow = 0.5 + 0.5 * cos(6.2832 * (h + vec3(0.0, 0.33, 0.67)));
+	vec3 c = mix(vec3(0.35, 0.75, 1.0), rainbow, 0.35) * rim;
+	// brilho de luz no alto
+	float spec = smoothstep(0.9, 0.97, dot(NORMAL, normalize(vec3(-0.4, 0.8, 0.45))));
+	ALBEDO = (c * 1.4 + vec3(spec)) * (1.0 - pop);
+}
+"""
+static var _bubble_shader: Shader
+
+
+## Bolha de água em volta do Encantado enquanto o escudo da Bolha Protetora dura: borda
+## brilhante, reflexo de arco-íris e a superfície tremendo; estoura em gotas no fim.
 func _show_bubble(seconds: float) -> void:
 	if not is_instance_valid(_bubble_fx):
+		if _bubble_shader == null:
+			_bubble_shader = Shader.new()
+			_bubble_shader.code = BUBBLE_SHADER
 		_bubble_fx = MeshInstance3D.new()
-		var m: StandardMaterial3D
-		if Vfx.tex("bolha"):
-			# a bolha pintada (imagem), virada para a câmera
-			var q := QuadMesh.new()
-			q.size = Vector2.ONE * 2.1
-			_bubble_fx.mesh = q
-			m = Vfx.sprite_material("bolha", Color(0.8, 0.95, 1.2, 0.6), true)
-		else:
-			var sphere := SphereMesh.new()
-			sphere.radius = 0.95
-			sphere.height = 1.9
-			_bubble_fx.mesh = sphere
-			m = StandardMaterial3D.new()
-			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-			m.albedo_color = Color(0.45, 0.8, 1.0, 0.22)
-			m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		var sphere := SphereMesh.new()
+		sphere.radius = 1.0
+		sphere.height = 2.0
+		sphere.radial_segments = 32
+		sphere.rings = 16
+		_bubble_fx.mesh = sphere
+		var m := ShaderMaterial.new()
+		m.shader = _bubble_shader
+		m.render_priority = 2
 		_bubble_fx.material_override = m
+		_bubble_fx.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_bubble_fx.position.y = 0.95
 		player.add_child(_bubble_fx)
+	(_bubble_fx.material_override as ShaderMaterial).set_shader_parameter("pop", 0.0)
+	_bubble_fx.set_meta("popping", false)
 	_bubble_fx.visible = true
+	_bubble_fx.scale = Vector3.ONE * 0.3
+	_bubble_fx.create_tween().tween_property(_bubble_fx, "scale", Vector3.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_bubble_fx.set_meta("left", seconds)
+
+
+## A bolha estoura: incha, some e solta gotas.
+func _pop_bubble() -> void:
+	if not is_instance_valid(_bubble_fx):
+		return
+	var m := _bubble_fx.material_override as ShaderMaterial
+	var t := _bubble_fx.create_tween()
+	t.tween_method(func(v: float) -> void: m.set_shader_parameter("pop", v), 0.0, 1.0, 0.15)
+	t.tween_callback(func() -> void: _bubble_fx.visible = false)
+	if player.is_inside_tree():
+		Vfx.particles(player.get_parent(), player.global_position + Vector3(0, 1.0, 0), "respingo", 12, 0.5, Color(0.8, 0.95, 1.0, 0.9), 0.4, Vector2(2.0, 4.0), 180.0, -8.0, false)
 
 
 # ---------- Pororoca / Boiuna ----------
@@ -198,8 +239,9 @@ func _process(delta: float) -> void:
 	if is_instance_valid(_bubble_fx) and _bubble_fx.visible:
 		var left: float = float(_bubble_fx.get_meta("left", 0.0)) - delta
 		_bubble_fx.set_meta("left", left)
-		if left <= 0.0 or player.health.bubble <= 0:
-			_bubble_fx.visible = false
+		if (left <= 0.0 or player.health.bubble <= 0) and not _bubble_fx.get_meta("popping", false):
+			_bubble_fx.set_meta("popping", true)
+			_pop_bubble()
 
 
 func modify_projectile(p: Projectile) -> void:

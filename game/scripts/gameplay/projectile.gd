@@ -111,6 +111,12 @@ func _ready() -> void:
 		add_child(mesh)
 
 	body_entered.connect(_on_body_entered)
+	# rastro: fino e claro na flecha; da cor do elemento na magia
+	if is_inside_tree():
+		if arrow:
+			RibbonTrail.follow(self, 0.16, Color(1.0, 0.97, 0.9), 0.1)
+		else:
+			RibbonTrail.follow(self, 0.4, ELEMENT_COLORS.get(element, Color.WHITE), 0.14)
 
 
 ## Flecha: haste de madeira, ponta de pedra verde e penas de arara, apontada para onde voa.
@@ -206,6 +212,9 @@ func _on_body_entered(body: Node3D) -> void:
 		if hit.crit and crit_damage_bonus > 0.0:
 			hit.amount = int(round(hit.amount * (1.0 + crit_damage_bonus)))
 		body.take_hit(hit.amount, hit.crit, direction)
+		if is_inside_tree():
+			FxKit.impact(get_parent(), global_position, 1.5 if hit.crit else 0.9,
+					Color(1.0, 0.85, 0.35) if hit.crit else ELEMENT_COLORS.get(element, Color.WHITE), 0.15, 6.0)
 		if hit_sprite != "" and is_inside_tree():
 			Vfx.sprite(get_parent(), global_position, hit_sprite, 1.1, Color(1, 1, 1, 0.95), 0.3, 1.6)
 		if on_hit.is_valid():

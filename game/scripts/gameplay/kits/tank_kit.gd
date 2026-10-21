@@ -15,6 +15,7 @@ const WALL_TIME := 6.0
 const REVIDE_BONUS := 0.5
 const REVIDE_WINDOW := 4.0
 const COLOR := Color("e8c26a")
+const SPEAR_MODEL := "res://game/art/armas/lanca_icamiaba.glb"
 
 var _wall_left := 0.0
 var _revide_left := 0.0
@@ -78,6 +79,7 @@ func _use_skill() -> bool:
 	var hit := 0
 	var farthest: Node3D = null
 	var far_d := -1.0
+	var provoked: Array = []
 	for enemy in player.get_tree().get_nodes_in_group("enemies"):
 		var d := origin.distance_to(enemy.global_position)
 		if enemy.has_method("provoke") and d <= radius:
@@ -89,7 +91,7 @@ func _use_skill() -> bool:
 			if d > far_d and Layers.clear_path(player.get_world_3d(), origin, enemy.global_position):
 				far_d = d
 				farthest = enemy
-	Vfx.provoke(player.get_parent(), origin, radius)
+	Vfx.provoke(player.get_parent(), origin, radius, provoked)
 	if t("lanca_certeira") > 0 and farthest and far_d > 2.5:
 		_throw_spear(farthest)
 	if t("guarda_vingativa") > 0 and hit > 0:
@@ -104,20 +106,21 @@ func _use_skill() -> bool:
 ## Lança Certeira: a lança voa até o inimigo mais distante, fere e o puxa para perto dela.
 func _throw_spear(enemy: Node3D) -> void:
 	var from := player.global_position + Vector3(0, 1.2, 0)
-	var spear := MeshInstance3D.new()
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = 0.05
-	mesh.bottom_radius = 0.05
-	mesh.height = 1.7
-	spear.mesh = mesh
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color("8a5a2b")
-	spear.material_override = mat
+	# a lança de verdade (o modelo da arma), com rastro dourado
+	var spear := Node3D.new()
 	player.get_parent().add_child(spear)
 	spear.global_position = from
 	var to := enemy.global_position + Vector3(0, 0.8, 0)
 	spear.look_at(to, Vector3.UP)
-	spear.rotate_object_local(Vector3.RIGHT, PI * 0.5)
+	if ResourceLoader.exists(SPEAR_MODEL):
+		var model: Node3D = load(SPEAR_MODEL).instantiate()
+		spear.add_child(model)
+		var aabb := HeroGear._aabb(model)
+		var k := 1.7 / maxf(aabb.get_longest_axis_size(), 0.001)
+		# a ponta do modelo fica no lado -X: gira para a ponta olhar para a frente (-Z)
+		model.transform = Transform3D(Basis(Vector3.UP, -PI * 0.5).scaled(Vector3.ONE * k), Vector3.ZERO)
+		model.position = -(model.basis * aabb.get_center())
+	RibbonTrail.follow(spear, 0.45, COLOR, 0.18)
 	Vfx.particles(spear, Vector3.ZERO, "faisca", 10, 0.3, COLOR, 0.3, Vector2(0.0, 0.3), 180.0, 0.0, true, false)
 	var tw := spear.create_tween()
 	tw.tween_property(spear, "global_position", to, clampf(from.distance_to(to) / 25.0, 0.2, 0.5))
@@ -294,7 +297,8 @@ func _spin() -> void:
 		if to.length() <= reach and Layers.clear_path(player.get_world_3d(), player.global_position, enemy.global_position):
 			var hit := Damage.roll(player.weapon_stats.damage, player.hero.element, enemy.data.element, player.crit_chance, player._rng)
 			enemy.take_hit(hit.amount, hit.crit, to)
-	Fx.shockwave(player.get_parent(), player.global_position, reach, COLOR)
+	FxKit.spin_slash(player.get_parent(), player.global_position, reach + 0.3, Color("ff9f43"), 0.28)
+	FxKit.ground_wave(player.get_parent(), player.global_position, reach + 0.5, Color(1.0, 0.6, 0.25), 0.3, 0.5)
 	Fx.float_text(player.get_parent(), player.global_position + Vector3(0, 3.0, 0), "FÚRIA!", Color("ff9f43"))
 	player.play_kit_animation("ataque3", 0.5, "")
 
