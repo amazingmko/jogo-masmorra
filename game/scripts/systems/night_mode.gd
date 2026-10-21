@@ -151,6 +151,19 @@ var _spores: Array[MultiMeshInstance3D] = []
 var _spore_mat: StandardMaterial3D
 
 
+## Material dos esporos (também usado no aquecimento, para não travar no 1º andar de noite).
+static func spore_material() -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	m.albedo_texture = Vfx.tex("faisca")
+	m.vertex_color_use_as_albedo = true
+	m.albedo_color = SPORE_COLOR * 1.6
+	return m
+
+
 func _mushrooms(on: bool) -> void:
 	for n in _spores:
 		if is_instance_valid(n):
@@ -159,15 +172,7 @@ func _mushrooms(on: bool) -> void:
 	if dungeon == null or not on:
 		return
 	if _spore_mat == null:
-		_spore_mat = StandardMaterial3D.new()
-		_spore_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		_spore_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		_spore_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-		_spore_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-		_spore_mat.albedo_texture = Vfx.tex("faisca")
-		_spore_mat.vertex_color_use_as_albedo = true
-		_spore_mat.albedo_color = SPORE_COLOR * 1.6
-		_spore_mat.no_depth_test = false
+		_spore_mat = spore_material()
 	var quad := QuadMesh.new()
 	quad.size = Vector2(0.22, 0.22)
 	quad.material = _spore_mat

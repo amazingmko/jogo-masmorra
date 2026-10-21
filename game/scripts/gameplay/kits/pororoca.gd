@@ -21,6 +21,10 @@ var returning := false
 var _traveled := 0.0
 var _hit := {}
 var _wave: MeshInstance3D
+var _wave_mat: ShaderMaterial
+var _wake: MeshInstance3D
+var _wake_mat: ShaderMaterial
+const HEIGHT := 2.3
 
 
 func _ready() -> void:
@@ -28,52 +32,55 @@ func _ready() -> void:
 	direction.y = 0.0
 	direction = direction.normalized() if direction.length() > 0.01 else Vector3.FORWARD
 	look_at(global_position + direction, Vector3.UP)
+	var h := HEIGHT if not returning else HEIGHT * 0.65
+	# a onda: lâmina curva com shader de água (WaveMesh); a crista olha para a frente (-Z do nó)
 	_wave = MeshInstance3D.new()
-	if Vfx.tex("onda_pororoca"):
-		# a onda pintada (imagem): parede de água inclinada para trás, assim a câmera de cima
-		# sempre a vê de frente, para qualquer lado que ela vá
-		var h := 2.6 if not returning else 1.8
-		var quad := QuadMesh.new()
-		quad.size = Vector2(width * 1.1, h)
-		_wave.mesh = quad
-		_wave.position = Vector3(0, h * 0.38, 0.3)
-		_wave.rotation.x = deg_to_rad(-40)
-		_wave.material_override = Vfx.sprite_material("onda_pororoca", Color(1.15, 1.15, 1.2, 0.95), false, false)
-		_wave.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(_wave)
-		var bob := _wave.create_tween().set_loops()
-		bob.tween_property(_wave, "scale", Vector3(1.0, 1.08, 1.0), 0.25).set_trans(Tween.TRANS_SINE)
-		bob.tween_property(_wave, "scale", Vector3.ONE, 0.25).set_trans(Tween.TRANS_SINE)
-		var spray := Vfx.particles(self, Vector3(0, 1.4, 0), "respingo", 10, 0.5, Color(1, 1, 1, 0.8), 0.9, Vector2(1.0, 2.5), 60.0, -6.0, true, false)
-		spray.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
-		spray.emission_box_extents = Vector3(width * 0.5, 0.2, 0.3)
-	else:
-		_build_box_wave()
-	var foam := Vfx.particles(self, Vector3(0, 1.3, 0), "faisca", 30, 0.5, Color(0.85, 0.95, 1.0), 0.35, Vector2(1.0, 2.5), 60.0, -6.0, true, false)
-	foam.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
-	foam.emission_box_extents = Vector3(width * 0.5, 0.2, 0.3)
-
-
-func _build_box_wave() -> void:
-	var box := BoxMesh.new()
-	box.size = Vector3(width, 1.6 if not returning else 1.1, 0.9)
-	_wave.mesh = box
-	_wave.position.y = 0.6
-	var mat := StandardMaterial3D.new()
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(0.3, 0.6, 0.95, 0.55)
-	mat.emission_enabled = true
-	mat.emission = Color(0.25, 0.55, 1.0)
-	mat.emission_energy_multiplier = 0.25
-	mat.roughness = 0.15
-	_wave.material_override = mat
+	_wave.mesh = WaveMesh.build(width * 1.05, h, 1.7)
+	_wave.rotation.y = PI
+	_wave_mat = WaveMesh.material(width * 1.05)
+	_wave_mat.set_shader_parameter("rise", 0.0)
+	_wave.material_override = _wave_mat
+	_wave.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_wave)
+	# nasce do chão: sobe rápido e passa um pouco do ponto (antecipação de desenho animado)
+	var up := create_tween()
+	up.tween_method(func(v: float) -> void: _wave_mat.set_shader_parameter("rise", v), 0.0, 1.0, 0.22) \
+			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	# rastro de espuma molhando o chão por onde passou
+	_wake = MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2.ONE
+	_wake.mesh = plane
+	_wake_mat = WaveMesh.wake_material(width)
+	_wake.material_override = _wake_mat
+	_wake.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_wake.position = Vector3(0, 0.05, 0)
+	_wake.scale = Vector3(width * 0.95, 1.0, 0.01)
+	add_child(_wake)
+	# respingos saindo da crista e espuma na frente
+	var crest := Vector3(0, h * 0.8, -0.5)
+	var spray := Vfx.particles(self, crest, "respingo", 14, 0.5, Color(1, 1, 1, 0.85), 0.8, Vector2(1.5, 3.5), 50.0, -9.0, true, false)
+	spray.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	spray.emission_box_extents = Vector3(width * 0.45, 0.15, 0.2)
+	spray.direction = Vector3(0, 1, -0.6)
+	var foam := Vfx.particles(self, Vector3(0, 0.3, -0.9), "faisca", 34, 0.45, Color(0.85, 0.97, 1.0), 0.3, Vector2(1.0, 3.0), 70.0, -6.0, true, false)
+	foam.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	foam.emission_box_extents = Vector3(width * 0.5, 0.1, 0.2)
+	# no lançamento: a água brota do chão
+	if not returning:
+		var gush := Vfx.particles(get_parent(), global_position + Vector3(0, 0.2, 0), "respingo", 16, 0.5, Color(1, 1, 1, 0.9), 0.8, Vector2(2.0, 4.0), 40.0, -10.0)
+		gush.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+		gush.emission_box_extents = Vector3(width * 0.4, 0.1, 0.3)
 
 
 func _physics_process(delta: float) -> void:
 	var step := SPEED * delta
 	global_position += direction * step
 	_traveled += step
+	# o rastro vai de onde ela nasceu até as costas da onda (fica parado no chão)
+	_wake.scale.z = maxf(_traveled, 0.01)
+	_wake.position.z = _traveled * 0.5 + 0.9
+	_wake_mat.set_shader_parameter("length_m", _traveled)
 	var right := direction.cross(Vector3.UP)
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		if _hit.has(enemy.get_instance_id()):
@@ -99,6 +106,24 @@ func _physics_process(delta: float) -> void:
 			back.on_slam = on_slam
 			get_parent().add_child(back)
 			back.global_position = global_position
-		var t := create_tween()
-		t.tween_property(_wave, "scale", Vector3(1.0, 0.05, 1.0), 0.3)
-		t.tween_callback(queue_free)
+		_crash()
+
+
+## A onda arrebenta: a crista some primeiro, a água espalha e o rastro seca.
+func _crash() -> void:
+	var front := global_position + direction * 0.8 + Vector3(0, 0.6, 0)
+	var burst := Vfx.particles(get_parent(), front, "respingo", 22, 0.7, Color(1, 1, 1, 0.9), 0.9, Vector2(2.0, 5.0), 70.0, -10.0)
+	burst.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	burst.emission_box_extents = Vector3(width * 0.4, 0.2, 0.3)
+	Vfx.particles(get_parent(), front, "faisca", 24, 0.6, Color(0.8, 0.95, 1.0), 0.35, Vector2(2.0, 4.5), 120.0, -8.0)
+	var t := create_tween().set_parallel()
+	t.tween_method(func(v: float) -> void: _wave_mat.set_shader_parameter("fade", v), 1.0, 0.0, 0.35)
+	t.tween_method(func(v: float) -> void: _wave_mat.set_shader_parameter("rise", v), 1.0, 0.55, 0.35)
+	t.tween_method(func(v: float) -> void: _wake_mat.set_shader_parameter("fade", v), 1.0, 0.0, 0.6)
+	t.chain().tween_callback(queue_free)
+
+
+## Água estourando em quem a onda pega.
+func _splash(at: Vector3) -> void:
+	Vfx.sprite(get_parent(), at + Vector3(0, 0.9, 0), "respingo", 1.6, Color(0.9, 0.97, 1.0, 0.95), 0.3)
+	Vfx.particles(get_parent(), at + Vector3(0, 0.8, 0), "faisca", 10, 0.4, Color(0.75, 0.93, 1.0), 0.3, Vector2(2.0, 4.0), 160.0, -8.0)

@@ -428,12 +428,15 @@ func _elite_chance(wave: int) -> float:
 
 ## Põe uma onda na sala. budget = "vagas": um grupo ocupa vagas conforme a vida somada
 ## (4 formigas valem 1 vaga; 3 queixadas valem 3). spots: pontos já avisados no chão.
+## Monta a onda e faz os bichos aparecerem um por quadro (todos no mesmo quadro davam uma
+## travadinha no celular). Enquanto a fila não acaba, a sala fica "com onda pendente".
 func _spawn_wave(room: DungeonRoom, budget: int, spots: Array) -> void:
 	var elite_left := 1 if _rng.randf() < _elite_chance(room.wave_number) else 0
 	if room.is_den:
 		elite_left = 999
 	if difficulty == 3 and room.wave_number > 1 and _rng.randf() < 0.3:
 		elite_left += 1
+	var queue: Array = []
 	var spot_i := 0
 	while budget > 0:
 		var data := ItemDB.get_enemy(_pick_enemy())
@@ -453,8 +456,18 @@ func _spawn_wave(room: DungeonRoom, budget: int, spots: Array) -> void:
 			var elite := elite_left > 0 and (i == 0 or room.is_den)
 			if elite:
 				elite_left -= 1
-			_spawn(data.id, room, spot, false, elite)
+			queue.append([data.id, spot, elite])
 		budget -= cost
+	room.wave_pending = true
+	var run := _run_id
+	for k in queue.size():
+		if k > 0:
+			await get_tree().process_frame
+			if run != _run_id or _run_over or not is_instance_valid(room):
+				return
+		var job: Array = queue[k]
+		_spawn(job[0], room, job[1], false, job[2])
+	room.wave_pending = false
 
 
 ## Fim de uma onda: avisa no chão onde os próximos vão aparecer e solta a onda depois de um instante.

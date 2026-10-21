@@ -98,6 +98,25 @@ func _spawn_all() -> void:
 			add_child(p)
 			p.global_position = at + Vector3(0, 0.9, 0)
 			p.set_physics_process(false)
+	# coisas da noite (andar 6 em diante): olhos brilhando e esporos dos cogumelos
+	var dummies := get_children().filter(func(c): return c is Enemy)
+	if not dummies.is_empty():
+		var eyes := NightEyes.new()
+		eyes.enemy = dummies[0]
+		eyes.bone_names = NightMode.EYE_BONES
+		dummies[0].add_child(eyes)
+	var spores := MultiMeshInstance3D.new()
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	var quad := QuadMesh.new()
+	quad.material = NightMode.spore_material()
+	mm.mesh = quad
+	mm.instance_count = 1
+	mm.set_instance_transform(0, Transform3D(Basis(), Vector3(0, 1, 0)))
+	mm.set_instance_color(0, Color.WHITE)
+	spores.multimesh = mm
+	add_child(spores)
 	# disparo do herói
 	if _player and _player.weapon_stats:
 		var shot := Projectile.create(Vector3.FORWARD, _player.weapon_stats, _player.hero.element, 0.0, RandomNumberGenerator.new())
