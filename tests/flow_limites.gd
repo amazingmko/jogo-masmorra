@@ -42,8 +42,12 @@ func _run() -> void:
 		if f > 1:
 			m.debug_jump_to_floor(f)
 			await _frames(8)
-		var ig: Igarape = m.builder.igarape
-		if ig == null or ig.path.size() < 2:
+			for w in 120:  # o andar novo pode ser montado alguns quadros depois
+				if is_instance_valid(m.builder.igarape) and not m.builder.igarape.is_queued_for_deletion():
+					break
+				await process_frame
+		var ig = m.builder.igarape
+		if not is_instance_valid(ig) or ig.path.size() < 2:
 			continue
 		floors += 1
 		var wet := 0
