@@ -238,9 +238,11 @@ static func populate(room: DungeonRoom, rng: RandomNumberGenerator, door_dirs: A
 			if rng.randf() < 0.55:
 				var tree_pos := p + outward * rng.randf_range(2.0, 4.5)
 				_plant_tall(rng, origin + tree_pos, origin, trees, palms)
+	# nada da borda cai dentro do igarapé (as peças vão um pouco para fora da linha)
+	bushes = bushes.filter(func(x: Transform3D) -> bool: return not _wet(origin + x.origin, 0.0))
 	for kind in extra:
 		var list: Array[Transform3D] = []
-		list.assign(extra[kind])
+		list.assign((extra[kind] as Array).filter(func(x: Transform3D) -> bool: return not _wet(origin + x.origin, 0.0)))
 		_multimesh(room, kind, list, false)
 	_multimesh(room, "moita", bushes, false)
 	_multimesh(room, "arvore_borda", trees, false)
@@ -410,7 +412,7 @@ static func trail(parent: Node3D, left: PackedVector3Array, right: PackedVector3
 			var south := out.z > 0.5
 			if _wet(p, 0.4):
 				continue  # onde a trilha cruza o igarapé: a pinguela, sem moita em cima
-			if rng.randf() < 0.22:
+			if rng.randf() < 0.22 and not _wet(p + out * 0.8, 0.2):
 				rocks.append(_xf(rng, p + out * rng.randf_range(0.4, 0.8), rng.randf_range(0.5, 0.9)))
 			else:
 				bushes.append(_xf(rng, p + out * rng.randf_range(0.4, 0.7), rng.randf_range(0.55, 0.75) if south else rng.randf_range(0.9, 1.3)))
