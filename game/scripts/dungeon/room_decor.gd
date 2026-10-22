@@ -21,7 +21,7 @@ const SIZE := {
 	# mais peças de borda da Terra Firme (lote 3)
 	"itacoatiara": ["w", 2.0], "cupinzeiro": ["h", 1.6], "toco_oco": ["w", 1.5],
 	"sapopema": ["w", 3.0], "taboca": ["h", 3.2], "palmeira_caida": ["w", 3.4],
-	"arvore_tombada": ["w", 4.0], "saueiro": ["w", 1.8],
+	"arvore_tombada": ["w", 4.0], "sauveiro": ["w", 1.8],
 	"bau": ["w", 1.6], "fonte": ["w", 2.6], "portal": ["w", 3.2],
 }
 
@@ -306,7 +306,7 @@ static func populate(room: DungeonRoom, rng: RandomNumberGenerator, door_dirs: A
 
 ## Peças soltas de borda (lote 3): [tipo, baixa?]. Baixas podem ir no lado de baixo da tela.
 const LOOSE_PIECES := [["itacoatiara", true], ["cupinzeiro", false], ["toco_oco", true], ["sapopema", false],
-		["taboca", false], ["palmeira_caida", true], ["arvore_tombada", false], ["saueiro", true]]
+		["taboca", false], ["palmeira_caida", true], ["arvore_tombada", false], ["sauveiro", true]]
 
 
 static func _loose_pieces(south: bool) -> Array:

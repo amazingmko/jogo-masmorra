@@ -134,7 +134,7 @@ Game asset, a single fallen thin palm tree trunk lying on the ground, the crown 
 Game asset, a single big fallen jungle tree, the round root plate torn out of the ground standing upright with dirt and stones caught in the roots, the trunk lying on the ground, moss and small plants growing on it, stylized hand-painted World of Warcraft style, chunky proportions, three-quarter top view, full object visible, isolated on plain white background, no text
 ```
 
-### 21. Sauveiro (formigueiro de saúva) — `saueiro.glb` (baixa)
+### 21. Sauveiro (formigueiro de saúva) — `sauveiro.glb` (baixa)
 ```
 Game asset, a single low wide mound of a leafcutter ant nest, bare reddish soil with several entrance holes, small cut green leaf pieces scattered around, stylized hand-painted World of Warcraft style, chunky proportions, three-quarter top view, full object visible, isolated on plain white background, no text
 ```
