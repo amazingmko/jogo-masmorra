@@ -63,7 +63,7 @@ void fragment() {
 	vec3 sc = texture(scales, vec2(UV.x * 20.0, UV.y * 3.0)).rgb;
 	float flow = noise(vec2(UV.x * 18.0 + t * 5.0, UV.y * 4.0));
 	float lit = v_up * 0.5 + 0.5;                     // de cima é mais claro (câmera de cima)
-	vec3 c = sc * mix(0.55, 1.25, smoothstep(0.2, 0.95, lit + flow * 0.1));
+	vec3 c = sc * mix(0.4, 0.95, smoothstep(0.2, 0.95, lit + flow * 0.1));
 	// barriga clara (embaixo)
 	c = mix(c, light * 0.85, smoothstep(-0.2, -0.75, v_up));
 	float spots = step(0.82, noise(vec2(UV.x * 30.0 - t * 4.0, UV.y * 6.0))) * step(0.55, v_up);
@@ -191,7 +191,7 @@ static func _make_tube(length_steps: int, sides: int) -> ArrayMesh:
 ## Cabeça: crânio achatado, focinho, mandíbula que abre, olhos acesos.
 const HEAD_MODEL := "res://game/art/herois/boiuna_cabeca.glb"
 ## A cabeça do modelo (Tripo) olha para este eixo do arquivo; o tamanho final é HEAD_LEN.
-const HEAD_LEN := 1.5
+const HEAD_LEN := 1.9
 var _head_model: Node3D
 
 
