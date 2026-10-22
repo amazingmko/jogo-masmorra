@@ -28,6 +28,7 @@ uniform vec3 deep : source_color = vec3(0.03, 0.2, 0.45);
 uniform vec3 body : source_color = vec3(0.1, 0.5, 0.88);
 uniform vec3 light : source_color = vec3(0.55, 0.92, 1.0);
 uniform vec3 foam : source_color = vec3(0.92, 0.99, 1.0);
+uniform sampler2D scales : source_color, filter_linear_mipmap, repeat_enable;
 varying float v_up;
 varying float v_s;
 varying vec3 v_n;
@@ -58,24 +59,17 @@ void vertex() {
 	v_n = NORMAL;
 }
 void fragment() {
-	// escamas: losangos em fileiras, deslocadas a cada fileira
-	vec2 sc = vec2(UV.x * 46.0, UV.y * 9.0);
-	sc.x += floor(sc.y) * 0.5;
-	vec2 f = fract(sc) - 0.5;
-	float scale_edge = smoothstep(0.32, 0.45, abs(f.x) + abs(f.y));
+	// escamas pintadas (imagem do Gemini) correndo pelo corpo, com luz de cima e espuma
+	vec3 sc = texture(scales, vec2(UV.x * 20.0, UV.y * 3.0)).rgb;
 	float flow = noise(vec2(UV.x * 18.0 + t * 5.0, UV.y * 4.0));
-	vec3 c = deep;
 	float lit = v_up * 0.5 + 0.5;                     // de cima é mais claro (câmera de cima)
-	if (lit + flow * 0.15 > 0.45) c = body;
-	if (lit + flow * 0.2 > 0.82) c = light;
-	c = mix(c, deep, scale_edge * 0.35);
-	// barriga clara (embaixo) e espuma nas costas
-	c = mix(c, light * 0.9, smoothstep(-0.2, -0.7, v_up));
-	float spots = step(0.78, noise(vec2(UV.x * 30.0 - t * 4.0, UV.y * 6.0))) * step(0.55, v_up);
-	c = mix(c, foam, spots);
-	// borda clara contra o chão (lê bem de longe)
+	vec3 c = sc * mix(0.55, 1.25, smoothstep(0.2, 0.95, lit + flow * 0.1));
+	// barriga clara (embaixo)
+	c = mix(c, light * 0.85, smoothstep(-0.2, -0.75, v_up));
+	float spots = step(0.82, noise(vec2(UV.x * 30.0 - t * 4.0, UV.y * 6.0))) * step(0.55, v_up);
+	c = mix(c, foam, spots * 0.8);
 	float rim = pow(1.0 - abs(dot(normalize(v_n), VIEW)), 3.0);
-	c = mix(c, foam, rim * 0.5);
+	c = mix(c, foam, rim * 0.35);
 	ALBEDO = c;
 }
 """
@@ -158,6 +152,7 @@ func _build_body() -> void:
 	_body_mat.set_shader_parameter("ring", RING)
 	_body_mat.set_shader_parameter("body_angle", BODY_ANGLE)
 	_body_mat.set_shader_parameter("emerge", 0.0)
+	_body_mat.set_shader_parameter("scales", Vfx.tex("escamas_boiuna"))
 	_body.material_override = _body_mat
 	_body.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	# a malha é mexida no shader: caixa grande para a câmera nunca a esconder
@@ -194,9 +189,17 @@ static func _make_tube(length_steps: int, sides: int) -> ArrayMesh:
 
 
 ## Cabeça: crânio achatado, focinho, mandíbula que abre, olhos acesos.
+const HEAD_MODEL := "res://game/art/herois/boiuna_cabeca.glb"
+## A cabeça do modelo (Tripo) olha para este eixo do arquivo; o tamanho final é HEAD_LEN.
+const HEAD_LEN := 1.5
+var _head_model: Node3D
+
+
 func _build_head() -> void:
 	_head = Node3D.new()
 	add_child(_head)
+	if ResourceLoader.exists(HEAD_MODEL) and _build_head_model():
+		return
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.albedo_color = Color(0.16, 0.56, 0.92)
@@ -286,6 +289,32 @@ func _build_head() -> void:
 	Vfx.particles(_head, Vector3.ZERO, "faisca", 10, 0.5, Color(0.85, 0.95, 1.0), 0.25, Vector2(0.5, 1.5), 180.0, -3.0, true, false)
 
 
+## A cabeça de verdade: o modelo, com o focinho para a frente (+Z da cabeça) e o pescoço
+## encostando no começo do corpo. Olhos acesos por cima, para ler de longe.
+func _build_head_model() -> bool:
+	var scene: Node3D = load(HEAD_MODEL).instantiate()
+	var meshes := scene.find_children("*", "MeshInstance3D", true, false)
+	if meshes.is_empty():
+		scene.free()
+		return false
+	var aabb: AABB = (meshes[0] as MeshInstance3D).get_aabb()
+	var k := HEAD_LEN / maxf(aabb.size.x, 0.001)
+	# o modelo vem de perfil olhando para +X (como a imagem): gira para olhar para +Z
+	scene.rotation.y = -PI * 0.5
+	scene.scale = Vector3.ONE * k
+	scene.position = (Basis(Vector3.UP, -PI * 0.5) * (-aabb.get_center() * k)) + Vector3(0, 0.05, HEAD_LEN * 0.3)
+	for mi: MeshInstance3D in meshes:
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_head.add_child(scene)
+	_head_model = scene
+	_jaw = Node3D.new()  # sem mandíbula separada: o bote mexe a cabeça inteira
+	_head.add_child(_jaw)
+	_spray = Vfx.particles(_head, Vector3(0, -0.2, -0.2), "respingo", 12, 0.5, Color(1, 1, 1, 0.8), 0.6,
+			Vector2(1.0, 2.5), 60.0, -8.0, false, false)
+	Vfx.particles(_head, Vector3(0, 0.3, 0), "faisca", 10, 0.5, Color(0.85, 0.95, 1.0), 0.25, Vector2(0.5, 1.5), 180.0, -3.0, true, false)
+	return true
+
+
 func _build_channel() -> void:
 	if _channel_shader == null:
 		_channel_shader = Shader.new()
@@ -345,6 +374,10 @@ func _place_head(delta: float) -> void:
 	if forward.length() > 0.01:
 		_head.basis = Basis.looking_at(forward, Vector3.UP, true)
 	_jaw.rotation.x = deg_to_rad(10.0 + 45.0 * _lunge)
+	if _head_model:
+		# no bote a cabeça empina e cresce um pouco (sem mandíbula separada no modelo)
+		_head.scale = Vector3.ONE * (1.0 + 0.18 * _lunge)
+		_head.rotate_object_local(Vector3.RIGHT, -0.35 * _lunge)
 	_lunge = move_toward(_lunge, 0.0, delta * 3.5)
 
 
