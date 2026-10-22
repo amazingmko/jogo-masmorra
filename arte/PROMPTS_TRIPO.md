@@ -44,3 +44,50 @@ Game asset, a single small rough river stone, rounded but uneven shape, grey-bro
 ```
 Game asset, a single Brazil nut fruit pod (ourico de castanha), hard round woody brown shell like a small coconut with a small circular cap on top, rough fibrous texture, stylized hand-painted World of Warcraft style, chunky proportions, three-quarter view, full object visible, isolated on plain white background, no text
 ```
+
+---
+
+# Lote 2: Boiuna e borda de masmorra
+
+## Boiuna (Cobra-Grande do Encantado)
+O corpo continua sendo feito pelo jogo (ele precisa dobrar e girar em volta do herói); do Tripo vem
+só a **cabeça**, e do Gemini a **textura das escamas** do corpo.
+
+### 7. Cabeça da Boiuna (Gemini → Tripo) — `arte/bruto/boiuna_cabeca.glb`
+```
+Game asset, the head of a giant mythical Amazon water serpent (Boiuna), only the head and a short piece of neck, mouth half open showing two long fangs, glowing yellow-green eyes, smooth dark blue and turquoise scales with lighter cyan belly, small fin-like crest on top of the head made of water, drops of water on the scales, stylized hand-painted World of Warcraft style, chunky proportions, side view facing right, full object visible, isolated on plain white background, no body, no text
+```
+
+### 8. Escamas do corpo (só Gemini, imagem) — `arte/vfx/escamas_boiuna.png`
+```
+Seamless tileable texture, top view of serpent skin made of water: rows of overlapping rounded scales in deep blue and turquoise, lighter cyan edges on each scale, subtle wet highlights, stylized hand-painted World of Warcraft style, flat even lighting, square image, no shadows, no perspective, no text
+```
+
+## Borda das salas com cara de masmorra (Gemini → Tripo)
+Entram sozinhas na borda das clareiras quando o arquivo existe (o jogo sorteia trechos de mata,
+pedras, tronco, ruína, raízes e paredão).
+
+### 9. Muro em ruína — `arte/bruto/ambiente/muro_ruina.glb`
+```
+Game asset, a single short section of ancient ruined stone wall from a lost Amazonian civilization, about three times wider than tall, big carved stone blocks with worn geometric indigenous patterns, some blocks missing and broken on top, thick green moss and hanging vines on it, stylized hand-painted World of Warcraft style, chunky proportions, three-quarter top view, full object visible, isolated on plain white background, no text
+```
+
+### 10. Pilar em ruína — `arte/bruto/ambiente/pilar_ruina.glb`
+```
+Game asset, a single broken ancient stone pillar from a lost Amazonian temple, square column with carved geometric indigenous patterns, top broken off, moss and small roots climbing it, a few fallen stone chunks at the base, stylized hand-painted World of Warcraft style, chunky proportions, three-quarter top view, full object visible, isolated on plain white background, no text
+```
+
+### 11. Totem de pedra — `arte/bruto/ambiente/totem_pedra.glb`
+```
+Game asset, a single ancient carved stone totem of an Amazonian jaguar spirit face, tall and narrow, weathered grey-green stone, glowing faint turquoise runes in the carved eyes, moss on top, stylized hand-painted World of Warcraft style, chunky proportions, three-quarter view, full object visible, isolated on plain white background, no text
+```
+
+### 12. Raiz gigante — `arte/bruto/ambiente/raiz_gigante.glb`
+```
+Game asset, a single giant twisted tree root arching out of the ground and back in, like a low natural wall, thick dark brown bark with moss and a few small mushrooms and ferns growing on it, stylized hand-painted World of Warcraft style, chunky proportions, three-quarter top view, full object visible, isolated on plain white background, no tree, no text
+```
+
+### 13. Paredão de pedra — `arte/bruto/ambiente/rocha_paredao.glb`
+```
+Game asset, a single low rocky ridge, a wide cluster of large mossy grey boulders fused together forming a natural barrier, wider than tall, ferns and small plants in the cracks, stylized hand-painted World of Warcraft style, chunky proportions, three-quarter top view, full object visible, isolated on plain white background, no text
+```

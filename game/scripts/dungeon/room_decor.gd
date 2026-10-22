@@ -15,6 +15,9 @@ const SIZE := {
 	"arvore_borda": ["h", 6.0], "palmeira": ["h", 5.5], "sumauma": ["w", 2.6], "moita": ["w", 1.7],
 	"samambaia": ["w", 0.85], "bromelia": ["w", 0.6], "cogumelos": ["h", 0.4],
 	"pedra_musgo": ["w", 1.4], "tronco_caido": ["w", 2.6],
+	# borda com cara de masmorra (modelos do Tripo; enquanto não existem, a borda usa as outras)
+	"muro_ruina": ["w", 3.0], "pilar_ruina": ["h", 2.6], "totem_pedra": ["h", 2.3],
+	"raiz_gigante": ["w", 3.2], "rocha_paredao": ["w", 3.0],
 	"bau": ["w", 1.6], "fonte": ["w", 2.6], "portal": ["w", 3.2],
 }
 
@@ -179,19 +182,66 @@ static func populate(room: DungeonRoom, rng: RandomNumberGenerator, door_dirs: A
 	var ferns_edge: Array[Transform3D] = []
 	# Borda da clareira: moitas em cima do contorno (escondem a colisão), samambaias na beirada de
 	# dentro e, por trás, árvores e palmeiras espaçadas, só onde a copa não tampa a luta.
+	# A borda varia em trechos: mata fechada, pedras, tronco caído, ruína (muro, pilar, totem) e
+	# raízes gigantes. Do lado de baixo da tela (perto da câmera) só peças baixas, para não tapar a luta.
+	var extra := {}
 	for line in room.border_lines:
+		var style := ""
+		var left := 0
 		for i in line.size():
 			var p: Vector3 = line[i]
 			var outward := Vector3(p.x, 0, p.z).normalized()
 			var south := p.z > half * 0.6
-			var bush := p + outward * rng.randf_range(0.2, 0.5)
-			if not _wet(origin + bush, 0.0):
-				bushes.append(_xf(rng, bush, rng.randf_range(0.55, 0.75) if south else rng.randf_range(0.9, 1.35)))
+			if left <= 0:
+				style = _border_style(rng, south)
+				left = rng.randi_range(3, 6)
+			left -= 1
+			var tangent: Vector3 = (line[mini(i + 1, line.size() - 1)] - line[maxi(i - 1, 0)])
+			tangent.y = 0.0
+			var yaw := atan2(tangent.x, tangent.z) if tangent.length() > 0.01 else rng.randf() * TAU
+			if _wet(origin + p, 0.0):
+				continue
+			match style:
+				"pedras":
+					_add(extra, "pedra_musgo", _xf(rng, p + outward * rng.randf_range(0.3, 0.8), rng.randf_range(0.55, 0.85) if south else rng.randf_range(0.8, 1.35)))
+					if rng.randf() < 0.5:
+						_add(extra, "pedra_musgo", _xf(rng, p + outward * rng.randf_range(0.9, 1.6) + tangent.normalized() * 0.5, rng.randf_range(0.4, 0.7)))
+					if rng.randf() < 0.4:
+						bushes.append(_xf(rng, p + outward * 1.4, rng.randf_range(0.6, 0.9)))
+				"tronco":
+					if i % 2 == 0:
+						var xf := Transform3D(Basis(Vector3.UP, yaw + PI * 0.5 + rng.randf_range(-0.2, 0.2)).scaled(Vector3.ONE * rng.randf_range(0.8, 1.1)), p + outward * 0.6)
+						_add(extra, "tronco_caido", xf)
+					if not south and rng.randf() < 0.6:
+						bushes.append(_xf(rng, p + outward * 1.5, rng.randf_range(0.8, 1.1)))
+				"ruina":
+					if i % 2 == 0:
+						var xf := Transform3D(Basis(Vector3.UP, yaw + PI * 0.5).scaled(Vector3.ONE * rng.randf_range(0.9, 1.1)), p + outward * 0.5)
+						_add(extra, "muro_ruina", xf)
+					elif rng.randf() < 0.5:
+						_add(extra, "pilar_ruina" if rng.randf() < 0.65 or not ResourceLoader.exists(ART % "totem_pedra") else "totem_pedra", _xf(rng, p + outward * 0.7, rng.randf_range(0.85, 1.15)))
+					if rng.randf() < 0.5:
+						ferns_edge.append(_xf(rng, p - outward * 0.3, rng.randf_range(0.8, 1.2)))
+				"raizes":
+					if i % 3 == 0:
+						var xf := Transform3D(Basis(Vector3.UP, yaw + rng.randf_range(-0.3, 0.3)).scaled(Vector3.ONE * rng.randf_range(0.85, 1.15)), p + outward * 0.8)
+						_add(extra, "raiz_gigante", xf)
+					bushes.append(_xf(rng, p + outward * 1.8, rng.randf_range(0.7, 1.0)))
+				"paredao":
+					if i % 2 == 0:
+						_add(extra, "rocha_paredao", Transform3D(Basis(Vector3.UP, yaw + PI * 0.5 + rng.randf_range(-0.25, 0.25)).scaled(Vector3.ONE * rng.randf_range(0.85, 1.2)), p + outward * 0.9))
+				_:
+					var bush := p + outward * rng.randf_range(0.2, 0.5)
+					bushes.append(_xf(rng, bush, rng.randf_range(0.55, 0.75) if south else rng.randf_range(0.9, 1.35)))
 			if rng.randf() < 0.5:
 				ferns_edge.append(_xf(rng, p - outward * rng.randf_range(0.5, 0.9), rng.randf_range(0.8, 1.3)))
 			if rng.randf() < 0.55:
 				var tree_pos := p + outward * rng.randf_range(2.0, 4.5)
 				_plant_tall(rng, origin + tree_pos, origin, trees, palms)
+	for kind in extra:
+		var list: Array[Transform3D] = []
+		list.assign(extra[kind])
+		_multimesh(room, kind, list, false)
 	_multimesh(room, "moita", bushes, false)
 	_multimesh(room, "arvore_borda", trees, false)
 	_multimesh(room, "palmeira", palms, false)
@@ -239,6 +289,33 @@ static func populate(room: DungeonRoom, rng: RandomNumberGenerator, door_dirs: A
 		var list: Array[Transform3D] = []
 		list.assign(small[kind])
 		_multimesh(room, kind, list, false)
+
+
+## Estilo de um trecho da borda (só os que têm modelo; o sul, perto da câmera, só os baixos).
+static func _border_style(rng: RandomNumberGenerator, south: bool) -> String:
+	var options := [["mata", 3.0], ["pedras", 2.0], ["tronco", 1.5]]
+	if not south:
+		if ResourceLoader.exists(ART % "muro_ruina") and ResourceLoader.exists(ART % "pilar_ruina"):
+			options.append(["ruina", 2.5])
+		if ResourceLoader.exists(ART % "raiz_gigante"):
+			options.append(["raizes", 1.5])
+		if ResourceLoader.exists(ART % "rocha_paredao"):
+			options.append(["paredao", 1.5])
+	var total := 0.0
+	for o in options:
+		total += float(o[1])
+	var roll := rng.randf() * total
+	for o in options:
+		roll -= float(o[1])
+		if roll <= 0.0:
+			return o[0]
+	return "mata"
+
+
+static func _add(bucket: Dictionary, kind: String, xf: Transform3D) -> void:
+	if not bucket.has(kind):
+		bucket[kind] = []
+	bucket[kind].append(xf)
 
 
 ## Ponto livre perto da parede: fora do meio, longe das portas e com folga das peças já postas.
@@ -324,6 +401,7 @@ static func trail(parent: Node3D, left: PackedVector3Array, right: PackedVector3
 	var ferns: Array[Transform3D] = []
 	var trees: Array[Transform3D] = []
 	var palms: Array[Transform3D] = []
+	var rocks: Array[Transform3D] = []
 	for pair in [[left, -1.0], [right, 1.0]]:
 		var line: PackedVector3Array = pair[0]
 		var out: Vector3 = side * float(pair[1])
@@ -332,12 +410,16 @@ static func trail(parent: Node3D, left: PackedVector3Array, right: PackedVector3
 			var south := out.z > 0.5
 			if _wet(p, 0.4):
 				continue  # onde a trilha cruza o igarapé: a pinguela, sem moita em cima
-			bushes.append(_xf(rng, p + out * rng.randf_range(0.4, 0.7), rng.randf_range(0.55, 0.75) if south else rng.randf_range(0.9, 1.3)))
+			if rng.randf() < 0.22:
+				rocks.append(_xf(rng, p + out * rng.randf_range(0.4, 0.8), rng.randf_range(0.5, 0.9)))
+			else:
+				bushes.append(_xf(rng, p + out * rng.randf_range(0.4, 0.7), rng.randf_range(0.55, 0.75) if south else rng.randf_range(0.9, 1.3)))
 			if rng.randf() < 0.6:
 				ferns.append(_xf(rng, p - out * 0.35, rng.randf_range(0.7, 1.1)))
 			if rng.randf() < 0.5:
 				_plant_tall(rng, p + out * rng.randf_range(2.2, 4.5), Vector3.ZERO, trees, palms)
 	_multimesh(parent, "moita", bushes, false)
+	_multimesh(parent, "pedra_musgo", rocks, false)
 	_multimesh(parent, "samambaia", ferns, false)
 	_multimesh(parent, "arvore_borda", trees, false)
 	_multimesh(parent, "palmeira", palms, false)

@@ -46,14 +46,28 @@ void fragment() {
 	ALBEDO = mix(base, base * 0.6, stripe * 0.5);
 	ROUGHNESS = 0.9;
 	// a ponta acende de leve (magia da mata)
-	EMISSION = vec3(0.3, 0.9, 0.35) * smoothstep(0.8, 1.0, v_s) * 0.6;
+	EMISSION = vec3(0.3, 0.9, 0.35) * smoothstep(0.7, 1.0, v_s) * 1.2;
 }
 """
 static var _vine_shader: Shader
 static var _vine_mesh: ArrayMesh
-const VINES := 7
+const VINES := 10
 var _vines: Array[Node3D] = []
 var _vine_mat: ShaderMaterial
+var _coils: Array[MeshInstance3D] = []
+var _leaves: Array[MeshInstance3D] = []
+static var _coil_mat: StandardMaterial3D
+
+
+static func _coil_material() -> StandardMaterial3D:
+	if _coil_mat == null:
+		_coil_mat = StandardMaterial3D.new()
+		_coil_mat.albedo_color = Color(0.28, 0.45, 0.14)
+		_coil_mat.emission_enabled = true
+		_coil_mat.emission = Color(0.35, 0.9, 0.3)
+		_coil_mat.emission_energy_multiplier = 0.35
+		_coil_mat.roughness = 0.9
+	return _coil_mat
 
 
 func _ready() -> void:
@@ -66,7 +80,7 @@ func _ready() -> void:
 	_ring.mesh = quad
 	_ring.position.y = 0.05
 	_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_ring.material_override = Vfx.sprite_material("cipo_armadilha", Color(1.0, 1.0, 1.0, 0.85), false, false)
+	_ring.material_override = Vfx.sprite_material("cipo_armadilha", Color(1.15, 1.25, 1.1, 1.0), false, false)
 	add_child(_ring)
 	# cipós de verdade: tubos que brotam do chão em volta do laço, inclinados para fora,
 	# balançando, com a ponta acesa
@@ -89,13 +103,43 @@ func _ready() -> void:
 		vine.material_override = _vine_mat
 		vine.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		holder.add_child(vine)
+		# folhas no cipó, abertas para cima: de cima (câmera) é o que mais aparece
+		for k in 2:
+			var leaf := MeshInstance3D.new()
+			var lq := QuadMesh.new()
+			lq.size = Vector2(0.42, 0.42)
+			leaf.mesh = lq
+			leaf.material_override = _leaf_material()
+			leaf.position = Vector3(0.0, 0.45 + k * 0.4, -0.06 - k * 0.08)
+			leaf.rotation = Vector3(deg_to_rad(-70.0), randf() * TAU, 0.0)
+			leaf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			leaf.scale = Vector3.ONE * 0.01
+			vine.add_child(leaf)
+			_leaves.append(leaf)
 		add_child(holder)
 		_vines.append(holder)
 	var grow := create_tween()
 	grow.tween_method(func(v: float) -> void: _vine_mat.set_shader_parameter("grow", v), 0.0, 1.0, 0.35) \
 			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	for leaf in _leaves:
+		grow.parallel().tween_property(leaf, "scale", Vector3.ONE, 0.25).set_delay(0.15).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	if is_inside_tree():
 		FxKit.ground_wave(get_parent(), global_position, RADIUS * 1.3, Color(0.45, 0.85, 0.3), 0.3)
+
+
+static var _leaf_mat: StandardMaterial3D
+
+
+static func _leaf_material() -> StandardMaterial3D:
+	if _leaf_mat == null:
+		_leaf_mat = StandardMaterial3D.new()
+		_leaf_mat.albedo_texture = Vfx.tex("folha")
+		_leaf_mat.albedo_color = Color(0.75, 1.0, 0.6)
+		_leaf_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+		_leaf_mat.alpha_scissor_threshold = 0.4
+		_leaf_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_leaf_mat.roughness = 0.9
+	return _leaf_mat
 
 
 ## Um cipó: tubo afinando, com uma curva suave, raiz em (0,0,0) e ponta para cima (~0,9 m).
@@ -106,8 +150,8 @@ static func _make_vine() -> ArrayMesh:
 	var sides := 6
 	for i in steps + 1:
 		var s := float(i) / steps
-		var center := Vector3(0, s * 0.95, -sin(s * 1.6) * 0.18)
-		var r := lerpf(0.075, 0.012, s)
+		var center := Vector3(0, s * 1.35, -sin(s * 1.6) * 0.3)
+		var r := lerpf(0.12, 0.018, s)
 		for j in sides + 1:
 			var a := TAU * j / sides
 			var n := Vector3(cos(a), 0, sin(a))
@@ -172,6 +216,23 @@ func _snap(enemy: Node3D) -> void:
 	t.tween_method(func(c: float) -> void: _vine_mat.set_shader_parameter("curl", c), 0.0, 1.4, 0.2)
 	t.tween_method(func(c: float) -> void: _vine_mat.set_shader_parameter("sway", c), 1.0, 0.25, 0.2)
 	t.tween_property(_ring, "scale", Vector3(0.55, 0.8, 0.55), 0.15)
+	# laços de cipó apertando o corpo do bicho (de cima lê como "amarrado")
+	for k in 2:
+		var coil := MeshInstance3D.new()
+		var tm := TorusMesh.new()
+		tm.inner_radius = 0.42 * size
+		tm.outer_radius = 0.58 * size
+		tm.rings = 20
+		tm.ring_segments = 8
+		coil.mesh = tm
+		coil.material_override = _coil_material()
+		coil.position = Vector3(0, (0.35 + k * 0.45) * size, 0)
+		coil.rotation = Vector3(randf_range(-0.25, 0.25), 0, randf_range(-0.25, 0.25))
+		coil.scale = Vector3.ONE * 1.8
+		coil.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(coil)
+		t.tween_property(coil, "scale", Vector3.ONE, 0.18).set_delay(0.05 * k).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		_coils.append(coil)
 	t.chain().tween_interval(hold_time)
 	if timbo_radius > 0.0:
 		t.chain().tween_callback(_explode_timbo)
@@ -196,4 +257,6 @@ func _vanish() -> void:
 	var t := create_tween().set_parallel()
 	t.tween_method(func(v: float) -> void: _vine_mat.set_shader_parameter("grow", v), 1.0, 0.0, 0.3)
 	t.tween_property(_ring, "scale", Vector3(0.01, 1.0, 0.01), 0.3)
+	for c in _coils + _leaves:
+		t.tween_property(c, "scale", Vector3.ONE * 0.01, 0.25)
 	t.chain().tween_callback(queue_free)

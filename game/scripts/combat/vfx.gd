@@ -6,10 +6,10 @@ extends RefCounted
 const TEX_PATH := "res://game/art/vfx/%s.png"
 const DOME_SHADER := """
 shader_type spatial;
-render_mode unshaded, blend_add, cull_disabled, depth_draw_never;
+render_mode unshaded, blend_mix, cull_disabled, depth_draw_never;
 uniform sampler2D hex_tex : source_color, repeat_enable, filter_linear_mipmap;
-uniform vec4 tint : source_color = vec4(0.95, 0.78, 0.38, 1.0);
-uniform vec4 rim_color : source_color = vec4(0.45, 1.0, 0.6, 1.0);
+uniform vec4 tint : source_color = vec4(1.0, 0.8, 0.38, 1.0);
+uniform vec4 rim_color : source_color = vec4(1.0, 0.88, 0.55, 1.0);
 uniform float hit = 0.0;
 uniform float fade = 1.0;
 uniform float appear = 1.0;     // 0 → 1: a cúpula sobe do chão até o topo
@@ -40,9 +40,12 @@ void fragment() {
 	float rim = pow(1.0 - abs(dot(NORMAL, VIEW)), 2.2);
 	// faixa de energia que sobe pela cúpula sem parar
 	float band = smoothstep(0.06, 0.0, abs(fract(v_h * 1.2 - TIME * 0.7) - 0.5) - 0.42);
-	vec3 col = tint.rgb * plates * (0.45 + hit * 1.6) + rim_color.rgb * rim * (0.8 + hit);
-	col += rim_color.rgb * band * 0.35 + vec3(1.0, 0.95, 0.7) * (front * 1.6 + crack * 2.0);
-	ALBEDO = col * fade;
+	// casco: placas âmbar quase transparentes, emendas douradas, borda clara; pisca branco no golpe
+	vec3 shell = mix(vec3(0.45, 0.28, 0.08), tint.rgb, plates);
+	vec3 col = mix(shell, rim_color.rgb, rim * 0.8);
+	col = mix(col, vec3(1.0, 0.97, 0.85), clamp(band * 0.4 + front + crack + hit * 0.6, 0.0, 1.0));
+	ALBEDO = col;
+	ALPHA = clamp(0.06 + plates * 0.3 + rim * 0.55 + band * 0.25 + front + crack + hit * 0.4, 0.0, 1.0) * fade;
 }
 """
 
@@ -268,7 +271,7 @@ static func shell_dome(owner: Node3D, radius: float, seconds: float) -> MeshInst
 	var rise := mesh.create_tween()
 	rise.tween_method(func(v: float) -> void: m.set_shader_parameter("appear", v), 0.0, 1.0, 0.4) \
 			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	var sparks := particles(mesh, Vector3(0, 0.1, 0), "faisca", 18, 1.4, Color("8dffb0"), 0.35, Vector2(0.6, 1.4), 25.0, 0.4, true, false, radius * 0.9)
+	var sparks := particles(mesh, Vector3(0, 0.1, 0), "faisca", 18, 1.4, Color("ffd98a"), 0.35, Vector2(0.6, 1.4), 25.0, 0.4, true, false, radius * 0.9)
 	var grow := mesh.create_tween()
 	grow.tween_property(mesh, "scale", Vector3.ONE, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	var life := mesh.create_tween()
@@ -279,7 +282,7 @@ static func shell_dome(owner: Node3D, radius: float, seconds: float) -> MeshInst
 		sparks.emitting = false
 		var at := mesh.global_position
 		particles(owner.get_parent(), at + Vector3(0, radius * 0.5, 0), "faisca", 26, 0.7, Color("e8c26a"), 0.55, Vector2(3.0, 6.0), 120.0, -9.0)
-		particles(owner.get_parent(), at + Vector3(0, radius * 0.4, 0), "faisca", 14, 0.9, Color("8dffb0"), 0.4, Vector2(1.5, 3.5), 180.0, -4.0)
+		particles(owner.get_parent(), at + Vector3(0, radius * 0.4, 0), "faisca", 14, 0.9, Color("fff1c2"), 0.4, Vector2(1.5, 3.5), 180.0, -4.0)
 		var end := mesh.create_tween()
 		end.tween_method(func(v: float) -> void: m.set_shader_parameter("shatter", v), 0.0, 1.05, 0.4)
 		end.tween_callback(mesh.queue_free))
