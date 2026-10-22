@@ -91,3 +91,50 @@ Game asset, a single giant twisted tree root arching out of the ground and back 
 ```
 Game asset, a single low rocky ridge, a wide cluster of large mossy grey boulders fused together forming a natural barrier, wider than tall, ferns and small plants in the cracks, stylized hand-painted World of Warcraft style, chunky proportions, three-quarter top view, full object visible, isolated on plain white background, no text
 ```
+
+---
+
+# Lote 3: mais peças de borda da Terra Firme
+Mesmo caminho (imagem → Tripo, sem retopologia, GLB). Salvar em `arte/bruto/ambiente/` com o nome
+indicado. O jogo sorteia essas peças nos trechos da borda das salas; as marcadas como **baixa**
+podem aparecer também no lado de baixo da tela (perto da câmera).
+
+### 14. Itacoatiara (pedra com gravuras rupestres) — `itacoatiara.glb` (baixa)
+```
+Game asset, a single large flat river boulder covered with ancient Amazonian rock engravings (petroglyphs: spirals, faces and animal figures carved into the stone), dark grey wet stone with patches of moss and lichen, stylized hand-painted World of Warcraft style, chunky proportions, three-quarter top view, full object visible, isolated on plain white background, no text
+```
+
+### 15. Cupinzeiro — `cupinzeiro.glb`
+```
+Game asset, a single tall termite mound from the Amazon rainforest, reddish-brown clay with lumpy organic shape and small holes, a few roots and leaves around the base, stylized hand-painted World of Warcraft style, chunky proportions, three-quarter view, full object visible, isolated on plain white background, no text
+```
+
+### 16. Toco oco — `toco_oco.glb` (baixa)
+```
+Game asset, a single short hollow rotten tree stump, thick bark, dark hollow inside, orange shelf mushrooms and green moss growing on it, small ferns at the base, stylized hand-painted World of Warcraft style, chunky proportions, three-quarter top view, full object visible, isolated on plain white background, no text
+```
+
+### 17. Sapopema (raízes tabulares) — `sapopema.glb`
+```
+Game asset, the base of a giant Amazon kapok tree with huge flat buttress roots (sapopemas) spreading out like thin curved wooden walls, cut off just above the roots, rough grey-brown bark with moss and vines, stylized hand-painted World of Warcraft style, chunky proportions, three-quarter top view, full object visible, isolated on plain white background, no text
+```
+
+### 18. Touceira de taboca (bambu da Amazônia) — `taboca.glb`
+```
+Game asset, a single dense clump of wild Amazon bamboo (taboca), many green and yellow-green stalks of different heights leaning outward, thin leaves at the tops, dry leaves at the base, stylized hand-painted World of Warcraft style, chunky proportions, three-quarter view, full object visible, isolated on plain white background, no text
+```
+
+### 19. Palmeira caída com açaí — `palmeira_caida.glb` (baixa)
+```
+Game asset, a single fallen thin palm tree trunk lying on the ground, the crown of palm leaves still attached at one end, a cluster of dark purple açaí berries hanging from it, moss on the trunk, stylized hand-painted World of Warcraft style, chunky proportions, three-quarter top view, full object visible, isolated on plain white background, no text
+```
+
+### 20. Árvore tombada com raiz virada — `arvore_tombada.glb`
+```
+Game asset, a single big fallen jungle tree, the round root plate torn out of the ground standing upright with dirt and stones caught in the roots, the trunk lying on the ground, moss and small plants growing on it, stylized hand-painted World of Warcraft style, chunky proportions, three-quarter top view, full object visible, isolated on plain white background, no text
+```
+
+### 21. Sauveiro (formigueiro de saúva) — `saueiro.glb` (baixa)
+```
+Game asset, a single low wide mound of a leafcutter ant nest, bare reddish soil with several entrance holes, small cut green leaf pieces scattered around, stylized hand-painted World of Warcraft style, chunky proportions, three-quarter top view, full object visible, isolated on plain white background, no text
+```

@@ -18,6 +18,10 @@ const SIZE := {
 	# borda com cara de masmorra (modelos do Tripo; enquanto não existem, a borda usa as outras)
 	"muro_ruina": ["w", 3.0], "pilar_ruina": ["h", 2.6], "totem_pedra": ["h", 2.3],
 	"raiz_gigante": ["w", 3.2], "rocha_paredao": ["w", 3.0],
+	# mais peças de borda da Terra Firme (lote 3)
+	"itacoatiara": ["w", 2.0], "cupinzeiro": ["h", 1.6], "toco_oco": ["w", 1.5],
+	"sapopema": ["w", 3.0], "taboca": ["h", 3.2], "palmeira_caida": ["w", 3.4],
+	"arvore_tombada": ["w", 4.0], "saueiro": ["w", 1.8],
 	"bau": ["w", 1.6], "fonte": ["w", 2.6], "portal": ["w", 3.2],
 }
 
@@ -227,6 +231,13 @@ static func populate(room: DungeonRoom, rng: RandomNumberGenerator, door_dirs: A
 						var xf := Transform3D(Basis(Vector3.UP, yaw + rng.randf_range(-0.3, 0.3)).scaled(Vector3.ONE * rng.randf_range(0.85, 1.15)), p + outward * 0.8)
 						_add(extra, "raiz_gigante", xf)
 					bushes.append(_xf(rng, p + outward * 1.8, rng.randf_range(0.7, 1.0)))
+				"pecas":
+					if i % 2 == 0:
+						var kinds := _loose_pieces(south)
+						var kind: String = kinds[rng.randi() % kinds.size()]
+						_add(extra, kind, Transform3D(Basis(Vector3.UP, yaw + PI * 0.5 + rng.randf_range(-0.5, 0.5)).scaled(Vector3.ONE * rng.randf_range(0.85, 1.15)), p + outward * rng.randf_range(0.5, 1.0)))
+					else:
+						bushes.append(_xf(rng, p + outward * rng.randf_range(0.3, 0.6), rng.randf_range(0.55, 0.8) if south else rng.randf_range(0.8, 1.1)))
 				"paredao":
 					if i % 2 == 0:
 						_add(extra, "rocha_paredao", Transform3D(Basis(Vector3.UP, yaw + PI * 0.5 + rng.randf_range(-0.25, 0.25)).scaled(Vector3.ONE * rng.randf_range(0.85, 1.2)), p + outward * 0.9))
@@ -293,9 +304,24 @@ static func populate(room: DungeonRoom, rng: RandomNumberGenerator, door_dirs: A
 		_multimesh(room, kind, list, false)
 
 
+## Peças soltas de borda (lote 3): [tipo, baixa?]. Baixas podem ir no lado de baixo da tela.
+const LOOSE_PIECES := [["itacoatiara", true], ["cupinzeiro", false], ["toco_oco", true], ["sapopema", false],
+		["taboca", false], ["palmeira_caida", true], ["arvore_tombada", false], ["saueiro", true]]
+
+
+static func _loose_pieces(south: bool) -> Array:
+	var out := []
+	for p in LOOSE_PIECES:
+		if (p[1] or not south) and ResourceLoader.exists(ART % p[0]):
+			out.append(p[0])
+	return out
+
+
 ## Estilo de um trecho da borda (só os que têm modelo; o sul, perto da câmera, só os baixos).
 static func _border_style(rng: RandomNumberGenerator, south: bool) -> String:
 	var options := [["mata", 3.0], ["pedras", 2.0], ["tronco", 1.5]]
+	if not _loose_pieces(south).is_empty():
+		options.append(["pecas", 3.0])
 	if not south:
 		if ResourceLoader.exists(ART % "muro_ruina") and ResourceLoader.exists(ART % "pilar_ruina"):
 			options.append(["ruina", 2.5])
