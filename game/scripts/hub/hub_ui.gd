@@ -117,7 +117,26 @@ func _refresh_open_panel() -> void:
 
 
 func _fill_portal() -> void:
+	# o portal ficou comprido (multijogador no fim): conteúdo dentro de uma rolagem
+	var outer_body := _modal_body
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	outer_body.add_child(scroll)
+	var inner := VBoxContainer.new()
+	inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inner.add_theme_constant_override("separation", 10)
+	scroll.add_child(inner)
+	_modal_body = inner
+	_fill_portal_content()
+	_modal_body = outer_body
+
+
+func _fill_portal_content() -> void:
 	_modal_title.text = "Portal da Masmorra"
+	if Net.active:
+		# já numa partida em grupo: o saguão vem primeiro (sem precisar rolar)
+		_fill_multiplayer()
 	var hero := _player.hero
 	if _difficulty < 0:
 		_difficulty = GameState.selected_difficulty
@@ -191,7 +210,7 @@ func _fill_portal() -> void:
 			GameState.run_full_rewards = _use_energy and GameState.spend_energy()
 			enter_dungeon_requested.emit())
 		_modal_body.add_child(enter)
-	_fill_multiplayer()
+		_fill_multiplayer()
 
 
 func _on_net_lobby() -> void:

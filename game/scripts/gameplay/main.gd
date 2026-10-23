@@ -325,6 +325,10 @@ func _next_floor() -> void:
 	_player.velocity = Vector3.ZERO
 	_player.reset_physics_interpolation()
 	_camera.snap()
+	if Net.active and _player.health.is_dead and not _run_over:
+		# no grupo, quem caiu volta de pé no andar novo (com metade da vida)
+		_player.revive(_player.global_position)
+		_player.health.set_current(_player.health.max_health / 2, _player.health.max_health)
 	_player.start_floor()
 	_plan_rig_pool()
 	_show_loading()

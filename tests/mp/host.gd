@@ -35,7 +35,8 @@ func _run() -> void:
 	await _wait(4.0)
 	var m = current_scene
 	check(m.name == "Main", "anfitrião na masmorra")
-	m._player.health.set_current(99999, 99999)
+	# o anfitrião não pode cair no teste (senão, com o convidado caído, a run acaba)
+	process_frame.connect(func(): if is_instance_valid(m) and not m._player.health.is_dead: m._player.health.health = m._player.health.max_health)
 	var clones := [0]
 	node_added.connect(func(n): if n.get_script() and n.get_script().get_global_name() == &"WaterClone": clones[0] += 1)
 	check(m._replicas.size() == 1, "cópia do herói do convidado criada")
