@@ -107,6 +107,30 @@ func _process(_delta: float) -> void:
 	_player.touch_move = _hud.move_vector()
 	_player.touch_attack = _hud.attack_held()
 	_update_loading()
+	# reserva de modelos: na tela de carregamento enche rápido; jogando, um por quadro só
+	# quando não tem luta (sem bicho vivo e sem onda chegando)
+	if _loading and _loading.visible:
+		RigPool.top_up(6)
+	elif _alive <= 0 and (_current_room == null or not _current_room.wave_pending):
+		RigPool.top_up(1)
+
+
+## Quais modelos de bicho deixar prontos neste andar (os que podem aparecer, ~1 onda de cada).
+func _plan_rig_pool() -> void:
+	var targets := {}
+	for e in ENEMY_POOL:
+		if floor_number >= e.from_floor:
+			var data := ItemDB.get_enemy(e.id)
+			if data == null:
+				continue
+			var path := Enemy.RIG_PATH % (data.model_id if data.model_id != &"" else data.id)
+			if ResourceLoader.exists(path):
+				targets[path] = clampi(data.group_max * 2, 3, 8)
+	RigPool.set_targets(targets)
+
+
+func _exit_tree() -> void:
+	RigPool.clear()
 
 
 # ---------- tela de carregamento ----------
@@ -149,7 +173,7 @@ func _update_loading() -> void:
 	if _loading == null or not _loading.visible:
 		return
 	_loading_frames += 1
-	var warming := is_instance_valid(_warmup) and not _warmup.done()
+	var warming := (is_instance_valid(_warmup) and not _warmup.done()) or RigPool.missing() > 0
 	if _loading_frames == 3 and not warming:
 		var t := create_tween()
 		t.tween_property(_loading_fade, "modulate:a", 0.0, 0.35)
@@ -261,6 +285,7 @@ func _next_floor() -> void:
 	_player.reset_physics_interpolation()
 	_camera.snap()
 	_player.start_floor()
+	_plan_rig_pool()
 	_show_loading()
 	_hud.minimap.show_layout(layout)
 	_hud.set_wave("Andar %d/%d · %s%s" % [floor_number, FLOORS, Difficulty.name_of(difficulty),

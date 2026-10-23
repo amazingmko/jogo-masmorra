@@ -132,6 +132,9 @@ var _material: StandardMaterial3D
 var _model: MeshInstance3D
 ## Bicho com esqueleto e animações do Mixamo (game/art/inimigos/animados/<id>.glb).
 var _anim: AnimationPlayer
+var _skel: Skeleton3D
+var _anim_acc := -1.0       # >= 0: animação manual (a 30 por segundo)
+const ANIM_HZ := 30.0
 var _rig_mats: Array[StandardMaterial3D] = []
 var _rig_action := ""        # animação de ação tocando (ataque, dano, morte); "" = andando/parado
 var _rig_action_left := 0.0
@@ -212,6 +215,17 @@ func _ready() -> void:
 	_dodge_cd = _rng.randf_range(0.5, 2.0)
 	_combo_left = _new_combo()
 	_awake = data.ambush_range <= 0.0
+
+
+func _process(delta: float) -> void:
+	if _anim_acc < 0.0 or _anim == null:
+		return
+	_anim_acc += delta
+	if _anim_acc >= 1.0 / ANIM_HZ:
+		_anim.advance(_anim_acc)
+		if _skel:
+			_skel.advance(_anim_acc)
+		_anim_acc = 0.0
 
 
 func _physics_process(delta: float) -> void:
@@ -1683,7 +1697,7 @@ func _build_rig() -> bool:
 	var path: String = RIG_PATH % _model_id()
 	if _rig_info().is_empty() or not ResourceLoader.exists(path):
 		return false
-	var scene: Node3D = load(path).instantiate()
+	var scene: Node3D = RigPool.take(path)
 	var players := scene.find_children("*", "AnimationPlayer", true, false)
 	var meshes := scene.find_children("*", "MeshInstance3D", true, false)
 	var procedural: bool = _rig_info().get("modo", "") in ["artropode", "serpente", "felino"]
@@ -1736,6 +1750,14 @@ func _build_rig() -> bool:
 	var inner := 1.0
 	_anim = players[0]
 	var skels := scene.find_children("*", "Skeleton3D", true, false)
+	# Bichos comuns animam a 30 quadros por segundo (cada um no seu tempo): metade do custo da
+	# animação e da pose por código, sem diferença visível de cima. Chefes ficam a 60.
+	if not data.is_boss:
+		_anim.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
+		if not skels.is_empty():
+			_skel = skels[0]
+			_skel.modifier_callback_mode_process = Skeleton3D.MODIFIER_CALLBACK_MODE_PROCESS_MANUAL
+		_anim_acc = randf() / ANIM_HZ
 	if not skels.is_empty():
 		var modo: String = info.get("modo", "quad" if info.get("ossos", false) else "")
 		match modo:
