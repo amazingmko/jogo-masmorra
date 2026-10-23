@@ -71,6 +71,7 @@ static var _warmed := false
 var _loading: CanvasLayer
 var _loading_fade: ColorRect
 var _loading_label: Label
+var _loading_hiding := false
 var _loading_frames := 0
 var _warmup: Warmup
 var night: NightMode
@@ -174,12 +175,15 @@ func _update_loading() -> void:
 		return
 	_loading_frames += 1
 	var warming := (is_instance_valid(_warmup) and not _warmup.done()) or RigPool.missing() > 0
-	if _loading_frames == 3 and not warming:
+	# some quando já passaram 3 quadros e o aquecimento (efeitos e reserva de modelos) acabou;
+	# antes só sumia exatamente no 3º quadro, e se o aquecimento passasse dele a tela ficava presa
+	if _loading_frames >= 3 and not warming and not _loading_hiding:
+		_loading_hiding = true
 		var t := create_tween()
 		t.tween_property(_loading_fade, "modulate:a", 0.0, 0.35)
-		t.tween_callback(func() -> void: _loading.visible = false)
-	elif _loading_frames > 3 and warming:
-		_loading_frames = 2  # espera o aquecimento acabar
+		t.tween_callback(func() -> void:
+			_loading.visible = false
+			_loading_hiding = false)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -453,6 +457,18 @@ func _elite_chance(wave: int) -> float:
 
 ## Põe uma onda na sala. budget = "vagas": um grupo ocupa vagas conforme a vida somada
 ## (4 formigas valem 1 vaga; 3 queixadas valem 3). spots: pontos já avisados no chão.
+## Os itens do baú saltam um por quadro (todos de uma vez davam uma travadinha no celular).
+func _drop_chest_loot(drops: Array, at: Vector3) -> void:
+	var run := _run_id
+	for drop in drops:
+		await get_tree().process_frame
+		if run != _run_id or _run_over:
+			return
+		var pickup := LootPickup.create(drop.item, drop.qty, drop.instance)
+		add_child(pickup)
+		pickup.global_position = at + Vector3(_rng.randf_range(-1.5, 1.5), 0.4, _rng.randf_range(1.0, 2.0))
+
+
 ## Monta a onda e faz os bichos aparecerem um por quadro (todos no mesmo quadro davam uma
 ## travadinha no celular). Enquanto a fila não acaba, a sala fica "com onda pendente".
 func _spawn_wave(room: DungeonRoom, budget: int, spots: Array) -> void:
@@ -487,6 +503,8 @@ func _spawn_wave(room: DungeonRoom, budget: int, spots: Array) -> void:
 	var run := _run_id
 	for k in queue.size():
 		if k > 0:
+			# um bicho a cada 2 quadros: o custo de cada um não se soma num quadro só
+			await get_tree().process_frame
 			await get_tree().process_frame
 			if run != _run_id or _run_over or not is_instance_valid(room):
 				return
@@ -649,11 +667,8 @@ func _on_prop_activated(prop: RoomProp) -> void:
 	match prop.kind:
 		RoomProp.Kind.CHEST:
 			var table := ItemDB.get_drop_table(StringName(prop.get_meta("table", "bau")))
-			for drop in LootRoller.roll(table, ItemDB.catalog, _rng, _loot_context("chest")):
-				var pickup := LootPickup.create(drop.item, drop.qty, drop.instance)
-				add_child(pickup)
-				pickup.global_position = prop.global_position + Vector3(_rng.randf_range(-1.5, 1.5), 0.4, _rng.randf_range(1.0, 2.0))
 			_hud.show_toast("Baú aberto!", Color("e8c26a"))
+			_drop_chest_loot.call_deferred(LootRoller.roll(table, ItemDB.catalog, _rng, _loot_context("chest")), prop.global_position)
 		RoomProp.Kind.FOUNTAIN:
 			_player.health.heal(_player.health.max_health)
 			_hud.show_toast("A fonte restaurou sua vida.", Color("6fdc7b"))

@@ -73,7 +73,11 @@ func _ready() -> void:
 		gush.emission_box_extents = Vector3(width * 0.4, 0.1, 0.3)
 
 
+var _splashes_this_frame := 0
+
+
 func _physics_process(delta: float) -> void:
+	_splashes_this_frame = 0
 	var step := SPEED * delta
 	global_position += direction * step
 	_traveled += step

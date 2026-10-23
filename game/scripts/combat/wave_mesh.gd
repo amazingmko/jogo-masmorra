@@ -97,7 +97,20 @@ static var _wake_shader: Shader
 
 
 ## Lâmina da onda: largura (eixo X), altura, profundidade (costas para trás, -Z; crista para +Z).
+static var _built := {}
+
+
 static func build(width: float, height: float, depth: float, cols := 28, rows := 14) -> ArrayMesh:
+	# a mesma onda (mesmo tamanho) é montada uma vez só e reaproveitada
+	var key := "%.2f|%.2f|%.2f|%d|%d" % [width, height, depth, cols, rows]
+	if _built.has(key):
+		return _built[key]
+	var mesh := _build(width, height, depth, cols, rows)
+	_built[key] = mesh
+	return mesh
+
+
+static func _build(width: float, height: float, depth: float, cols: int, rows: int) -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	# perfil (y, z) de trás para a frente: curva de Bézier cúbica que sobe e enrola

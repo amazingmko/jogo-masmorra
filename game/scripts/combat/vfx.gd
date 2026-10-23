@@ -62,8 +62,18 @@ static func tex(name: String) -> Texture2D:
 
 # ---------- peças básicas ----------
 
+static var _part_mats := {}
+static var _part_quads := {}
+
+
+## Material das partículas: um por imagem e mistura, reaproveitado (a cor vem da rampa de cada
+## emissor). Criar material e malha novos a cada efeito pesava no celular.
 static func _particle_material(texture_name: String, additive: bool) -> StandardMaterial3D:
+	var key := texture_name + ("+" if additive else "")
+	if _part_mats.has(key):
+		return _part_mats[key]
 	var m := StandardMaterial3D.new()
+	_part_mats[key] = m
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	m.billboard_keep_scale = true
@@ -80,9 +90,13 @@ static func particles(parent: Node, at: Vector3, texture_name: String, amount: i
 		color: Color, size: float, speed: Vector2, spread: float, gravity: float,
 		additive := true, one_shot := true, ring_radius := 0.0) -> CPUParticles3D:
 	var p := CPUParticles3D.new()
-	var quad := QuadMesh.new()
-	quad.size = Vector2.ONE * size
-	quad.material = _particle_material(texture_name, additive)
+	var qkey := "%s%s|%.2f" % [texture_name, "+" if additive else "", size]
+	var quad: QuadMesh = _part_quads.get(qkey)
+	if quad == null:
+		quad = QuadMesh.new()
+		quad.size = Vector2.ONE * size
+		quad.material = _particle_material(texture_name, additive)
+		_part_quads[qkey] = quad
 	p.mesh = quad
 	p.amount = amount
 	p.lifetime = lifetime

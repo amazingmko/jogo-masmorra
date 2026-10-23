@@ -202,7 +202,7 @@ static func populate(room: DungeonRoom, rng: RandomNumberGenerator, door_dirs: A
 			var south := p.z > half * 0.6
 			if left <= 0:
 				style = _border_style(rng, south)
-				left = rng.randi_range(3, 6)
+				left = rng.randi_range(5, 9) if style == "ruina" else rng.randi_range(3, 6)
 			left -= 1
 			var tangent: Vector3 = (line[mini(i + 1, line.size() - 1)] - line[maxi(i - 1, 0)])
 			tangent.y = 0.0
@@ -226,8 +226,8 @@ static func populate(room: DungeonRoom, rng: RandomNumberGenerator, door_dirs: A
 					if i % 2 == 0:
 						var xf := Transform3D(Basis(Vector3.UP, yaw + PI * 0.5).scaled(Vector3.ONE * rng.randf_range(0.9, 1.1)), p + outward * 0.5)
 						_add(extra, "muro_ruina", xf)
-					elif rng.randf() < 0.5:
-						_add(extra, "pilar_ruina" if rng.randf() < 0.65 or not ResourceLoader.exists(ART % "totem_pedra") else "totem_pedra", _xf(rng, p + outward * 0.7, rng.randf_range(0.85, 1.15)))
+					elif rng.randf() < 0.8:
+						_add(extra, "pilar_ruina" if rng.randf() < 0.75 or not ResourceLoader.exists(ART % "totem_pedra") else "totem_pedra", _xf(rng, p + outward * 0.7, rng.randf_range(0.85, 1.15)))
 					if rng.randf() < 0.5:
 						ferns_edge.append(_xf(rng, p - outward * 0.3, rng.randf_range(0.8, 1.2)))
 				"raizes":
@@ -341,11 +341,11 @@ static func _border_style(rng: RandomNumberGenerator, south: bool) -> String:
 		options.append(["pecas", 3.0])
 	if not south:
 		if ResourceLoader.exists(ART % "muro_ruina") and ResourceLoader.exists(ART % "pilar_ruina"):
-			options.append(["ruina", 2.5])
+			options.append(["ruina", 6.0])  # muros e pilares limitam mais a sala (pedido)
 		if ResourceLoader.exists(ART % "raiz_gigante"):
 			options.append(["raizes", 1.5])
 		if ResourceLoader.exists(ART % "rocha_paredao"):
-			options.append(["paredao", 1.5])
+			options.append(["paredao", 2.0])
 	var total := 0.0
 	for o in options:
 		total += float(o[1])
