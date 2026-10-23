@@ -251,10 +251,32 @@ static func populate(room: DungeonRoom, rng: RandomNumberGenerator, door_dirs: A
 				_plant_tall(rng, origin + tree_pos, origin, trees, palms)
 	# nada da borda cai dentro do igarapé (as peças vão um pouco para fora da linha)
 	bushes = bushes.filter(func(x: Transform3D) -> bool: return not _wet(origin + x.origin, 0.0))
+	# nenhuma peça em cima da outra: cada uma ocupa um círculo no chão; a que chega depois e
+	# encosta numa já posta sai. Moitas e árvores em cima de uma peça também saem.
+	var kept: Array = []  # [posição, raio]
 	for kind in extra:
 		var list: Array[Transform3D] = []
-		list.assign((extra[kind] as Array).filter(func(x: Transform3D) -> bool: return not _wet(origin + x.origin, 0.0)))
+		for x: Transform3D in extra[kind]:
+			if _wet(origin + x.origin, 0.0):
+				continue
+			var r := _footprint(kind, x)
+			var free := true
+			for k in kept:
+				if Vector2(x.origin.x - k[0].x, x.origin.z - k[0].z).length() < (r + float(k[1])) * 0.85:
+					free = false
+					break
+			if free:
+				kept.append([x.origin, r])
+				list.append(x)
 		_multimesh(room, kind, list, false)
+	var clear_of := func(x: Transform3D, margin: float) -> bool:
+		for k in kept:
+			if Vector2(x.origin.x - k[0].x, x.origin.z - k[0].z).length() < float(k[1]) * 0.8 + margin:
+				return false
+		return true
+	bushes = bushes.filter(func(x: Transform3D) -> bool: return clear_of.call(x, 0.3))
+	trees = trees.filter(func(x: Transform3D) -> bool: return clear_of.call(x, 0.6))
+	palms = palms.filter(func(x: Transform3D) -> bool: return clear_of.call(x, 0.5))
 	_multimesh(room, "moita", bushes, false)
 	_multimesh(room, "arvore_borda", trees, false)
 	_multimesh(room, "palmeira", palms, false)
@@ -338,6 +360,13 @@ static func _border_style(rng: RandomNumberGenerator, south: bool) -> String:
 		if roll <= 0.0:
 			return o[0]
 	return "mata"
+
+
+## Raio que a peça ocupa no chão (metade do maior lado; peças altas, uma fração da altura).
+static func _footprint(kind: String, xf: Transform3D) -> float:
+	var spec: Array = SIZE.get(kind, ["w", 1.5])
+	var size: float = float(spec[1]) * (0.5 if spec[0] == "w" else 0.3)
+	return size * xf.basis.get_scale().x
 
 
 static func _add(bucket: Dictionary, kind: String, xf: Transform3D) -> void:
