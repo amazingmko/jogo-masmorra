@@ -83,7 +83,7 @@ func _use_skill() -> bool:
 	for enemy in player.get_tree().get_nodes_in_group("enemies"):
 		var d := origin.distance_to(enemy.global_position)
 		if enemy.has_method("provoke") and d <= radius:
-			enemy.provoke(PROVOKE_TIME, _provoke_factor())
+			enemy.provoke(PROVOKE_TIME, _provoke_factor(), player)
 			enemy.provoked_vulnerability = tv("grito_amazonas") / 100.0
 			if t("chao_tremido") > 0:
 				enemy.slow(1.0 - tv("chao_tremido") / 100.0, 3.0)

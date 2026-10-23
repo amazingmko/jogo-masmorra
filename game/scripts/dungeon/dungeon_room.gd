@@ -194,5 +194,5 @@ func _build_trigger() -> void:
 	area.position.y = 1.5
 	add_child(area)
 	area.body_entered.connect(func(body: Node3D) -> void:
-		if body.is_in_group("player"):
+		if body.is_in_group("heroes"):
 			player_entered.emit(self))

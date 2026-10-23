@@ -11,6 +11,8 @@ var effect_power := 0
 var color := Color("e05555")
 var max_distance := 18.0
 var attack_id: StringName = &""
+## Multijogador: cópia do disparo do anfitrião (só o visual, não machuca).
+var net_copy := false
 
 var _traveled := 0.0
 var _spent := false
@@ -78,7 +80,7 @@ func _on_body_entered(body: Node3D) -> void:
 	if _spent:
 		return
 	_spent = true
-	if body.is_in_group("player"):
+	if body.is_in_group("heroes") and not net_copy:
 		body.receive_attack(damage, effect, effect_duration, effect_power, global_position)
 		MobFx.projectile_hit_player(body, attack_id, effect_duration)
 		FxKit.impact(get_parent(), global_position, 1.2, color, 0.18)

@@ -35,6 +35,14 @@ const CLASS_COLORS := {
 }
 
 @export var hero_id: StringName = &"icamiaba"
+## Multijogador: 0 = este é o herói deste aparelho; senão, é a cópia do herói de outro jogador
+## (peer id). A cópia não lê controles: segue a posição e os comandos que chegam pela rede.
+var remote_peer := 0
+## Perfil do jogador da cópia (herói, nível, equipamento, talentos), vindo do saguão.
+var profile := {}
+var net_pos := Vector3.ZERO
+var net_vel := Vector3.ZERO
+var net_yaw := 0.0
 @export var turn_speed: float = 14.0
 
 var hero: HeroData
@@ -113,7 +121,9 @@ var status := StatusEffects.new()
 
 
 func _ready() -> void:
-	add_to_group("player")
+	add_to_group("heroes")
+	if remote_peer == 0:
+		add_to_group("player")
 	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_ON
 	collision_layer = Layers.PLAYER
 	collision_mask = Layers.WORLD
@@ -134,8 +144,12 @@ func _ready() -> void:
 	status.changed.connect(_on_status_changed)
 	_roots = _make_roots()
 	_marker = _make_target_marker()
-	GameState.hero_progress_changed.connect(_on_progress_changed)
-	set_hero(ItemDB.get_hero(GameState.selected_hero))
+	if remote_peer == 0:
+		GameState.hero_progress_changed.connect(_on_progress_changed)
+		set_hero(ItemDB.get_hero(GameState.selected_hero))
+	else:
+		set_hero(ItemDB.get_hero(StringName(profile.get("hero_id", "icamiaba"))))
+		net_pos = global_position
 
 
 func set_hero(new_hero: HeroData) -> void:
@@ -174,7 +188,14 @@ func clear_buffs() -> void:
 func refresh_stats(full_heal: bool = false) -> void:
 	if hero == null:
 		return
-	stats = GameState.stats_for(hero_id, buffs)
+	if profile.is_empty():
+		stats = GameState.stats_for(hero_id, buffs)
+	else:
+		var eq := {}
+		var src: Dictionary = profile.get("equipped", {})
+		for k in src:
+			eq[int(k)] = src[k]
+		stats = HeroStats.compute(hero, int(profile.get("level", 1)), eq, ItemDB.catalog, buffs, profile.get("talents", {}))
 	weapon_stats = kit.modify_weapon(stats.weapon) if kit else stats.weapon
 	move_speed = stats.move_speed
 	crit_chance = stats.crit_chance
@@ -213,6 +234,11 @@ func receive_attack(amount: int, effect: int, effect_duration: float, effect_pow
 		_from: Vector3, ignore_invuln: bool = false) -> void:
 	if health.is_dead:
 		return
+	if remote_peer != 0:
+		# cópia de outro jogador: quem decide o golpe é o aparelho dele (esquiva, bloqueio, escudo)
+		if NetState.is_host():
+			NetState.send_to(remote_peer, "net_hit", [amount, effect, effect_duration, effect_power, _from, ignore_invuln])
+		return
 	var landed := true
 	last_hit_amount = amount
 	last_hit_from = _from
@@ -244,7 +270,7 @@ func _on_status_changed() -> void:
 
 func _physics_process(delta: float) -> void:
 	var input := Vector2.ZERO
-	if controls_enabled:
+	if controls_enabled and remote_peer == 0:
 		input = touch_move if touch_move.length() > 0.05 else Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var direction := Vector3(input.x, 0.0, input.y)
 	var speed := move_speed * status.move_factor() * (kit.speed_factor() if kit else 1.0)
@@ -262,11 +288,13 @@ func _physics_process(delta: float) -> void:
 		_facing = direction.normalized()
 
 	_form_cooldown -= delta
-	if controls_enabled and combat_enabled and kit:
+	if controls_enabled and combat_enabled and kit and remote_peer == 0:
 		if touch_form or Input.is_action_just_pressed("form"):
-			kit.try_skill()
+			if kit.try_skill():
+				NetState.send("net_skill", [global_position, _facing])
 		if touch_ultimate or Input.is_action_just_pressed("ultimate"):
-			kit.try_ultimate()
+			if kit.try_ultimate():
+				NetState.send("net_ultimate", [global_position, _facing])
 	touch_form = false
 	touch_ultimate = false
 	if form == Form.BOTO and not health.is_dead:
@@ -281,7 +309,7 @@ func _physics_process(delta: float) -> void:
 
 	_attack_cooldown -= delta
 	_attack_buffer -= delta
-	var held := controls_enabled and combat_enabled and status.can_attack() and (touch_attack or Input.is_action_pressed("attack"))
+	var held := controls_enabled and combat_enabled and status.can_attack() and (touch_attack or (remote_peer == 0 and Input.is_action_pressed("attack")))
 	if held and not _attack_was_held and _attack_left > 0.0:
 		_attack_buffer = ATTACK_BUFFER  # toque novo com o golpe ainda no meio
 	_attack_was_held = held
@@ -310,6 +338,16 @@ func _physics_process(delta: float) -> void:
 			velocity.x += rm.x / delta
 			velocity.z += rm.z / delta
 
+	if remote_peer != 0:
+		# cópia: vai suave para onde a rede diz e vira como o dono virou
+		var gap := net_pos - global_position
+		if gap.length() > 4.0:
+			global_position = net_pos  # muito longe (teleporte, troca de andar): pula
+		else:
+			global_position += gap * clampf(delta * 14.0, 0.0, 1.0)
+		velocity = net_vel
+		_body.rotation.y = lerp_angle(_body.rotation.y, net_yaw, clampf(delta * 16.0, 0.0, 1.0))
+		return
 	if controls_enabled:
 		var target_angle := atan2(_facing.x, _facing.z)
 		target_angle = _aim_while_moving(target_angle)
@@ -512,13 +550,43 @@ func facing() -> Vector3:
 	return _facing
 
 
+## Rede: estado da cópia de outro jogador.
+func apply_net_state(pos: Vector3, vel: Vector3, facing_dir: Vector3, yaw: float, attacking: bool) -> void:
+	net_pos = pos
+	net_vel = vel
+	net_yaw = yaw
+	if facing_dir.length() > 0.1:
+		_facing = facing_dir
+	touch_attack = attacking
+
+
+## Rede: a cópia usa a habilidade/ultimate (o dono já usou). Ignora recarga e carga daqui.
+func net_use(ultimate: bool, at: Vector3, facing_dir: Vector3) -> void:
+	if kit == null or health.is_dead:
+		return
+	global_position = at
+	if facing_dir.length() > 0.1:
+		_facing = facing_dir.normalized()
+	if ultimate:
+		kit.charge = 100.0
+		kit.try_ultimate()
+	else:
+		kit._skill_cd = 0.0
+		kit._charges = maxi(kit._charges, 1)
+		kit.try_skill()
+
+
 ## Pontos do herói num talento (0 = não tem).
 func talent(id: String) -> int:
+	if not profile.is_empty():
+		return Talents.rank(profile.get("talents", {}), id)
 	return GameState.talent_rank(hero_id, id)
 
 
 ## Valor do talento no nível atual (ex.: 3 pontos de Couro de Anta = 12).
 func talent_value(id: String) -> float:
+	if not profile.is_empty():
+		return Talents.value(profile.get("talents", {}), id, hero_id)
 	return GameState.talent_value(hero_id, id)
 
 

@@ -128,6 +128,17 @@ func take_damage(amount: int, grant_invuln: bool = true, ignore_invuln: bool = f
 	return amount
 
 
+## Rede: acerta a vida e o escudo com o que veio do dono (sem números nem efeitos de dano).
+func set_current(hp: int, max_hp: int, arm: int = -1, max_arm: int = -1) -> void:
+	max_health = maxi(max_hp, 1)
+	health = clampi(hp, 0, max_health)
+	if max_arm >= 0:
+		max_armor = max_arm
+	if arm >= 0:
+		armor = clampi(arm, 0, max_armor)
+	_emit_changed()
+
+
 ## Muda os máximos (ex.: um buff de +2 de vida). Se o máximo aumenta, o atual sobe junto.
 func set_maximums(new_max_health: int, new_max_armor: int) -> void:
 	var gained_health := new_max_health - max_health

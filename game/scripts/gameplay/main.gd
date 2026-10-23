@@ -48,6 +48,17 @@ const DEN_CHANCE_PER_FLOOR := 0.01
 const DEN_CHANCE_PER_DIFFICULTY := 0.02
 const DEN_WAVES := 2
 
+## Multijogador: quanto os inimigos crescem por número de jogadores (índice = jogadores).
+const MP_HEALTH := [1.0, 1.0, 1.7, 2.4, 3.1]
+const MP_DAMAGE := [1.0, 1.0, 1.15, 1.25, 1.35]
+const MP_WAVE := [1.0, 1.0, 1.4, 1.75, 2.1]
+const MP_ELITE := [0.0, 0.0, 0.10, 0.15, 0.20]
+const MP_BOSS_PER_EXTRA := 0.9
+const NET_HERO_HZ := 20.0
+const NET_ENEMY_HZ := 15.0
+const REVIVE_TIME := 3.0
+const REVIVE_RANGE := 1.8
+
 var run_seed := 0
 ## Dificuldade da run (GameState.run_difficulty, escolhida no portal) e se a energia foi gasta.
 var difficulty := 0
@@ -75,6 +86,15 @@ var _loading_hiding := false
 var _loading_frames := 0
 var _warmup: Warmup
 var night: NightMode
+## Multijogador (ver Net): cópias dos outros heróis, bichos por número de rede, envio de estado.
+var _replicas := {}
+var _net_enemies := {}
+var _next_net_id := 1
+var _hero_send_t := 0.0
+var _enemy_send_t := 0.0
+var _ready_peers := {}
+var _revive_t := {}
+var _down_check_t := 0.0
 
 @onready var _player: Player = $Player
 @onready var _hud: Hud = $HUD
@@ -101,13 +121,20 @@ func _ready() -> void:
 	add_child(night)
 	night.setup($WorldEnvironment, $Sun, _player, _dungeon, ambience)
 	_build_loading()
-	new_run()
+	if Net.active:
+		_make_replicas()
+		Net.disconnected.connect(_on_net_disconnected)
+	new_run(int(Net.run.get("seed", 0)) if Net.active else 0)
+	if Net.is_client():
+		Net.send_to(1, "net_ready", [])
 
 
 func _process(_delta: float) -> void:
 	_player.touch_move = _hud.move_vector()
 	_player.touch_attack = _hud.attack_held()
 	_update_loading()
+	if Net.active:
+		_net_tick(_delta)
 	# reserva de modelos: na tela de carregamento enche rápido; jogando, um por quadro só
 	# quando não tem luta (sem bicho vivo e sem onda chegando)
 	if _loading and _loading.visible:
@@ -225,7 +252,7 @@ func new_run(seed: int = 0) -> void:
 	get_tree().paused = false
 	_run_id += 1
 	_run_over = false
-	difficulty = clampi(GameState.run_difficulty, 0, 3)
+	difficulty = clampi(int(Net.run.get("difficulty", GameState.run_difficulty)) if Net.active else GameState.run_difficulty, 0, 3)
 	full_rewards = GameState.run_full_rewards
 	_rng.seed = seed if seed > 0 else randi()
 	run_seed = _rng.seed
@@ -268,6 +295,10 @@ func _portal_to_next_floor() -> void:
 func _next_floor() -> void:
 	floor_number += 1
 	_clear_floor()
+	if Net.active:
+		# todos os aparelhos montam o mesmo andar: a semente vem da run e do número do andar
+		_rng.seed = hash("%d:%d" % [run_seed, floor_number])
+		_net_enemies.clear()
 	layout = DungeonLayout.new()
 	layout.generate(_rng, ROOMS_PER_FLOOR[floor_number - 1], _is_boss_floor())
 	_maybe_place_den()
@@ -276,15 +307,21 @@ func _next_floor() -> void:
 	Lighting.no_shadow_receive(_dungeon)  # o chão (shader) continua recebendo a sombra
 	for room in builder.rooms:
 		room.player_entered.connect(_on_room_entered)
-	for prop in builder.props.values():
-		prop.activated.connect(_on_prop_activated)
+	for idx in builder.props:
+		builder.props[idx].activated.connect(_on_prop_activated)
+		builder.props[idx].set_meta("net_key", "r%d" % idx)
 
 	# 2ª metade do mundo (depois do Acampamento): noite
 	night.set_night(floor_number > MINIBOSS_FLOOR)
 	_current_room = null
 	_alive = 0
 	var start := builder.rooms[layout.start_index]
-	_player.global_position = start.center() + Vector3(0, 0.1, 0)
+	_player.global_position = start.center() + _arrival_offset(Net.my_id()) + Vector3(0, 0.1, 0)
+	for peer in _replicas:
+		var r: Player = _replicas[peer]
+		r.global_position = start.center() + _arrival_offset(peer) + Vector3(0, 0.1, 0)
+		r.net_pos = r.global_position
+		r.reset_physics_interpolation()
 	_player.velocity = Vector3.ZERO
 	_player.reset_physics_interpolation()
 	_camera.snap()
@@ -317,27 +354,43 @@ func _on_room_entered(room: DungeonRoom) -> void:
 		return
 	# O sensor pode disparar por engano no quadro em que o herói troca de andar:
 	# só vale se o herói estiver mesmo dentro da sala.
-	if not room.contains(_player.global_position):
+	if Net.is_client():
+		# quem decide a luta é o anfitrião; aqui só o mapa
+		if room.contains(_player.global_position):
+			_current_room = room
+			room.visited = true
+			_hud.minimap.set_current(room.index)
 		return
-	_current_room = room
-	room.visited = true
-	_hud.minimap.set_current(room.index)
+	var someone_in := room.contains(_player.global_position)
+	for peer in _replicas:
+		someone_in = someone_in or room.contains(_replicas[peer].global_position)
+	if not someone_in:
+		return
+	if Net.is_host() and _ready_peers.size() < _replicas.size():
+		return  # espera todo mundo terminar de carregar
+	if room.contains(_player.global_position):
+		_current_room = room
+		room.visited = true
+		_hud.minimap.set_current(room.index)
 	if room.cleared or _alive > 0 or room.wave_pending:
 		return
 	room.close_doors()
+	if Net.is_host():
+		Net.send("net_room", [room.index, "close"])
+		_pull_heroes_into(room)
 	if room.is_den:
 		# Covil Furioso: tudo furioso, duas ondas, baú grande no fim.
 		room.wave_number = 1
 		room.waves_left = DEN_WAVES - 1
 		room.wave_total = DEN_WAVES
-		_hud.show_toast("COVIL FURIOSO! Só furiosos aqui. Vença e leve o baú grande.", Color("ff3b3b"))
+		_toast_all("COVIL FURIOSO! Só furiosos aqui. Vença e leve o baú grande.", Color("ff3b3b"))
 		_spawn_wave(room, 3 + floor_number / 2, [])
 	elif room.type == DungeonLayout.RoomType.BOSS:
 		var mini := floor_number == MINIBOSS_FLOOR
 		var boss := _spawn(MINIBOSS_ID if mini else BOSS_ID, room)
 		if boss:
 			_hud.show_boss(boss)
-			_hud.show_toast("A %s ruge no meio da mata!" % boss.data.display_name if mini
+			_toast_all("A %s ruge no meio da mata!" % boss.data.display_name if mini
 				else "O %s acordou! Que fedor..." % boss.data.display_name, Color("e05555"))
 	else:
 		# A luta da sala pode se estender: depois da 1ª onda, chegam de 1 a 4 ondas extras,
@@ -397,18 +450,23 @@ func _wake_hidden_leftovers(room: DungeonRoom) -> void:
 
 ## Acampamento (andar 5, depois da Onça Alfa): a fogueira leva de volta à base com tudo o que já
 ## foi coletado; o portal desce para a segunda metade do mundo.
-func _spawn_camp(room: DungeonRoom) -> void:
-	# do lado da sala oposto ao herói (se nascessem em cima dele, disparariam sozinhos)
-	var away: Vector3 = room.center() - _player.global_position
-	away.y = 0.0
-	away = away.normalized() if away.length() > 0.5 else Vector3.FORWARD
-	var base: Vector3 = room.center() + away * 2.5
-	var side := Vector3(-away.z, 0, away.x)
+func _spawn_camp(room: DungeonRoom, base := Vector3.INF, side := Vector3.ZERO) -> void:
+	if base == Vector3.INF:
+		# do lado da sala oposto ao herói (se nascessem em cima dele, disparariam sozinhos)
+		var away: Vector3 = room.center() - _player.global_position
+		away.y = 0.0
+		away = away.normalized() if away.length() > 0.5 else Vector3.FORWARD
+		base = room.center() + away * 2.5
+		side = Vector3(-away.z, 0, away.x)
+		if Net.is_host():
+			Net.send("net_camp", [room.index, base, side])
 	var camp := RoomProp.create(RoomProp.Kind.CAMP)
+	camp.set_meta("net_key", "camp")
 	_dungeon.add_child(camp)
 	camp.global_position = base - side * 2.2
 	camp.activated.connect(_on_prop_activated)
 	var portal := RoomProp.create(RoomProp.Kind.PORTAL)
+	portal.set_meta("net_key", "campportal")
 	_dungeon.add_child(portal)
 	portal.global_position = base + side * 2.2
 	portal.activated.connect(_on_prop_activated)
@@ -419,7 +477,10 @@ func _spawn_camp(room: DungeonRoom) -> void:
 
 ## Baú grande do covil: aparece no meio da sala quando o último furioso cai.
 func _spawn_den_chest(room: DungeonRoom) -> void:
+	if Net.is_host():
+		Net.send("net_den_chest", [room.index])
 	var chest := RoomProp.create(RoomProp.Kind.CHEST)
+	chest.set_meta("net_key", "den%d" % room.index)
 	chest.set_meta("table", "bau_covil")
 	chest.scale = Vector3.ONE * 1.5
 	_dungeon.add_child(chest)
@@ -442,7 +503,7 @@ func _roll_extra_waves() -> int:
 
 ## Vagas da 1ª onda de uma sala: 3 no 1º andar, chegando a 7-8 no 10º.
 func wave_budget() -> int:
-	return 3 + (floor_number - 1) / 2 + _rng.randi_range(0, 1)
+	return int(round((3 + (floor_number - 1) / 2 + _rng.randi_range(0, 1)) * MP_WAVE[mini(Net.count(), 4)]))
 
 
 ## Andar com sala de chefe (o mini-chefe no 5º, o chefe no 10º).
@@ -452,7 +513,7 @@ func _is_boss_floor() -> bool:
 
 ## Chance de um inimigo da onda vir furioso.
 func _elite_chance(wave: int) -> float:
-	return clampf(0.04 + 0.035 * (floor_number - 1) + 0.08 * difficulty + 0.05 * (wave - 1), 0.0, 0.8)
+	return clampf(0.04 + 0.035 * (floor_number - 1) + 0.08 * difficulty + 0.05 * (wave - 1) + MP_ELITE[mini(Net.count(), 4)], 0.0, 0.8)
 
 
 ## Põe uma onda na sala. budget = "vagas": um grupo ocupa vagas conforme a vida somada
@@ -532,7 +593,9 @@ func _start_next_wave(room: DungeonRoom) -> void:
 		mark.duration = WAVE_DELAY
 		mark.position = Vector3(p.x, 0.04, p.z)
 		add_child(mark)
-	_hud.show_toast("Mais bichos chegando! Onda %d de %d" % [room.wave_number, room.wave_total], Color("ff8a3d"))
+		if Net.is_host():
+			Net.send("net_telegraph", [mark.pack(), 0, -1])
+	_toast_all("Mais bichos chegando! Onda %d de %d" % [room.wave_number, room.wave_total], Color("ff8a3d"))
 	var run := _run_id
 	get_tree().create_timer(WAVE_DELAY, false).timeout.connect(func() -> void:
 		if run != _run_id or _run_over or not is_instance_valid(room):
@@ -564,8 +627,10 @@ func _spawn(enemy_id: StringName, room: DungeonRoom, at: Vector3 = Vector3.INF, 
 		return null
 	# O chefe já é desenhado para o último andar: não recebe o reforço por andar.
 	var level := 0 if data.is_boss else floor_number - 1
-	var enemy := Enemy.create(data, (1.0 + HEALTH_PER_FLOOR * level) * Difficulty.HEALTH_MULT[difficulty],
-		(1.0 + DAMAGE_PER_FLOOR * level) * Difficulty.DAMAGE_MULT[difficulty])
+	var n := mini(Net.count(), 4)
+	var mp_hp: float = (1.0 + MP_BOSS_PER_EXTRA * (n - 1)) if data.is_boss else MP_HEALTH[n]
+	var enemy := Enemy.create(data, (1.0 + HEALTH_PER_FLOOR * level) * Difficulty.HEALTH_MULT[difficulty] * mp_hp,
+		(1.0 + DAMAGE_PER_FLOOR * level) * Difficulty.DAMAGE_MULT[difficulty] * MP_DAMAGE[n])
 	enemy.is_summon = summoned
 	enemy.threat = room_threat(room, data.is_boss)
 	if elite and not data.is_boss:
@@ -581,6 +646,12 @@ func _spawn(enemy_id: StringName, room: DungeonRoom, at: Vector3 = Vector3.INF, 
 	if night.is_night:
 		night.on_enemy_spawned(enemy)
 	enemy.reset_physics_interpolation()
+	if Net.is_host():
+		enemy.net_id = _next_net_id
+		_next_net_id += 1
+		_net_enemies[enemy.net_id] = enemy
+		Net.send("net_spawn", [enemy.net_id, enemy_id, enemy.global_position, enemy.elite, enemy.health_multiplier,
+			enemy.damage_multiplier, summoned, room.index if room else -1])
 	enemy.died.connect(_on_enemy_died)
 	enemy.summon_requested.connect(_on_summon_requested)
 	enemy.announced.connect(func(_e: Enemy, text: String) -> void: _hud.show_toast(text, Color("ffa53d")))
@@ -619,6 +690,18 @@ func _on_summon_requested(enemy: Enemy, summon_id: StringName, count: int, at: V
 
 
 func _on_enemy_died(enemy: Enemy) -> void:
+	if Net.is_host():
+		Net.send("net_enemy_died", [enemy.net_id])
+	_net_enemies.erase(enemy.net_id)
+	if Net.is_client():
+		# boneco do anfitrião: aqui só XP, abate e o que cai para este jogador
+		if not enemy.is_summon:
+			_stats.kills += 1
+			_player.on_enemy_killed(enemy.elite)
+			_give_xp(enemy.data.xp_reward * (ELITE_XP if enemy.elite else 1))
+		if enemy.is_boss:
+			_hud.hide_boss()
+		return
 	_alive -= 1
 	if not enemy.is_summon:
 		_stats.kills += 1
@@ -649,6 +732,8 @@ func _on_enemy_died(enemy: Enemy) -> void:
 		# Fora do sinal de física em que o último inimigo morreu (Godot não deixa criar áreas ali).
 		_spawn_den_chest.call_deferred(room)
 	room.open_doors()
+	if Net.is_host():
+		Net.send("net_room", [room.index, "open"])
 	_give_xp(XP_ROOM_CLEAR)
 	if room.type == DungeonLayout.RoomType.BOSS and floor_number == MINIBOSS_FLOOR:
 		_spawn_camp.call_deferred(room)
@@ -656,30 +741,37 @@ func _on_enemy_died(enemy: Enemy) -> void:
 		var run := _run_id
 		get_tree().create_timer(2.0).timeout.connect(func() -> void:
 			if run == _run_id and not _run_over:
-				_finish(true))
-		_hud.show_toast("O %s caiu! Recolha os reagentes." % ItemDB.get_enemy(BOSS_ID).display_name, Color("ffa53d"))
+				_finish_all(true))
+		_toast_all("O %s caiu! Recolha os reagentes." % ItemDB.get_enemy(BOSS_ID).display_name, Color("ffa53d"))
 	else:
-		_hud.show_toast("Sala limpa!" if room.wave_total <= 1 else "Sala limpa! %d ondas vencidas." % room.wave_total,
+		_toast_all("Sala limpa!" if room.wave_total <= 1 else "Sala limpa! %d ondas vencidas." % room.wave_total,
 			Color("6fdc7b"))
 
 
 func _on_prop_activated(prop: RoomProp) -> void:
+	if Net.is_host():
+		Net.send("net_prop", [String(prop.get_meta("net_key", ""))])
+	if Net.is_client() and prop.kind in [RoomProp.Kind.PORTAL, RoomProp.Kind.CAMP]:
+		return  # o anfitrião decide (manda o andar novo ou o fim)
 	match prop.kind:
 		RoomProp.Kind.CHEST:
 			var table := ItemDB.get_drop_table(StringName(prop.get_meta("table", "bau")))
 			_hud.show_toast("Baú aberto!", Color("e8c26a"))
 			_drop_chest_loot.call_deferred(LootRoller.roll(table, ItemDB.catalog, _rng, _loot_context("chest")), prop.global_position)
 		RoomProp.Kind.FOUNTAIN:
-			_player.health.heal(_player.health.max_health)
+			if not _player.health.is_dead:
+				_player.health.heal(_player.health.max_health)
 			_hud.show_toast("A fonte restaurou sua vida.", Color("6fdc7b"))
 		RoomProp.Kind.PORTAL:
 			# Fora da colisão do portal: montar o andar novo dentro dela não é permitido.
+			if Net.is_host():
+				Net.send("net_floor", [])
 			_portal_to_next_floor.call_deferred()
 		RoomProp.Kind.CAMP:
 			_hud.ask("Acampamento", "Voltar à base agora, levando tudo o que coletou?\nOu continuar descendo até o chefe pelo portal.",
 				"Voltar à base", "Continuar", func(back: bool) -> void:
 					if back:
-						_finish(false, true)
+						_finish_all(false, true)
 					else:
 						prop.used = false)  # dá para usar a fogueira de novo (saindo e voltando a ela)
 
@@ -722,11 +814,18 @@ func _on_leveled_up(hero_id: StringName, new_level: int) -> void:
 
 func _back_to_hub() -> void:
 	get_tree().paused = false
+	if Net.active:
+		Net.leave()
 	GameState.save()
 	get_tree().change_scene_to_file(HUB_SCENE)
 
 
 func _on_player_died() -> void:
+	if Net.active and not _replicas.is_empty():
+		# no grupo: cai e espera um parceiro levantar (a run só acaba se todos caírem)
+		_hud.show_toast("Você caiu! Um parceiro pode te levantar (ficar perto de você por %d s)." % int(REVIVE_TIME), Color("ff6b6b"))
+		_send_hero_state()
+		return
 	_finish(false)
 
 
@@ -766,3 +865,289 @@ func _finish(victory: bool, camp := false) -> void:
 		level_text = "subiu do nível %d para o %d!" % [_stats.level_start, level_now]
 	lines.append("+%d XP · %s · tudo já está no inventário   (semente %d)" % [_stats.xp, level_text, run_seed])
 	_hud.show_panel("Vitória!" if victory else ("De volta do acampamento" if camp else "Você caiu"), "\n".join(lines), "Voltar à base")
+
+
+# ---------- multijogador ----------
+
+const PLAYER_SCENE := "res://game/scenes/player.tscn"
+
+
+## Cópias dos heróis dos outros jogadores (seguem o que chega pela rede).
+func _make_replicas() -> void:
+	for peer in Net.players:
+		if int(peer) == Net.my_id():
+			continue
+		var r: Player = load(PLAYER_SCENE).instantiate()
+		r.remote_peer = int(peer)
+		r.profile = Net.players[peer]
+		r.name = "Heroi_%d" % int(peer)
+		add_child(r)
+		_replicas[int(peer)] = r
+
+
+## Onde cada jogador chega no andar (lado a lado, sem um em cima do outro).
+func _arrival_offset(peer: int) -> Vector3:
+	if not Net.active:
+		return Vector3.ZERO
+	return Vector3((Net.index_of(peer) - (Net.count() - 1) * 0.5) * 1.3, 0, 0)
+
+
+func _toast_all(text: String, color: Color) -> void:
+	_hud.show_toast(text, color)
+	if Net.is_host():
+		Net.send("net_toast", [text, color])
+
+
+func _finish_all(victory: bool, camp := false) -> void:
+	if Net.is_host():
+		Net.send("net_finish", [victory, camp])
+	_finish(victory, camp)
+
+
+## Quem ficou fora da sala quando as portas fecharam vem para dentro (ninguém fica preso fora).
+func _pull_heroes_into(room: DungeonRoom) -> void:
+	var spot := room.center() + Vector3(0, 0.1, 0)
+	if not room.contains(_player.global_position):
+		_player.global_position = spot
+		_player.reset_physics_interpolation()
+	for peer in _replicas:
+		if not room.contains(_replicas[peer].global_position):
+			Net.send_to(peer, "net_teleport", [spot + _arrival_offset(peer)])
+
+
+func _net_tick(delta: float) -> void:
+	_hero_send_t -= delta
+	if _hero_send_t <= 0.0:
+		_hero_send_t = 1.0 / NET_HERO_HZ
+		_send_hero_state()
+	if Net.is_host():
+		_enemy_send_t -= delta
+		if _enemy_send_t <= 0.0:
+			_enemy_send_t = 1.0 / NET_ENEMY_HZ
+			_send_enemy_state()
+		# todos caídos: fim da run para todos
+		_down_check_t -= delta
+		if _down_check_t <= 0.0 and not _run_over:
+			_down_check_t = 0.5
+			var all_down := _player.health.is_dead
+			for peer in _replicas:
+				all_down = all_down and _replicas[peer].health.is_dead
+			if all_down:
+				_finish_all(false)
+	_tick_revive(delta)
+
+
+func _send_hero_state() -> void:
+	var p := _player
+	Net.stream("net_hero", [p.global_position, p.velocity, p.facing(), p._body.rotation.y,
+		p.touch_attack or Input.is_action_pressed("attack"), p.health.health, p.health.max_health,
+		p.health.armor, p.health.max_armor, p.health.is_dead])
+
+
+func _send_enemy_state() -> void:
+	var data := PackedFloat32Array()
+	for id in _net_enemies:
+		var e: Enemy = _net_enemies[id]
+		if not is_instance_valid(e) or e.state == Enemy.State.DEAD:
+			continue
+		data.append_array([float(id), e.global_position.x, e.global_position.z, e._body.rotation.y,
+			float(e.health.health), float(e.health.max_health), float(e.state)])
+	if not data.is_empty():
+		Net.stream("net_enemies", [data])
+
+
+## Levantar parceiro: ficar perto de quem caiu por alguns segundos.
+func _tick_revive(delta: float) -> void:
+	if _player.health.is_dead:
+		_revive_t.clear()
+		return
+	for peer in _replicas:
+		var r: Player = _replicas[peer]
+		if not r.health.is_dead or r.global_position.distance_to(_player.global_position) > REVIVE_RANGE:
+			_revive_t.erase(peer)
+			continue
+		var before: float = _revive_t.get(peer, 0.0)
+		var now := before + delta
+		_revive_t[peer] = now
+		if int(before * 2.0) != int(now * 2.0):
+			Fx.float_text(self, r.global_position + Vector3(0, 1.6, 0), "levantando %d%%" % int(minf(now / REVIVE_TIME, 1.0) * 100), Color("6fdc7b"))
+		if now >= REVIVE_TIME:
+			_revive_t.erase(peer)
+			Net.send_to(peer, "net_revive", [])
+
+
+func _on_net_disconnected(reason: String) -> void:
+	_hud.show_toast(reason, Color("ff6b6b"))
+	get_tree().create_timer(2.5).timeout.connect(_back_to_hub)
+
+
+# --- chegam pela rede (o 1º argumento é sempre quem mandou) ---
+
+func net_ready(sender: int) -> void:
+	_ready_peers[sender] = true
+
+
+func net_peer_left(peer: int) -> void:
+	if _replicas.has(peer):
+		_replicas[peer].queue_free()
+		_replicas.erase(peer)
+		_ready_peers.erase(peer)
+		_hud.show_toast("Um jogador saiu da partida.", Color("ffb54d"))
+
+
+func net_hero(sender: int, pos: Vector3, vel: Vector3, facing_dir: Vector3, yaw: float, attacking: bool,
+		hp: int, max_hp: int, arm: int, max_arm: int, dead: bool) -> void:
+	var r: Player = _replicas.get(sender)
+	if r == null or not is_instance_valid(r):
+		return
+	r.apply_net_state(pos, vel, facing_dir, yaw, attacking)
+	if dead and not r.health.is_dead:
+		r.health.untouchable = false
+		r.health.death_save = false
+		r.health.take_damage(r.health.health + r.health.armor + 999999, false, true)
+	elif not dead and r.health.is_dead:
+		r.revive(pos)
+	r.health.set_current(hp, max_hp, arm, max_arm)
+
+
+func net_skill(sender: int, at: Vector3, facing_dir: Vector3) -> void:
+	var r: Player = _replicas.get(sender)
+	if r:
+		r.net_use(false, at, facing_dir)
+
+
+func net_ultimate(sender: int, at: Vector3, facing_dir: Vector3) -> void:
+	var r: Player = _replicas.get(sender)
+	if r:
+		r.net_use(true, at, facing_dir)
+
+
+func net_hit(_sender: int, amount: int, effect: int, dur: float, power: int, from: Vector3, ignore: bool) -> void:
+	_player.receive_attack(amount, effect, dur, power, from, ignore)
+
+
+func net_teleport(_sender: int, at: Vector3) -> void:
+	_player.global_position = at
+	_player.velocity = Vector3.ZERO
+	_player.reset_physics_interpolation()
+
+
+func net_revive(_sender: int) -> void:
+	if not _player.health.is_dead:
+		return
+	_player.revive(_player.global_position)
+	_player.health.set_current(_player.health.max_health / 2, _player.health.max_health)
+	Vfx.heal(_player, true)
+	_hud.show_toast("Um parceiro te levantou!", Color("6fdc7b"))
+	_send_hero_state()
+
+
+func net_toast(_sender: int, text: String, color: Color) -> void:
+	_hud.show_toast(text, color)
+
+
+func net_spawn(_sender: int, id: int, enemy_id: StringName, at: Vector3, elite: bool, hp_mult: float,
+		dmg_mult: float, summoned: bool, room_index: int) -> void:
+	var data := ItemDB.get_enemy(enemy_id)
+	if data == null or builder == null:
+		return
+	var enemy := Enemy.create(data, hp_mult, dmg_mult)
+	enemy.elite = elite and not data.is_boss
+	enemy.is_summon = summoned
+	enemy.puppet = true
+	enemy.net_id = id
+	enemy.net_pos = at
+	enemy.loot_context = _loot_context("boss" if data.is_boss else "normal")
+	if room_index >= 0 and room_index < builder.rooms.size():
+		enemy.home_room = builder.rooms[room_index]
+	add_child(enemy)
+	enemy.global_position = at
+	enemy.reset_physics_interpolation()
+	if night.is_night:
+		night.on_enemy_spawned(enemy)
+	enemy.died.connect(_on_enemy_died)
+	_net_enemies[id] = enemy
+	if data.is_boss:
+		_hud.show_boss(enemy)
+
+
+func net_enemies(_sender: int, data: PackedFloat32Array) -> void:
+	var i := 0
+	while i + 6 < data.size():
+		var e: Enemy = _net_enemies.get(int(data[i]))
+		if e and is_instance_valid(e) and e.state != Enemy.State.DEAD:
+			e.net_pos = Vector3(data[i + 1], e.global_position.y, data[i + 2])
+			e.net_yaw = data[i + 3]
+			e.health.set_current(int(data[i + 4]), int(data[i + 5]))
+			e.net_state = int(data[i + 6])
+		i += 7
+
+
+func net_enemy_died(_sender: int, id: int) -> void:
+	var e: Enemy = _net_enemies.get(id)
+	if e and is_instance_valid(e) and e.state != Enemy.State.DEAD:
+		e.health.untouchable = false
+		e.health.take_damage(e.health.health + 999999, false, true)
+
+
+func net_telegraph(_sender: int, packed: Dictionary, enemy_id: int, attack_index: int) -> void:
+	var t := Telegraph.unpack(packed)
+	add_child(t)
+	var e: Enemy = _net_enemies.get(enemy_id)
+	if e and is_instance_valid(e) and attack_index >= 0:
+		e.net_attack_visual(attack_index)
+
+
+func net_enemy_shot(_sender: int, enemy_id: int, attack_index: int, at: Vector3, dir: Vector3) -> void:
+	var e: Enemy = _net_enemies.get(enemy_id)
+	if e == null or not is_instance_valid(e) or attack_index < 0 or attack_index >= e._attacks.size():
+		return
+	var p := EnemyProjectile.create(e._attacks[attack_index], dir, 0.0)
+	p.net_copy = true
+	add_child(p)
+	p.global_position = at
+
+
+func net_room(_sender: int, index: int, what: String) -> void:
+	if builder == null or index < 0 or index >= builder.rooms.size():
+		return
+	var room: DungeonRoom = builder.rooms[index]
+	if what == "close":
+		room.close_doors()
+	elif what == "open":
+		room.cleared = true
+		room.open_doors()
+		_give_xp(XP_ROOM_CLEAR)
+
+
+func _find_prop(key: String) -> RoomProp:
+	if key == "":
+		return null
+	for n in _dungeon.get_children():
+		if n is RoomProp and String(n.get_meta("net_key", "")) == key:
+			return n
+	return null
+
+
+func net_prop(_sender: int, key: String) -> void:
+	var prop := _find_prop(key)
+	if prop:
+		prop.activate()
+
+
+func net_floor(_sender: int) -> void:
+	_portal_to_next_floor()
+
+
+func net_camp(_sender: int, index: int, base: Vector3, side: Vector3) -> void:
+	if builder and index >= 0 and index < builder.rooms.size():
+		_spawn_camp(builder.rooms[index], base, side)
+
+
+func net_den_chest(_sender: int, index: int) -> void:
+	if builder and index >= 0 and index < builder.rooms.size():
+		_spawn_den_chest(builder.rooms[index])
+
+
+func net_finish(_sender: int, victory: bool, camp: bool) -> void:
+	_finish(victory, camp)

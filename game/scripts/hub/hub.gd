@@ -23,6 +23,8 @@ func _ready() -> void:
 	_build_town()
 	_ui.setup(_player)
 	_ui.enter_dungeon_requested.connect(_enter_dungeon)
+	# multijogador: o anfitrião começou a partida
+	Net.start_requested.connect(_on_net_start)
 
 
 func _process(_delta: float) -> void:
@@ -32,6 +34,13 @@ func _process(_delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_E, KEY_ENTER, KEY_SPACE]:
 		_ui.activate_current_station()
+
+
+func _on_net_start() -> void:
+	Net.stop_search()
+	GameState.run_difficulty = int(Net.run.get("difficulty", 0))
+	GameState.run_full_rewards = _ui._use_energy and GameState.spend_energy()
+	_enter_dungeon()
 
 
 func _enter_dungeon() -> void:

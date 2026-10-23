@@ -66,12 +66,22 @@ func _process(delta: float) -> void:
 
 
 func _on_body_entered(body: Node3D) -> void:
-	if used or not body.is_in_group("player"):
+	if used or not body.is_in_group("heroes"):
 		return
+	if NetState.is_client():
+		return  # no multijogador quem abre/usa é o anfitrião (avisa os outros)
 	# No quadro em que o herói troca de andar, a física ainda o vê onde estava no andar velho: se um
 	# baú/fonte/portal do andar novo nascer naquele ponto, dispararia sozinho (pulava um andar).
 	var flat := Vector2(body.global_position.x - global_position.x, body.global_position.z - global_position.z)
 	if flat.length() > 1.8 * maxf(scale.x, 1.0):  # o baú grande do covil é maior (escala 1,5)
+		return
+	activate()
+
+
+## Usa o objeto (tampa abre, fonte apaga...) e avisa. No multijogador os outros aparelhos chamam
+## isto quando o anfitrião avisa que alguém usou.
+func activate() -> void:
+	if used:
 		return
 	used = true
 	match kind:

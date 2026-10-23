@@ -48,6 +48,11 @@ func _ready() -> void:
 
 func setup(player: Player) -> void:
 	_player = player
+	# (métodos, não funções soltas: quando o hub some, o Godot desliga sozinho)
+	Net.lobby_changed.connect(_on_net_lobby)
+	Net.found_changed.connect(_on_net_lobby)
+	Net.connection_failed.connect(_on_net_failed)
+	Net.disconnected.connect(_on_net_disconnected)
 	GameState.hero_progress_changed.connect(func(_id: StringName) -> void:
 		_refresh_top_bar()
 		_refresh_open_panel())
@@ -178,13 +183,111 @@ func _fill_portal() -> void:
 		_refresh_open_panel())
 	_modal_body.add_child(toggle)
 
-	var enter := _button("Entrar na masmorra (%s)" % Difficulty.name_of(_difficulty), 22, Difficulty.color_of(_difficulty))
-	enter.pressed.connect(func() -> void:
-		GameState.selected_difficulty = _difficulty
-		GameState.run_difficulty = _difficulty
-		GameState.run_full_rewards = _use_energy and GameState.spend_energy()
-		enter_dungeon_requested.emit())
-	_modal_body.add_child(enter)
+	if not Net.active:
+		var enter := _button("Entrar na masmorra (%s)" % Difficulty.name_of(_difficulty), 22, Difficulty.color_of(_difficulty))
+		enter.pressed.connect(func() -> void:
+			GameState.selected_difficulty = _difficulty
+			GameState.run_difficulty = _difficulty
+			GameState.run_full_rewards = _use_energy and GameState.spend_energy()
+			enter_dungeon_requested.emit())
+		_modal_body.add_child(enter)
+	_fill_multiplayer()
+
+
+func _on_net_lobby() -> void:
+	if _open_station == &"portal":
+		_refresh_open_panel()
+
+
+func _on_net_failed() -> void:
+	_net_msg = "Não deu para entrar na partida."
+	_refresh_open_panel()
+
+
+func _on_net_disconnected(reason: String) -> void:
+	_net_msg = reason
+	_refresh_open_panel()
+
+
+## Jogar com amigos na mesma rede Wi-Fi (até 4).
+var _join_ip := ""
+var _net_msg := ""
+
+
+func _fill_multiplayer() -> void:
+	_modal_body.add_child(_label("Jogar com amigos (mesmo Wi-Fi, até 4)", 20, GOLD))
+	if _net_msg != "":
+		_modal_body.add_child(_label(_net_msg, 15, BAD_COLOR, true))
+	if not Net.active:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		_modal_body.add_child(row)
+		var create := _button("Criar partida", 18, OK_COLOR)
+		create.pressed.connect(func() -> void:
+			_net_msg = Net.host()
+			_refresh_open_panel())
+		row.add_child(create)
+		var search := _button("Procurar partidas", 18, TEXT)
+		search.pressed.connect(func() -> void:
+			Net.start_search()
+			_refresh_open_panel())
+		row.add_child(search)
+		if Net.found.is_empty():
+			_modal_body.add_child(_label("Nenhuma partida achada ainda (o anfitrião precisa tocar em \"Criar partida\").", 15, MUTED, true))
+		for ip in Net.found:
+			var info: Dictionary = Net.found[ip]
+			var b := _button("Entrar na partida de %s (%d/%d) · %s" % [info.name, info.count, Net.MAX_PLAYERS, ip], 17, OK_COLOR)
+			var ip_s := String(ip)
+			b.pressed.connect(func() -> void:
+				Net.stop_search()
+				_net_msg = Net.join(ip_s)
+				_refresh_open_panel())
+			_modal_body.add_child(b)
+		var ip_row := HBoxContainer.new()
+		ip_row.add_theme_constant_override("separation", 8)
+		_modal_body.add_child(ip_row)
+		var edit := LineEdit.new()
+		edit.placeholder_text = "ou digite o IP (ex.: 192.168.0.10)"
+		edit.text = _join_ip
+		edit.custom_minimum_size = Vector2(320, 44)
+		edit.add_theme_font_size_override("font_size", 17)
+		edit.text_changed.connect(func(t: String) -> void: _join_ip = t.strip_edges())
+		ip_row.add_child(edit)
+		var go := _button("Entrar pelo IP", 17, TEXT)
+		go.pressed.connect(func() -> void:
+			if _join_ip != "":
+				Net.stop_search()
+				_net_msg = Net.join(_join_ip)
+				_refresh_open_panel())
+		ip_row.add_child(go)
+		return
+	# na partida: quem está nela e o botão de começar (só o anfitrião)
+	var ids := Net.players.keys()
+	ids.sort()
+	if ids.is_empty():
+		_modal_body.add_child(_label("Conectando...", 17, MUTED))
+	for id in ids:
+		var prof: Dictionary = Net.players[id]
+		var h := ItemDB.get_hero(StringName(prof.get("hero_id", "")))
+		var who := "%s · nível %d%s%s" % [h.display_name if h else "?", int(prof.get("level", 1)),
+			"  (você)" if int(id) == Net.my_id() else "", "  · anfitrião" if int(id) == 1 else ""]
+		_modal_body.add_child(_label(who, 17, TEXT))
+	if Net.is_host():
+		var ips := Net.local_ips()
+		_modal_body.add_child(_label("Seu IP: %s" % (", ".join(ips) if not ips.is_empty() else "?"), 15, MUTED, true))
+		var start := _button("Começar com %d jogador(es) (%s)" % [Net.players.size(), Difficulty.name_of(_difficulty)], 22, Difficulty.color_of(_difficulty))
+		start.pressed.connect(func() -> void:
+			GameState.selected_difficulty = _difficulty
+			Net.start_run(_difficulty))
+		_modal_body.add_child(start)
+		_modal_body.add_child(_label("Mais jogadores = inimigos mais fortes e mais numerosos.", 15, MUTED, true))
+	else:
+		_modal_body.add_child(_label("Esperando o anfitrião começar...", 17, MUTED))
+	var leave := _button("Sair da partida", 17, BAD_COLOR)
+	leave.pressed.connect(func() -> void:
+		Net.leave()
+		_refresh_open_panel())
+	_modal_body.add_child(leave)
 
 
 func _fill_heroes() -> void:

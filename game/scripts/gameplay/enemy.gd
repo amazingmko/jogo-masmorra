@@ -38,6 +38,15 @@ var is_summon := false
 var enraged := false
 ## Furioso (elite): definido pela run antes de entrar na cena (vida e dano já multiplicados lá).
 var elite := false
+## Multijogador: número do bicho na rede. No anfitrião ele é de verdade; nos outros aparelhos é
+## um "boneco" (puppet) que só repete o que o anfitrião manda (posição, vida, ataques, morte).
+var net_id := 0
+var puppet := false
+var net_pos := Vector3.ZERO
+var net_yaw := 0.0
+var net_state := 0
+var _target_refresh := 0.0
+var _forced_target_left := 0.0
 var _hp_bar: EnemyHealthBar
 ## Perigo da sala (0 a 1), definido pela run antes de entrar na cena.
 var threat := 0.0
@@ -197,7 +206,7 @@ func _ready() -> void:
 	health.changed.connect(_on_health_changed)
 	if not is_boss:  # chefes já têm a barra grande no topo da tela
 		_hp_bar = EnemyHealthBar.attach(self, health, 2.0 * data.body_scale, elite)
-	_player = get_tree().get_first_node_in_group("player")
+	_player = _nearest_hero()
 
 	_attacks = data.attacks.duplicate()
 	if _attacks.is_empty():
@@ -228,9 +237,34 @@ func _process(delta: float) -> void:
 		_anim_acc = 0.0
 
 
+## Herói mais perto e de pé (no multijogador são vários; sozinho, é sempre o mesmo).
+func _nearest_hero() -> Node3D:
+	var best: Node3D = null
+	var best_d := INF
+	for h in get_tree().get_nodes_in_group("heroes"):
+		if h.health.is_dead:
+			continue
+		var d: float = h.global_position.distance_squared_to(global_position)
+		if d < best_d:
+			best_d = d
+			best = h
+	if best == null:
+		return get_tree().get_first_node_in_group("player")
+	return best
+
+
 func _physics_process(delta: float) -> void:
 	if state == State.DEAD:
 		return
+	if puppet:
+		_puppet_step(delta)
+		return
+	# alvo: o herói mais perto (revisto de tempos em tempos), ou quem provocou
+	_forced_target_left -= delta
+	_target_refresh -= delta
+	if _target_refresh <= 0.0 and _forced_target_left <= 0.0 and state == State.MOVE:
+		_target_refresh = 0.4
+		_player = _nearest_hero()
 	velocity.y = 0.0 if is_on_floor() else velocity.y - _gravity * delta
 	var haste := _haste()
 	for a in _cooldowns:
@@ -380,8 +414,40 @@ func _physics_process(delta: float) -> void:
 			_slam()
 
 
+## Boneco (multijogador): anda suave para onde o anfitrião diz e anima igual.
+func _puppet_step(delta: float) -> void:
+	var gap := net_pos - global_position
+	gap.y = 0.0
+	if gap.length() > 5.0:
+		global_position = Vector3(net_pos.x, global_position.y, net_pos.z)
+		gap = Vector3.ZERO
+	var step := gap * clampf(delta * 12.0, 0.0, 1.0)
+	global_position += step
+	velocity = Vector3(step.x, 0, step.z) / maxf(delta, 0.001)
+	_body.rotation.y = lerp_angle(_body.rotation.y, net_yaw, clampf(delta * 14.0, 0.0, 1.0))
+	state = net_state as State
+	_animate_model(delta)
+	_animate_rig(delta)
+
+
+## Rede (anfitrião → bonecos): o bicho começou um ataque (para a animação do golpe).
+func net_attack_visual(index: int) -> void:
+	if index < 0 or index >= _attacks.size():
+		return
+	_attack = _attacks[index]
+	state = State.WINDUP
+	_glow(true)
+	if _anim:
+		_rig_attack(_attack)
+
+
 func take_hit(amount: int, crit: bool, from_direction: Vector3) -> void:
 	if state == State.DEAD:
+		return
+	if puppet:
+		# o dano de verdade é do anfitrião; aqui só o número e o piscar
+		Fx.damage_number(get_parent(), global_position + Vector3(0, 1.7 * data.body_scale, 0), amount, crit)
+		_flash_hit()
 		return
 	if health.untouchable:
 		Fx.damage_number(get_parent(), global_position + Vector3(0, 2.2 * data.body_scale, 0), 0, false, Color("8b5cf6"))
@@ -858,9 +924,12 @@ func _start(a: EnemyAttack, from_rally: bool = false) -> void:
 ## Provocar (tanque): vem para cima do herói sem recuar, aparece se estava escondido e bate mais fraco.
 ## Chefe: metade do tempo.
 ## damage_factor: quanto do dano ele mantém enquanto provocado (Voz da Tribo baixa isso).
-func provoke(seconds: float, damage_factor := PROVOKE_DAMAGE) -> void:
+func provoke(seconds: float, damage_factor := PROVOKE_DAMAGE, by: Node3D = null) -> void:
 	if state == State.DEAD:
 		return
+	if by:
+		_player = by  # vem para cima de quem provocou
+		_forced_target_left = seconds
 	if is_boss:
 		seconds *= 0.5
 	if _provoked_left > 0.0:
@@ -1304,6 +1373,8 @@ func _fire(a: EnemyAttack, dir: Vector3) -> void:
 	var p := EnemyProjectile.create(a, dir, damage_multiplier)
 	get_parent().add_child(p)
 	p.global_position = at
+	if NetState.is_host():
+		NetState.send("net_enemy_shot", [net_id, _attacks.find(a), at, dir])
 
 
 func _spawn_telegraph(t: Telegraph, haste: float, visual_duration: float = -1.0) -> void:
@@ -1312,6 +1383,8 @@ func _spawn_telegraph(t: Telegraph, haste: float, visual_duration: float = -1.0)
 	t.duration *= haste
 	get_parent().add_child(t)
 	_own_telegraphs.append(t)
+	if NetState.is_host():
+		NetState.send("net_telegraph", [t.pack(), net_id, _attacks.find(_attack)])
 
 
 func _fallback_attack() -> EnemyAttack:

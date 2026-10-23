@@ -33,12 +33,15 @@ var blockable := false
 ## Ataque que criou o aviso (os efeitos próprios dele ficam em MobFx).
 var attack_id: StringName = &""
 var _pre_fx_done := false
+## Multijogador: cópia do aviso de um bicho do anfitrião (desenha e toca os efeitos, sem dano).
+var net_copy := false
 
 var _t := 0.0
 var _resolved := false
 var _linger_tick := 0.0
 ## Área que prende (teia no chão): prende uma vez; só prende de novo se o herói sair e pisar outra vez.
 var _holding := false
+var _holding_by := {}
 var _fill: MeshInstance3D
 var _fill_mat: ShaderMaterial
 
@@ -103,6 +106,37 @@ void fragment() {
 static var _shader: Shader
 
 
+## Rede: tudo o que é preciso para desenhar o mesmo aviso em outro aparelho.
+func pack() -> Dictionary:
+	return {"shape": shape, "radius": radius, "length": length, "width": width, "half": half_angle_deg,
+		"duration": duration, "color": color, "linger": linger, "safe": safe_zones, "safe_r": safe_radius,
+		"id": attack_id, "visual": visual_only, "pos": global_position if is_inside_tree() else position,
+		"rot": rotation.y, "effect": effect}
+
+
+static func unpack(d: Dictionary) -> Telegraph:
+	var t := Telegraph.new()
+	t.shape = int(d.shape) as Shape
+	t.radius = d.radius
+	t.length = d.length
+	t.width = d.width
+	t.half_angle_deg = d.half
+	t.duration = d.duration
+	t.color = d.color
+	t.linger = d.linger
+	var zones: Array[Vector3] = []
+	zones.assign(d.safe)
+	t.safe_zones = zones
+	t.safe_radius = d.safe_r
+	t.attack_id = d.id
+	t.effect = int(d.effect)
+	t.visual_only = bool(d.visual)
+	t.net_copy = true
+	t.position = d.pos
+	t.rotation.y = d.rot
+	return t
+
+
 ## Cria o aviso de um ataque. origin: posição no chão; direction: para onde o ataque aponta.
 static func for_attack(attack: EnemyAttack, origin: Vector3, direction: Vector3, damage_mult: float) -> Telegraph:
 	var t := Telegraph.new()
@@ -154,18 +188,22 @@ func _process(delta: float) -> void:
 			_resolve()
 	elif linger > 0.0:
 		_linger_tick += delta
-		var player := _player()
-		var inside: bool = player != null and contains(player.global_position)
-		if not inside:
-			_holding = false
-		elif effect == EnemyAttack.Effect.ROOT:
-			# prende na hora em que pisa; parado dentro (ou ainda preso) não prende de novo
-			if not _holding:
-				_holding = true
-				player.receive_attack(0, effect, effect_duration, effect_power, global_position)
-		elif _linger_tick >= 0.5:
+		var tick := _linger_tick >= 0.5
+		if tick:
 			_linger_tick = 0.0
-			player.receive_attack(0, effect, effect_duration, effect_power, global_position)
+		if not net_copy:
+			for player in _heroes():
+				var key: int = player.get_instance_id()
+				if not contains(player.global_position):
+					_holding_by.erase(key)
+				elif effect == EnemyAttack.Effect.ROOT:
+					# prende na hora em que pisa; parado dentro (ou ainda preso) não prende de novo
+					if not _holding_by.has(key):
+						_holding_by[key] = true
+						player.receive_attack(0, effect, effect_duration, effect_power, global_position)
+				elif tick:
+					player.receive_attack(0, effect, effect_duration, effect_power, global_position)
+		_holding = not _holding_by.is_empty()
 		if _t >= duration + linger:
 			queue_free()
 
@@ -231,13 +269,14 @@ func is_pending() -> bool:
 func _resolve() -> void:
 	_resolved = true
 	var hit := false
-	if not visual_only:
-		var player := _player()
-		if player and contains(player.global_position) and (not blockable or Layers.clear_path(get_world_3d(), global_position, player.global_position)):
-			var amount := damage + int(round(damage_percent * player.health.max_health))
-			player.receive_attack(amount, effect, effect_duration, effect_power, global_position, shape == Shape.MEGA)
-			hit = true
-			_holding = effect == EnemyAttack.Effect.ROOT
+	if not visual_only and not net_copy:
+		for player in _heroes():
+			if contains(player.global_position) and (not blockable or Layers.clear_path(get_world_3d(), global_position, player.global_position)):
+				var amount := damage + int(round(damage_percent * player.health.max_health))
+				player.receive_attack(amount, effect, effect_duration, effect_power, global_position, shape == Shape.MEGA)
+				hit = true
+				if effect == EnemyAttack.Effect.ROOT:
+					_holding_by[player.get_instance_id()] = true
 	resolved.emit(hit)
 	if not visual_only:
 		MobFx.on_resolve(self)
@@ -254,6 +293,13 @@ func _resolve() -> void:
 
 func _player() -> Node3D:
 	return get_tree().get_first_node_in_group("player") if is_inside_tree() else null
+
+
+## Todos os heróis de pé (no multijogador, a área pega qualquer um).
+func _heroes() -> Array:
+	if not is_inside_tree():
+		return []
+	return get_tree().get_nodes_in_group("heroes").filter(func(h) -> bool: return not h.health.is_dead)
 
 
 func _mat(c: Color) -> StandardMaterial3D:

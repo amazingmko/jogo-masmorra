@@ -21,6 +21,7 @@ config/icon="res://icon.svg"
 ItemDB="*res://game/autoload/item_db.gd"
 SaveSystem="*res://game/autoload/save_system.gd"
 GameState="*res://game/autoload/game_state.gd"
+Net="*res://game/autoload/net.gd"
 
 [display]
 
