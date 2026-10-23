@@ -44,6 +44,8 @@ static var _grid := PackedByteArray()
 static var _grid_origin := Vector2.ZERO
 static var _grid_size := Vector2i.ZERO
 static var _tall: Array[Vector3] = []
+## Chão já ocupado no andar (mundo): [Vector2, raio, é_árvore]. Peças grandes não se sobrepõem.
+static var _occupied: Array = []
 static var _water := PackedVector3Array()
 const WET_RANGE := 4.5
 static var _wet_grid := PackedFloat32Array()
@@ -99,6 +101,7 @@ static func _wet(p: Vector3, extra: float) -> bool:
 static func begin_floor(layout: DungeonLayout) -> void:
 	_walk.clear()
 	_tall.clear()
+	_occupied.clear()
 	var reach := DungeonRoom.SIZE * 0.5 + DungeonRoom.WALL_T * 0.5 + DungeonRoom.BORDER_OUT + 0.3
 	for i in layout.room_count():
 		var c := DungeonBuilder.cell_to_world(layout.rooms[i].cell)
@@ -170,8 +173,9 @@ static func _plant_tall(rng: RandomNumberGenerator, world: Vector3, to_local: Ve
 	var s := rng.randf_range(0.8, 1.1) if palm else rng.randf_range(0.75, 1.1)
 	for attempt in 4:
 		var p := world + Vector3(rng.randf_range(-1.2, 1.2), 0, rng.randf_range(-1.2, 1.2)) * float(attempt)
-		if _tree_ok(p, CANOPY[kind] * s):
+		if _tree_ok(p, CANOPY[kind] * s) and _free(p, 0.55 * s, true):
 			_tall.append(p)
+			_claim(p, 0.55 * s, true)
 			(palms if palm else trees).append(_xf(rng, p - to_local, s))
 			return
 
@@ -251,32 +255,19 @@ static func populate(room: DungeonRoom, rng: RandomNumberGenerator, door_dirs: A
 				_plant_tall(rng, origin + tree_pos, origin, trees, palms)
 	# nada da borda cai dentro do igarapé (as peças vão um pouco para fora da linha)
 	bushes = bushes.filter(func(x: Transform3D) -> bool: return not _wet(origin + x.origin, 0.0))
-	# nenhuma peça em cima da outra: cada uma ocupa um círculo no chão; a que chega depois e
-	# encosta numa já posta sai. Moitas e árvores em cima de uma peça também saem.
-	var kept: Array = []  # [posição, raio]
+	# nenhuma peça em cima da outra (nem de sala vizinha, trilha ou mata): cada uma ocupa um
+	# círculo no chão; a que chega depois e encosta numa já posta sai. Moitas também.
 	for kind in extra:
 		var list: Array[Transform3D] = []
 		for x: Transform3D in extra[kind]:
-			if _wet(origin + x.origin, 0.0):
-				continue
+			var w := origin + x.origin
 			var r := _footprint(kind, x)
-			var free := true
-			for k in kept:
-				if Vector2(x.origin.x - k[0].x, x.origin.z - k[0].z).length() < (r + float(k[1])) * 0.85:
-					free = false
-					break
-			if free:
-				kept.append([x.origin, r])
-				list.append(x)
+			if _wet(w, 0.0) or not _free(w, r):
+				continue
+			_claim(w, r)
+			list.append(x)
 		_multimesh(room, kind, list, false)
-	var clear_of := func(x: Transform3D, margin: float) -> bool:
-		for k in kept:
-			if Vector2(x.origin.x - k[0].x, x.origin.z - k[0].z).length() < float(k[1]) * 0.8 + margin:
-				return false
-		return true
-	bushes = bushes.filter(func(x: Transform3D) -> bool: return clear_of.call(x, 0.3))
-	trees = trees.filter(func(x: Transform3D) -> bool: return clear_of.call(x, 0.6))
-	palms = palms.filter(func(x: Transform3D) -> bool: return clear_of.call(x, 0.5))
+	bushes = bushes.filter(func(x: Transform3D) -> bool: return _free(origin + x.origin, 0.35))
 	_multimesh(room, "moita", bushes, false)
 	_multimesh(room, "arvore_borda", trees, false)
 	_multimesh(room, "palmeira", palms, false)
@@ -294,6 +285,9 @@ static func populate(room: DungeonRoom, rng: RandomNumberGenerator, door_dirs: A
 			var p := _free_spot(rng, half - 1.8, 4.2, 0.75 * s, taken, door_dirs, half)
 			if p == Vector3.INF:
 				continue
+			if not _free(origin + p, 0.7 * s):
+				continue
+			_claim(origin + p, 0.7 * s)
 			_solid(room, "pedra_musgo", _xf(rng, p, s), Vector3(1.2, 1.0, 1.2))
 			room.pillars.append(Vector3(p.x, 1.0, p.z))
 			taken.append([p, 0.75 * s])
@@ -301,6 +295,7 @@ static func populate(room: DungeonRoom, rng: RandomNumberGenerator, door_dirs: A
 			var p := _free_spot(rng, half - 2.0, 4.5, 1.35, taken, door_dirs, half)
 			if p != Vector3.INF:
 				var xf := Transform3D(Basis(Vector3.UP, rng.randf() * TAU), p)
+				_claim(origin + p, 1.3)
 				_solid(room, "tronco_caido", xf, Vector3(2.6, 0.7, 0.8))
 				room.pillars.append(Vector3(p.x, 1.0, p.z))
 				taken.append([p, 1.35])
@@ -360,6 +355,22 @@ static func _border_style(rng: RandomNumberGenerator, south: bool) -> String:
 		if roll <= 0.0:
 			return o[0]
 	return "mata"
+
+
+## O círculo (mundo) está livre? Árvores não brigam entre si (só os troncos contam, e o
+## espaçamento delas já é feito pelo _tree_ok).
+static func _free(world: Vector3, r: float, tree := false) -> bool:
+	var q := Vector2(world.x, world.z)
+	for o in _occupied:
+		if tree and o[2]:
+			continue
+		if q.distance_to(o[0]) < (r + float(o[1])) * 0.8:
+			return false
+	return true
+
+
+static func _claim(world: Vector3, r: float, tree := false) -> void:
+	_occupied.append([Vector2(world.x, world.z), r, tree])
 
 
 ## Raio que a peça ocupa no chão (metade do maior lado; peças altas, uma fração da altura).
@@ -467,8 +478,11 @@ static func trail(parent: Node3D, left: PackedVector3Array, right: PackedVector3
 			var south := out.z > 0.5
 			if _wet(p, 0.4):
 				continue  # onde a trilha cruza o igarapé: a pinguela, sem moita em cima
-			if rng.randf() < 0.22 and not _wet(p + out * 0.8, 0.2):
-				rocks.append(_xf(rng, p + out * rng.randf_range(0.4, 0.8), rng.randf_range(0.5, 0.9)))
+			var rp := p + out * rng.randf_range(0.4, 0.8)
+			var rs := rng.randf_range(0.5, 0.9)
+			if rng.randf() < 0.22 and not _wet(p + out * 0.8, 0.2) and _free(rp, 0.7 * rs):
+				_claim(rp, 0.7 * rs)
+				rocks.append(_xf(rng, rp, rs))
 			else:
 				bushes.append(_xf(rng, p + out * rng.randf_range(0.4, 0.7), rng.randf_range(0.55, 0.75) if south else rng.randf_range(0.9, 1.3)))
 			if rng.randf() < 0.6:
