@@ -508,210 +508,33 @@ func _fill_multiplayer() -> void:
 
 func _fill_heroes() -> void:
 	_modal_title.text = "Heróis"
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_modal_body.add_child(row)
-	for hero_id in GameState.unlocked_heroes:
-		var hero := ItemDB.get_hero(StringName(hero_id))
-		if hero == null:
-			continue
-		var p := GameState.progress(hero.id)
-		var sel := hero.id == _player.hero_id
-		var box := PanelContainer.new()
-		box.add_theme_stylebox_override("panel", UiStyle.section(sel))
-		box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(box)
-		var card := VBoxContainer.new()
-		card.add_theme_constant_override("separation", 8)
-		box.add_child(card)
-		var n := Label.new()
-		n.text = hero.display_name
-		UiStyle.title_label(n, 22, UiStyle.GOLD if sel else UiStyle.TEXT)
-		card.add_child(n)
-		var tags := HFlowContainer.new()
-		tags.add_theme_constant_override("h_separation", 5)
-		tags.add_theme_constant_override("v_separation", 5)
-		tags.add_child(UiStyle.chip("%d" % p.level, "nivel", Color("ffd25a")))
-		tags.add_child(UiStyle.chip(GameEnums.PRIMARY_NAMES[hero.primary_stat], UiStyle.primary_icon(hero.primary_stat)))
-		tags.add_child(UiStyle.chip(GameEnums.ARMOR_NAMES[hero.armor_type()], UiStyle.armor_icon(hero.armor_type())))
-		card.add_child(tags)
-		var xp := UiStyle.bar(Color("4fbf7a"), 100, 22)
-		xp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		UiStyle.set_bar(xp, p.xp, Progression.xp_to_next(p.level), "XP %d / %d" % [p.xp, Progression.xp_to_next(p.level)])
-		card.add_child(xp)
-		var d := UiStyle.label(hero.description, 15, UiStyle.TEXT_DIM)
-		d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		d.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		card.add_child(d)
-		var spacer := Control.new()
-		spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		card.add_child(spacer)
-		if Talents.has_tree(hero.id):
-			var free := GameState.talent_points_free(hero.id)
-			var tb := _button("Talentos", 18, UiStyle.OK if free > 0 else TEXT)
-			tb.custom_minimum_size.y = 50
-			if free > 0:
-				tb.text = "Talentos  +%d" % free
-			var tid := hero.id
-			tb.pressed.connect(func() -> void:
-				_talent_hero = tid
-				_talent_msg = ""
-				_open_station = &"talentos"
-				_refresh_open_panel())
-			card.add_child(tb)
-		if sel:
-			var on := _button("Em uso", 18, UiStyle.GOLD)
-			on.custom_minimum_size.y = 50
-			on.disabled = true
-			on.add_theme_color_override("font_disabled_color", UiStyle.GOLD)
-			on.add_theme_stylebox_override("disabled", _selected_style(UiStyle.GOLD))
-			card.add_child(on)
-		else:
-			var pick := _button("Escolher", 18, TEXT, false, "ouro")
-			pick.custom_minimum_size.y = 50
-			pick.pressed.connect(func() -> void:
-				GameState.selected_hero = hero.id
-				_player.set_hero(hero)
-				GameState.save()
-				_refresh_top_bar()
-				_refresh_open_panel())
-			card.add_child(pick)
+	var panel := HeroesPanel.new()
+	_modal_body.add_child(panel)
+	panel.build(_player)
+	panel.open_talents.connect(func(hid: StringName) -> void:
+		_talent_hero = hid
+		_open_station = &"talentos"
+		_refresh_open_panel())
+	panel.hero_chosen.connect(func(hero: HeroData) -> void:
+		GameState.selected_hero = hero.id
+		_player.set_hero(hero)
+		GameState.save()
+		_refresh_top_bar()
+		_refresh_open_panel())
 
 
-## Árvore de talentos: 3 ramos lado a lado; cada talento é um botão (toque = +1 ponto).
+## Talentos (como no WoW): especializações, mini árvore e o detalhe do talento.
 func _fill_talents() -> void:
 	var hero := ItemDB.get_hero(_talent_hero)
 	if hero == null:
 		return
-	var talents := GameState.talents_of(hero.id)
-	var free := GameState.talent_points_free(hero.id)
 	_modal_title.text = "Talentos"
-	var top := HBoxContainer.new()
-	top.add_theme_constant_override("separation", 8)
-	_modal_body.add_child(top)
-	var n := Label.new()
-	n.text = hero.display_name
-	UiStyle.title_label(n, 24)
-	top.add_child(n)
-	top.add_child(UiStyle.chip("%d livres" % free, "nivel", UiStyle.OK if free > 0 else UiStyle.TEXT_DIM))
-	top.add_child(UiStyle.chip("%d gastos" % Talents.spent(talents), "", UiStyle.TEXT_DIM))
-	if _talent_msg != "":
-		top.add_child(UiStyle.chip(_talent_msg, "", UiStyle.GOLD))
-	var fill := Control.new()
-	fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top.add_child(fill)
-	if OS.is_debug_build():
-		var dbg := _button("+5 (teste)", 15, MUTED)
-		dbg.pressed.connect(func() -> void:
-			GameState.debug_talent_points += 5
-			GameState.save()
-			_refresh_open_panel())
-		top.add_child(dbg)
-	var reset := _button("Redistribuir", 17)
-	reset.disabled = Talents.spent(talents) == 0
-	reset.pressed.connect(func() -> void:
-		GameState.reset_talents(hero.id)
-		_player.refresh_stats()
-		_talent_msg = "Pontos devolvidos"
-		_refresh_open_panel())
-	top.add_child(reset)
-	var back := _button("Voltar", 17)
-	back.pressed.connect(func() -> void:
+	var panel := TalentsPanel.new()
+	_modal_body.add_child(panel)
+	panel.build(hero, _player)
+	panel.back_requested.connect(func() -> void:
 		_open_station = &"herois"
 		_refresh_open_panel())
-	top.add_child(back)
-
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_modal_body.add_child(scroll)
-	var columns := HBoxContainer.new()
-	columns.add_theme_constant_override("separation", 12)
-	columns.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(columns)
-	for branch in Talents.branches(hero.id):
-		var in_branch := Talents.spent_in_branch(talents, branch)
-		var col := VBoxContainer.new()
-		col.add_theme_constant_override("separation", 6)
-		var box := PanelContainer.new()
-		box.add_theme_stylebox_override("panel", UiStyle.section(in_branch > 0))
-		box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		box.add_child(col)
-		columns.add_child(box)
-		var hrow := HBoxContainer.new()
-		col.add_child(hrow)
-		var bl := Label.new()
-		bl.text = branch.name
-		UiStyle.title_label(bl, 21)
-		bl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		hrow.add_child(bl)
-		hrow.add_child(UiStyle.chip("%d" % in_branch, "", UiStyle.GOLD if in_branch > 0 else UiStyle.TEXT_DIM))
-		col.add_child(UiStyle.label(branch.role, 14, UiStyle.TEXT_DIM))
-		for row in Talents.ROW_REQUIREMENT.size():
-			var open := Talents.row_open(talents, branch, row)
-			if not open:
-				col.add_child(UiStyle.chip("%d pontos neste ramo" % Talents.ROW_REQUIREMENT[row], "cadeado", UiStyle.TEXT_DIM, 13))
-			for t in branch.talents:
-				if int(t.row) != row:
-					continue
-				col.add_child(_talent_button(hero.id, t, talents, open, free))
-
-
-func _talent_button(hero_id: StringName, t: Dictionary, talents: Dictionary, open: bool, free: int) -> Control:
-	var r := Talents.rank(talents, t.id)
-	var maxed := r >= int(t.max)
-	var color := UiStyle.GOLD if maxed else (UiStyle.OK if r > 0 else (TEXT if open else MUTED))
-	var b := Button.new()
-	b.focus_mode = Control.FOCUS_NONE
-	var sb := UiStyle.section(r > 0)
-	sb.bg_color = Color(0, 0, 0, 0.35) if r == 0 else Color(color, 0.12)
-	sb.border_color = Color(color, 0.8) if r > 0 else UiStyle.c("line")
-	if int(t.row) == 3:
-		sb.border_color = UiStyle.GOLD if r > 0 else Color(UiStyle.GOLD, 0.5)
-		sb.set_border_width_all(2)
-	sb.set_content_margin_all(8)
-	for k in ["normal", "hover", "pressed", "disabled"]:
-		b.add_theme_stylebox_override(k, sb)
-	b.disabled = maxed or not open or free <= 0
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 2)
-	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var h := HBoxContainer.new()
-	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	v.add_child(h)
-	var name_l := Label.new()
-	name_l.text = t.name
-	UiStyle.title_label(name_l, 16, color)
-	name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	h.add_child(name_l)
-	var pips := UiStyle.pips(r, int(t.max), UiStyle.GOLD if maxed else UiStyle.OK, 11)
-	pips.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	h.add_child(pips)
-	var d := UiStyle.label(Talents.describe(t, r), 13, UiStyle.TEXT_DIM if open else Color(UiStyle.TEXT_DIM, 0.6))
-	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	d.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	v.add_child(d)
-	# o botão cresce com o texto (o conteúdo fica num container dentro dele)
-	var wrap := MarginContainer.new()
-	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	wrap.add_theme_constant_override("margin_left", 9)
-	wrap.add_theme_constant_override("margin_right", 9)
-	wrap.add_theme_constant_override("margin_top", 6)
-	wrap.add_theme_constant_override("margin_bottom", 7)
-	wrap.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	wrap.add_child(v)
-	b.add_child(wrap)
-	wrap.minimum_size_changed.connect(func() -> void: b.custom_minimum_size.y = wrap.get_combined_minimum_size().y)
-	b.custom_minimum_size.y = 64
-	var id: String = t.id
-	b.pressed.connect(func() -> void:
-		var why := GameState.add_talent(hero_id, id)
-		_talent_msg = why if why != "" else "%s %d/%d" % [t.name, r + 1, int(t.max)]
-		_player.refresh_stats()
-		_refresh_open_panel())
-	return b
 
 
 func _fill_artisan() -> void:

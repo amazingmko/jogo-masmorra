@@ -85,12 +85,17 @@ func _process(_d: float) -> bool:
 		_shot("portal_grupo")
 		_ui._portal_tab = "solo"
 		_ui._close()
+		var hp: GDScript = load("res://game/scripts/hub/heroes_panel.gd")
+		hp.viewing = &"encantado"
 		_ui._open(&"herois")
 	elif _f == 112:
 		_shot("herois")
 		gs.progress(&"icamiaba")["talents"] = {"couro_anta": 3, "escudo_firme": 2, "casco_vivo": 2, "pele_pedra": 1, "guarda_imovel": 1, "ponta_pedra": 2}
 		_ui._talent_hero = &"icamiaba"
 		_ui._open_station = &"talentos"
+		var tp: GDScript = load("res://game/scripts/hub/talents_panel.gd")
+		tp.spec = "protecao"
+		tp.picked = "pele_pedra"
 		_ui._refresh_open_panel()
 	elif _f == 128:
 		_shot("talentos")

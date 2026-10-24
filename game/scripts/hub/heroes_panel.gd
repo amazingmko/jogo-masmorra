@@ -1,0 +1,201 @@
+class_name HeroesPanel
+extends HBoxContainer
+## Escolha de herói (como a seleção de personagem de um MMORPG), sem rolagem:
+## - esquerda: os heróis em cartões (nome, funções, nível);
+## - meio: o herói olhado, em 3D, girável;
+## - direita: quem é, de onde vem (bioma e região), atributo e armadura, XP, as 3 especializações
+##   com a função de cada uma, e os botões de talentos e de escolher.
+
+signal open_talents(hero_id: StringName)
+signal hero_chosen(hero: HeroData)
+
+## Herói que está sendo olhado (não precisa ser o escolhido).
+static var viewing: StringName = &""
+
+var player: Player
+
+
+func build(p: Player) -> void:
+	player = p
+	if viewing == &"" or ItemDB.get_hero(viewing) == null:
+		viewing = p.hero_id
+	add_theme_constant_override("separation", 14)
+	size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_refresh()
+
+
+func _refresh() -> void:
+	for ch in get_children():
+		ch.queue_free()
+	var hero := ItemDB.get_hero(viewing)
+	if hero == null:
+		hero = player.hero
+		viewing = hero.id
+	add_child(_list())
+	var center := VBoxContainer.new()
+	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	center.add_theme_constant_override("separation", 0)
+	add_child(center)
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0, 46)
+	center.add_child(spacer)
+	var body := UiStyle.column_body()
+	center.add_child(body)
+	var v := HeroPreview.new().setup(hero, Vector2(260, 380))
+	body.add_child(v)
+	add_child(_info(hero))
+
+
+func _list() -> Control:
+	var col := VBoxContainer.new()
+	col.custom_minimum_size = Vector2(330, 0)
+	col.add_theme_constant_override("separation", 0)
+	var h := HBoxContainer.new()
+	h.custom_minimum_size = Vector2(0, 46)
+	h.add_child(UiStyle.header("Escolha seu herói"))
+	col.add_child(h)
+	var body := UiStyle.column_body()
+	col.add_child(body)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 8)
+	body.add_child(list)
+	for hero_id in GameState.unlocked_heroes:
+		var hero := ItemDB.get_hero(StringName(hero_id))
+		if hero == null:
+			continue
+		list.add_child(_hero_card(hero))
+	return col
+
+
+func _hero_card(hero: HeroData) -> Control:
+	var looking := hero.id == viewing
+	var chosen := hero.id == player.hero_id
+	var b := Button.new()
+	b.focus_mode = Control.FOCUS_NONE
+	b.custom_minimum_size = Vector2(0, 104)
+	b.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var sb := UiStyle.section(looking)
+	sb.bg_color = Color(UiStyle.c("accent"), 0.14) if looking else Color(0, 0, 0, 0.35)
+	for k in ["normal", "hover", "pressed"]:
+		b.add_theme_stylebox_override(k, sb)
+	var m := MarginContainer.new()
+	m.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	for side in ["left", "right", "top", "bottom"]:
+		m.add_theme_constant_override("margin_" + side, 10)
+	m.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(m)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 6)
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	m.add_child(v)
+	var top := HBoxContainer.new()
+	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(top)
+	var n := Label.new()
+	n.text = hero.display_name
+	UiStyle.title_label(n, 20, UiStyle.GOLD if looking else UiStyle.TEXT)
+	n.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	n.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top.add_child(n)
+	if chosen:
+		top.add_child(UiStyle.chip("Em uso", "", UiStyle.GOLD, 13))
+	top.add_child(UiStyle.chip("%d" % GameState.level_of(hero.id), "nivel", Color("ffd25a"), 13))
+	var roles := HBoxContainer.new()
+	roles.add_theme_constant_override("separation", 4)
+	roles.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for r in SpecInfo.hero_roles(hero.id).slice(0, 3):
+		var spec: Array = SpecInfo.ROLE[r]
+		roles.add_child(UiStyle.chip(r, spec[0], spec[1], 12))
+	v.add_child(roles)
+	var hid := hero.id
+	b.pressed.connect(func() -> void:
+		viewing = hid
+		_refresh())
+	return b
+
+
+func _info(hero: HeroData) -> Control:
+	var p := GameState.progress(hero.id)
+	var col := VBoxContainer.new()
+	col.custom_minimum_size = Vector2(380, 0)
+	col.add_theme_constant_override("separation", 0)
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0, 46)
+	col.add_child(spacer)
+	var body := UiStyle.column_body()
+	col.add_child(body)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 9)
+	body.add_child(v)
+	var n := Label.new()
+	n.text = hero.display_name
+	UiStyle.title_label(n, 30)
+	v.add_child(n)
+	var origin := SpecInfo.origin(hero.id)
+	v.add_child(UiStyle.chips([[origin[1], "mapa", Color("e8d29a")], [origin[0], "", Color("8fe38f")]]))
+	v.add_child(UiStyle.chips([[GameEnums.PRIMARY_NAMES[hero.primary_stat], UiStyle.primary_icon(hero.primary_stat)],
+		[GameEnums.ARMOR_NAMES[hero.armor_type()], UiStyle.armor_icon(hero.armor_type())],
+		["%d" % p.level, "nivel", Color("ffd25a")]]))
+	var xp := UiStyle.bar(Color("4fbf7a"), 100, 22)
+	xp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UiStyle.set_bar(xp, p.xp, Progression.xp_to_next(p.level), "XP %d / %d" % [p.xp, Progression.xp_to_next(p.level)])
+	v.add_child(xp)
+	var d := UiStyle.label(hero.description, 15, UiStyle.TEXT_DIM)
+	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	d.custom_minimum_size = Vector2(340, 0)
+	v.add_child(d)
+	# as 3 especializações e a função de cada uma
+	var specs := VBoxContainer.new()
+	specs.add_theme_constant_override("separation", 5)
+	v.add_child(specs)
+	for b in Talents.branches(hero.id):
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		var ic := TextureRect.new()
+		ic.texture = load("res://game/ui/icones/s_%s.png" % SpecInfo.icon(String(b.id)))
+		ic.custom_minimum_size = Vector2(26, 26)
+		ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		row.add_child(ic)
+		var bl := Label.new()
+		bl.text = b.name
+		UiStyle.title_label(bl, 17, UiStyle.TEXT)
+		bl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(bl)
+		row.add_child(SpecInfo.role_chips(String(b.id), 13))
+		specs.add_child(row)
+	var fill := Control.new()
+	fill.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(fill)
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 8)
+	v.add_child(buttons)
+	if Talents.has_tree(hero.id):
+		var free := GameState.talent_points_free(hero.id)
+		var tb := Button.new()
+		tb.text = "Talentos" + ("  +%d" % free if free > 0 else "")
+		UiStyle.style_button(tb, "normal", 19)
+		if free > 0:
+			tb.add_theme_color_override("font_color", UiStyle.OK)
+		tb.custom_minimum_size = Vector2(0, 56)
+		tb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var hid := hero.id
+		tb.pressed.connect(func() -> void: open_talents.emit(hid))
+		buttons.add_child(tb)
+	var pick := Button.new()
+	pick.custom_minimum_size = Vector2(0, 56)
+	pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if hero.id == player.hero_id:
+		pick.text = "Em uso"
+		UiStyle.style_button(pick, "normal", 19)
+		pick.disabled = true
+		pick.add_theme_color_override("font_disabled_color", UiStyle.GOLD)
+	else:
+		pick.text = "Escolher"
+		UiStyle.style_button(pick, "ouro", 20)
+		pick.pressed.connect(func() -> void:
+			hero_chosen.emit(hero)
+			_refresh())
+	buttons.add_child(pick)
+	return col

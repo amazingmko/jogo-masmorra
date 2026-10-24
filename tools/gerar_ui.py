@@ -571,6 +571,24 @@ def small_icons():
     d.ellipse([S * .14, S * .14, S * .86, S * .86], fill=(110, 220, 140))
     d.polygon([(S * .5, S * .26), (S * .72, S * .52), (S * .58, S * .52), (S * .58, S * .74), (S * .42, S * .74), (S * .42, S * .52), (S * .28, S * .52)], fill=(240, 255, 240))
     out["xp"] = done(im)
+    im, S = canvas(); d = ImageDraw.Draw(im)  # controle: redemoinho
+    for k in range(3):
+        r = .38 - k * .11
+        d.arc([S * (.5 - r), S * (.5 - r), S * (.5 + r), S * (.5 + r)], 30 + k * 60, 300 + k * 60, fill=(190, 140, 255), width=7 * SS)
+    out["controle"] = done(im)
+    im, S = canvas(); d = ImageDraw.Draw(im)  # suporte: aura (cruz luminosa num círculo)
+    d.ellipse([S * .12, S * .12, S * .88, S * .88], outline=(255, 230, 140), width=6 * SS)
+    d.rectangle([S * .42, S * .24, S * .58, S * .76], fill=(255, 230, 140))
+    d.rectangle([S * .24, S * .42, S * .76, S * .58], fill=(255, 230, 140))
+    out["suporte"] = done(im)
+    im, S = canvas(); d = ImageDraw.Draw(im)  # mobilidade: asa
+    for k in range(4):
+        d.ellipse([S * (.14 + k * .08), S * (.2 + k * .12), S * (.86 - k * .02), S * (.44 + k * .12)], fill=(120, 230, 230) if k % 2 == 0 else (90, 200, 210))
+    out["mobilidade"] = done(im)
+    im, S = canvas(); d = ImageDraw.Draw(im)  # arco (selo)
+    d.arc([S * .12, S * .1, S * .88, S * .9], 225, 45, fill=(220, 160, 90), width=8 * SS)
+    d.line([(S * .25, S * .76), (S * .75, S * .24)], fill=(240, 236, 220), width=3 * SS)
+    out["arco"] = done(im)
     return out
 
 
