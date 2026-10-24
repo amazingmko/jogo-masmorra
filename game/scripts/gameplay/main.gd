@@ -908,15 +908,20 @@ func _finish_all(victory: bool, camp := false) -> void:
 	_finish(victory, camp)
 
 
-## Quem ficou fora da sala quando as portas fecharam vem para dentro (ninguém fica preso fora).
+## Quem ficou fora da sala quando as portas fecharam vem para dentro (ninguém fica preso fora):
+## para logo depois da porta por onde ia entrar, ao lado de quem já entrou.
 func _pull_heroes_into(room: DungeonRoom) -> void:
-	var spot := room.center() + Vector3(0, 0.1, 0)
+	var slot := 1
 	if not room.contains(_player.global_position):
-		_player.global_position = spot
+		_player.global_position = room.entry_point(_player.global_position, slot)
+		_player.velocity = Vector3.ZERO
 		_player.reset_physics_interpolation()
+		slot += 1
 	for peer in _replicas:
-		if not room.contains(_replicas[peer].global_position):
-			Net.send_to(peer, "net_teleport", [spot + _arrival_offset(peer)])
+		var at: Vector3 = _replicas[peer].global_position
+		if not room.contains(at):
+			Net.send_to(peer, "net_teleport", [room.entry_point(at, slot)])
+			slot += 1
 
 
 func _net_tick(delta: float) -> void:

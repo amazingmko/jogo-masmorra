@@ -30,6 +30,9 @@ var _peer: ENetMultiplayerPeer
 var _announce: PacketPeerUDP
 var _listen: PacketPeerUDP
 var _announce_t := 0.0
+## Para onde o anúncio vai: o broadcast geral e o da rede de cada IP do aparelho (x.y.z.255).
+## Muitos roteadores e celulares Android descartam o geral (255.255.255.255) e deixam o da rede.
+var _announce_to: Array[String] = []
 
 
 func _ready() -> void:
@@ -189,7 +192,12 @@ func _rpc_start(info: Dictionary) -> void:
 func _start_announce() -> void:
 	_announce = PacketPeerUDP.new()
 	_announce.set_broadcast_enabled(true)
-	_announce.set_dest_address("255.255.255.255", DISCOVERY_PORT)
+	_announce_to = ["255.255.255.255"]
+	for ip: String in local_ips():
+		var parts := ip.split(".")
+		var net := "%s.%s.%s.255" % [parts[0], parts[1], parts[2]]
+		if not _announce_to.has(net):
+			_announce_to.append(net)
 
 
 func start_search() -> void:
@@ -214,7 +222,9 @@ func _process(delta: float) -> void:
 			_announce_t = ANNOUNCE_EVERY
 			var hero := ItemDB.get_hero(GameState.selected_hero)
 			var msg := JSON.stringify({"jogo": "masmorra", "nome": hero.display_name if hero else "Anfitrião", "n": players.size()})
-			_announce.put_packet(msg.to_utf8_buffer())
+			for dest in _announce_to:
+				_announce.set_dest_address(dest, DISCOVERY_PORT)
+				_announce.put_packet(msg.to_utf8_buffer())
 	if _listen:
 		var changed := false
 		while _listen.get_available_packet_count() > 0:

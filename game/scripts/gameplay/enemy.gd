@@ -149,6 +149,10 @@ var _rig_action := ""        # animação de ação tocando (ataque, dano, morte
 var _rig_action_left := 0.0
 var _rig_running := false
 var _rig_height := 1.0
+## Meio comprimento do corpo (do centro até o focinho), medido no modelo.
+var _body_reach := -1.0
+## Distância que o bicho guarda do herói (não entra dentro dele para bater).
+var _personal_space := 0.8
 var _quad: QuadPose        # quadrúpede do Anything World: ataques mexendo os ossos
 var _arthro: ArthroPose    # aranha, formiga: andar e ataques por código
 var _serp: SerpentPose     # cobra: rastejar por código
@@ -224,6 +228,7 @@ func _ready() -> void:
 	_dodge_cd = _rng.randf_range(0.5, 2.0)
 	_combo_left = _new_combo()
 	_awake = data.ambush_range <= 0.0
+	_personal_space = _compute_personal_space()
 
 
 func _process(delta: float) -> void:
@@ -385,6 +390,9 @@ func _physics_process(delta: float) -> void:
 				_charge_hit = true
 				_player.receive_attack(int(round(_attack.damage * damage_multiplier)), _attack.effect,
 					_attack.effect_duration, _attack.effect_power, global_position)
+			# a investida termina encostada no herói (não atravessa o corpo dele)
+			if player_alive and dist <= _personal_space and to_player.dot(_aim_dir) > 0.0:
+				_charge_left = 0.0
 			if _charge_left <= 0.0 or (is_on_wall() and _charge_left < _attack.length - 0.5):
 				MobFx.charge_end(self, _attack.id)
 				_enter_recover()
@@ -1457,8 +1465,46 @@ func _drop_loot() -> void:
 # ---------- auxiliares ----------
 
 func _set_horizontal(v: Vector3) -> void:
+	if state != State.CHARGING:
+		v = _hero_space(v)
 	velocity.x = v.x
 	velocity.z = v.z
+
+
+## Corpo a corpo: para a uma distância do herói (encostado, sem entrar nele). Chegando perto, o
+## passo na direção dele vai diminuindo; se ficou dentro (o herói andou para cima), sai devagar.
+const SPACE_SOFT := 0.45
+
+
+func _compute_personal_space() -> float:
+	var reach := _body_reach if _body_reach > 0.0 else 0.4 * data.body_scale
+	var space := 0.38 + reach * 0.8
+	# nunca longe a ponto de não alcançar com o golpe mais curto
+	var melee := INF
+	for a in _attacks:
+		if a.kind == EnemyAttack.Kind.MELEE and a.range_min < 1.0:
+			melee = minf(melee, a.range_max)
+	if melee < INF:
+		space = minf(space, melee - 0.35)
+	return maxf(space, 0.38 + 0.3 * data.body_scale)
+
+
+func _hero_space(v: Vector3) -> Vector3:
+	for h in get_tree().get_nodes_in_group("heroes"):
+		if not is_instance_valid(h) or h.health == null or h.health.is_dead:
+			continue
+		var away: Vector3 = global_position - (h as Node3D).global_position
+		away.y = 0.0
+		var d := away.length()
+		if d < 0.01 or d >= _personal_space + SPACE_SOFT:
+			continue
+		var n := away / d
+		var inward := -v.dot(n)
+		if inward > 0.0:
+			v += n * inward * (1.0 - clampf((d - _personal_space) / SPACE_SOFT, 0.0, 1.0))
+		if d < _personal_space:
+			v += n * (_personal_space - d) * 5.0
+	return v
 
 
 func _face(dir: Vector3, delta: float) -> void:
@@ -1570,6 +1616,7 @@ func _build_model() -> bool:
 	_pose.add_child(_model)
 	var aabb: AABB = art.aabb
 	var size: Vector3 = aabb.size * float(art.k)
+	_body_reach = maxf(size.x, size.z) * 0.5
 	var stride: float = (size.y * 0.6) if art.modo == 1 else maxf(size.x, size.z) * 0.55
 	_gait_per_meter = TAU / maxf(stride, 0.2)
 	if data.belly_mouth:
@@ -1819,6 +1866,7 @@ func _build_rig() -> bool:
 	scene.scale = Vector3.ONE * k
 	scene.position.y = -box.position.y * k   # pés no chão
 	_rig_height = box.size.y * k
+	_body_reach = maxf(box.size.x, box.size.z) * k * 0.5
 	var aabb := AABB(box.position, box.size)  # (usada abaixo para a boca do Mapinguari)
 	var inner := 1.0
 	_anim = players[0]

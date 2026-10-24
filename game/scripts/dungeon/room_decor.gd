@@ -257,17 +257,22 @@ static func populate(room: DungeonRoom, rng: RandomNumberGenerator, door_dirs: A
 	bushes = bushes.filter(func(x: Transform3D) -> bool: return not _wet(origin + x.origin, 0.0))
 	# nenhuma peça em cima da outra (nem de sala vizinha, trilha ou mata): cada uma ocupa um
 	# círculo no chão; a que chega depois e encosta numa já posta sai. Moitas também.
+	var solid := _solid_body(room)
 	for kind in extra:
 		var list: Array[Transform3D] = []
 		for x: Transform3D in extra[kind]:
 			var w := origin + x.origin
 			var r := _footprint(kind, x)
-			if _wet(w, 0.0) or not _free(w, r):
+			if _wet(w, 0.0) or not _free(w, r) or _blocks_door(kind, x, door_dirs, half):
 				continue
 			_claim(w, r)
 			list.append(x)
+			_collide(solid, kind, x)
 		_multimesh(room, kind, list, false)
-	bushes = bushes.filter(func(x: Transform3D) -> bool: return _free(origin + x.origin, 0.35))
+	bushes = bushes.filter(func(x: Transform3D) -> bool:
+		return _free(origin + x.origin, 0.35) and not _blocks_door("moita", x, door_dirs, half))
+	for x in bushes:
+		_collide(solid, "moita", x)
 	_multimesh(room, "moita", bushes, false)
 	_multimesh(room, "arvore_borda", trees, false)
 	_multimesh(room, "palmeira", palms, false)
@@ -455,12 +460,13 @@ static func _near_walk(x: float, z: float, margin: float) -> bool:
 	return false
 
 
-## Sumaúma no lugar do pilar (a colisão continua a do pilar).
+## Sumaúma no lugar do pilar (com a colisão do tamanho do tronco e das raízes).
 static func trunk(parent: Node3D, pos: Vector3, rng: RandomNumberGenerator) -> void:
 	var node := _instance("sumauma")
 	node.name = "sumauma_%d" % parent.get_child_count()
 	node.transform = _xf(rng, Vector3(pos.x, 0.0, pos.z), rng.randf_range(0.85, 1.15))
 	parent.add_child(node)
+	_collide(_solid_body(parent), "sumauma", node.transform)
 
 
 ## Trilha: moitas pelas duas bordas, samambaias na beirada e algumas árvores por trás.
@@ -489,6 +495,11 @@ static func trail(parent: Node3D, left: PackedVector3Array, right: PackedVector3
 				ferns.append(_xf(rng, p - out * 0.35, rng.randf_range(0.7, 1.1)))
 			if rng.randf() < 0.5:
 				_plant_tall(rng, p + out * rng.randf_range(2.2, 4.5), Vector3.ZERO, trees, palms)
+	var solid := _solid_body(parent)
+	for x in bushes:
+		_collide(solid, "moita", x)
+	for x in rocks:
+		_collide(solid, "pedra_musgo", x)
 	_multimesh(parent, "moita", bushes, false)
 	_multimesh(parent, "pedra_musgo", rocks, false)
 	_multimesh(parent, "samambaia", ferns, false)
@@ -543,21 +554,109 @@ static func _multimesh(parent: Node3D, kind: String, transforms: Array[Transform
 	parent.add_child(node)
 
 
-static func _solid(parent: Node3D, kind: String, xf: Transform3D, size: Vector3) -> void:
+## Obstáculo do meio da sala: corpo próprio na posição da peça, com a colisão do tamanho do desenho.
+## (`_size` ficou da versão antiga, em que a caixa era fixa; não é mais usado.)
+static func _solid(parent: Node3D, kind: String, xf: Transform3D, _size := Vector3.ZERO) -> void:
 	var body := StaticBody3D.new()
 	body.collision_layer = Layers.WORLD
 	body.collision_mask = 0
 	body.transform = Transform3D(xf.basis.orthonormalized(), xf.origin)
-	var col := CollisionShape3D.new()
-	var shape := BoxShape3D.new()
-	shape.size = size * xf.basis.get_scale().x
-	col.shape = shape
-	col.position.y = shape.size.y * 0.5
-	body.add_child(col)
+	var s := xf.basis.get_scale().x
+	_collide(body, kind, Transform3D(Basis().scaled(Vector3.ONE * s), Vector3.ZERO))
 	var node := _instance(kind)
-	node.scale = Vector3.ONE * xf.basis.get_scale().x
+	node.scale = Vector3.ONE * s
 	body.add_child(node)
 	parent.add_child(body)
+
+
+# ---------- colisão das peças ----------
+
+## Quanto da caixa do desenho vira colisão. Peças duras (pedra, muro, pilar) quase inteiras: o herói
+## encosta e para. Folhagem um pouco menor (as pontas das folhas podem passar por cima do herói).
+## As redondas usam um cilindro; as compridas, uma caixa girada junto com a peça.
+const COLLIDE := {
+	"moita": [0.62, true], "sumauma": [0.92, true], "pedra_musgo": [0.85, true],
+	"tronco_caido": [0.85, false], "muro_ruina": [0.92, false], "pilar_ruina": [0.82, true],
+	"totem_pedra": [0.85, true], "raiz_gigante": [0.85, false], "rocha_paredao": [0.88, false],
+	"itacoatiara": [0.85, false], "cupinzeiro": [0.8, true], "toco_oco": [0.85, true],
+	"sapopema": [0.85, true], "taboca": [0.5, false], "palmeira_caida": [0.75, false],
+	"arvore_tombada": [0.65, false], "sauveiro": [0.75, true],
+}
+const COLLIDE_H := 2.0
+
+
+## Um corpo parado por pai (sala ou mata), onde entram as formas das peças.
+static func _solid_body(parent: Node3D) -> StaticBody3D:
+	if parent.has_meta("decor_body"):
+		var old := instance_from_id(int(parent.get_meta("decor_body"))) as StaticBody3D
+		if old != null and not old.is_queued_for_deletion() and old.get_parent() == parent:
+			return old
+	var body := StaticBody3D.new()
+	body.name = "DecorColisao"
+	body.collision_layer = Layers.WORLD
+	body.collision_mask = 0
+	parent.add_child(body)
+	parent.set_meta("decor_body", body.get_instance_id())
+	return body
+
+
+## Forma (no espaço do pai) que a peça ocupa no chão: [centro, giro, meia-largura x, meia-largura z,
+## redonda?]. Vazio se a peça não tem colisão.
+static func _shape_of(kind: String, xf: Transform3D) -> Array:
+	if not COLLIDE.has(kind):
+		return []
+	var piece := _piece(kind)
+	var a: AABB = piece.base * (piece.mesh as Mesh).get_aabb()
+	var s := xf.basis.get_scale().x
+	var k: float = float(COLLIDE[kind][0]) * s
+	var basis := xf.basis.orthonormalized()
+	var center := xf.origin + basis * Vector3(a.get_center().x * s, 0, a.get_center().z * s)
+	return [center, basis, a.size.x * 0.5 * k, a.size.z * 0.5 * k, bool(COLLIDE[kind][1])]
+
+
+static func _collide(body: StaticBody3D, kind: String, xf: Transform3D) -> void:
+	var sh := _shape_of(kind, xf)
+	if sh.is_empty():
+		return
+	var col := CollisionShape3D.new()
+	if sh[4]:
+		var cyl := CylinderShape3D.new()
+		cyl.radius = minf(sh[2], sh[3])
+		cyl.height = COLLIDE_H
+		col.shape = cyl
+		col.position = sh[0] + Vector3(0, COLLIDE_H * 0.5, 0)
+	else:
+		var box := BoxShape3D.new()
+		box.size = Vector3(sh[2] * 2.0, COLLIDE_H, sh[3] * 2.0)
+		col.shape = box
+		col.transform = Transform3D(sh[1], sh[0] + Vector3(0, COLLIDE_H * 0.5, 0))
+	body.add_child(col)
+
+
+## A peça (já com a colisão) taparia o vão de alguma porta? (coordenadas da sala)
+static func _blocks_door(kind: String, xf: Transform3D, door_dirs: Array[Vector2i], half: float) -> bool:
+	var sh := _shape_of(kind, xf)
+	if sh.is_empty():
+		return false
+	var c: Vector3 = sh[0]
+	var b: Basis = sh[1]
+	var pts: Array[Vector3] = []
+	if sh[4]:
+		var r := minf(sh[2], sh[3])
+		pts = [c, c + Vector3(r, 0, 0), c - Vector3(r, 0, 0), c + Vector3(0, 0, r), c - Vector3(0, 0, r)]
+	else:
+		for sx in [-1.0, 0.0, 1.0]:
+			for sz in [-1.0, 1.0]:
+				pts.append(c + b.x * sh[2] * sx + b.z * sh[3] * sz)
+	var free_half := DungeonRoom.DOOR_W * 0.5 - 0.4
+	for d in door_dirs:
+		var out := Vector3(d.x, 0, d.y)
+		var along := Vector3(absf(d.y), 0, absf(d.x))
+		for q in pts:
+			var o := q.dot(out)
+			if absf(q.dot(along)) < free_half and o > half - 1.5 and o < half + 3.0:
+				return true
+	return false
 
 
 static func _instance(kind: String) -> Node3D:

@@ -94,6 +94,28 @@ func contains(point: Vector3) -> bool:
 	return absf(point.x - global_position.x) <= half and absf(point.z - global_position.z) <= half
 
 
+## Logo depois da porta mais perto de `from`, já dentro da sala (`slot` afasta um do outro ao
+## longo da porta: 0, 1, 2...). Sem porta, perto da beira mais próxima.
+func entry_point(from: Vector3, slot := 0) -> Vector3:
+	var local := from - global_position
+	local.y = 0.0
+	var dirs := _door_dirs.duplicate()
+	if dirs.is_empty():
+		dirs = DungeonLayout.DIRS.duplicate()
+	var best: Vector2i = dirs[0]
+	var best_d := INF
+	for d: Vector2i in dirs:
+		var door := Vector3(d.x, 0, d.y) * SIZE * 0.5
+		var dd := local.distance_to(door)
+		if dd < best_d:
+			best_d = dd
+			best = d
+	var out := Vector3(best.x, 0, best.y)
+	var along := Vector3(absf(best.y), 0, absf(best.x))
+	var side := int((slot + 1) / 2.0) * (1 if slot % 2 == 1 else -1)
+	return global_position + out * (SIZE * 0.5 - 1.8) + along * (float(side) * 1.1) + Vector3(0, 0.1, 0)
+
+
 func close_doors() -> void:
 	for b in _barriers:
 		b.close()
