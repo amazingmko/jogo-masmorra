@@ -1,15 +1,18 @@
 class_name Talents
 extends RefCounted
-## Árvore de talentos de cada herói: 3 ramos com 4 fileiras.
-##  - 1 ponto a cada 2 níveis (20 no nível 40).
-##  - A fileira abre com pontos gastos no MESMO ramo: 0, 3, 6 e 10.
+## Árvore de talentos de cada herói: 3 especializações (ramos) com 4 fileiras, no jeito do WoW.
+##  - UMA especialização ativa por vez (a função do herói: Tank, Dano, Healer...); só os talentos
+##    dela valem. Cada especialização guarda os seus pontos; trocar é grátis, no hub.
+##  - Pontos: 1 a cada 3 níveis (13 no nível 38): dá para completar uma especialização no fim.
+##  - Fileiras abrem pelo NÍVEL do herói: 2, 10, 20 e 30.
 ##  - A fileira 4 é o talento máximo (1 ponto, muda o jeito de jogar).
 ##  - Redistribuir é grátis (no hub).
 ## Os pontos gastos ficam no progresso do herói: {"talents": {"couro_anta": 2, ...}}.
 ## Quem usa cada talento (kits, HeroStats, Player) só pergunta o nível dele: rank(talents, id).
 
-const ROW_REQUIREMENT := [0, 3, 6, 10]
-const LEVELS_PER_POINT := 2
+## Nível do herói que abre cada fileira.
+const ROW_LEVEL := [2, 10, 20, 30]
+const LEVELS_PER_POINT := 3
 
 ## hero_id -> lista de ramos {id, name, role, talents: [{id, name, row, max, desc}]}
 ## Em "desc", {v} é trocado pelo valor do nível atual (ou do 1º, se ainda não tem ponto).
@@ -141,8 +144,9 @@ static func branches(hero_id: StringName) -> Array:
 	return TREES.get(hero_id, [])
 
 
+## Pontos de uma especialização no nível: 1 no 2, 2 no 5, 3 no 8... 13 no 38.
 static func points_for_level(level: int) -> int:
-	return maxi(level, 0) / LEVELS_PER_POINT
+	return maxi(level + 1, 0) / LEVELS_PER_POINT
 
 
 static func spent(talents: Dictionary) -> int:
@@ -185,22 +189,34 @@ static func spent_in_branch(talents: Dictionary, branch: Dictionary) -> int:
 	return total
 
 
-static func row_open(talents: Dictionary, branch: Dictionary, row: int) -> bool:
-	return spent_in_branch(talents, branch) >= ROW_REQUIREMENT[row]
+static func row_open(level: int, row: int) -> bool:
+	return level >= ROW_LEVEL[clampi(row, 0, ROW_LEVEL.size() - 1)]
 
 
-## "" se dá para pôr mais um ponto; senão, o motivo.
-static func can_add(talents: Dictionary, hero_id: StringName, id: String, level: int) -> String:
+## Só os talentos da especialização (os outros ramos ficam guardados, mas não valem).
+static func only_branch(talents: Dictionary, hero_id: StringName, branch_id: String) -> Dictionary:
+	var out := {}
+	for k in talents:
+		var b := branch_of(hero_id, String(k))
+		if not b.is_empty() and String(b.id) == branch_id:
+			out[String(k)] = int(talents[k])
+	return out
+
+
+## "" se dá para pôr mais um ponto; senão, o motivo. talents: todos os pontos guardados do herói.
+static func can_add(talents: Dictionary, hero_id: StringName, id: String, level: int, active: String) -> String:
 	var t := find(hero_id, id)
 	if t.is_empty():
 		return "Talento desconhecido."
+	var b := branch_of(hero_id, id)
+	if String(b.id) != active:
+		return "Ative %s para aprender este talento." % b.name
 	if rank(talents, id) >= int(t.max):
 		return "Já está no máximo."
-	if spent(talents) >= points_for_level(level):
-		return "Sem pontos livres (1 ponto a cada 2 níveis)."
-	var b := branch_of(hero_id, id)
-	if not row_open(talents, b, int(t.row)):
-		return "Gaste %d pontos em %s para abrir esta fileira." % [ROW_REQUIREMENT[int(t.row)], b.name]
+	if not row_open(level, int(t.row)):
+		return "Abre no nível %d." % ROW_LEVEL[int(t.row)]
+	if spent_in_branch(talents, b) >= points_for_level(level):
+		return "Sem pontos livres (1 ponto a cada 3 níveis)."
 	return ""
 
 
@@ -211,7 +227,8 @@ static func describe(t: Dictionary, current_rank: int) -> String:
 	return String(t.desc).replace("{v}", shown)
 
 
-## Tira pontos de talentos que não existem mais e os que passaram do máximo ou dos pontos do nível.
+## Tira pontos de talentos que não existem mais e os que passaram do máximo; a especialização que
+## gastou mais pontos do que o nível dá começa de novo (as outras ficam).
 static func sanitize(talents: Dictionary, hero_id: StringName, level: int) -> Dictionary:
 	var out := {}
 	for k in talents:
@@ -221,8 +238,10 @@ static func sanitize(talents: Dictionary, hero_id: StringName, level: int) -> Di
 		var r := clampi(int(talents[k]), 0, int(t.max))
 		if r > 0:
 			out[String(k)] = r
-	if spent(out) > points_for_level(level):
-		return {}  # nível baixou (não deveria): começa de novo
+	for b in branches(hero_id):
+		if spent_in_branch(out, b) > points_for_level(level):
+			for t in b.talents:
+				out.erase(String(t.id))
 	return out
 
 

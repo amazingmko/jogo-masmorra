@@ -88,10 +88,13 @@ func _run() -> void:
 	POR = load("res://game/scripts/gameplay/kits/pororoca.gd")
 	BOI = load("res://game/scripts/gameplay/kits/boiuna.gd")
 	_gs = root.get_node("GameState")
+	_gs.debug_all_specs = true  # testa efeitos de ramos diferentes juntos
 	_gs.debug_talent_points = 0
 	await _test_encantado()
 	await _test_druida()
 	print("fim: ", "TUDO OK" if _ok else "COM FALHAS")
+	_gs.debug_clear_talents()  # não deixa talentos para os outros testes
+	_gs.save()
 	quit(0 if _ok else 1)
 
 

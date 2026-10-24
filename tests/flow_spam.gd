@@ -26,6 +26,7 @@ func check(cond: bool, label: String) -> void:
 func _process(_d: float) -> bool:
 	if _f == 0:
 		root.get_node("GameState").selected_hero = HEROES[_hero]
+		root.get_node("GameState").debug_clear_talents()  # sem talentos de outros testes
 		change_scene_to_file("res://game/scenes/main.tscn")
 	_f += 1
 	if _f == 5:

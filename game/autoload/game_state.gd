@@ -139,12 +139,47 @@ func stats_for(hero_id: StringName, buffs: Array = []) -> HeroStats:
 
 # ---------- talentos ----------
 
-## Pontos gastos na árvore do herói: {"couro_anta": 2, ...}.
-func talents_of(hero_id: StringName) -> Dictionary:
+## Testes: todos os talentos valem juntos (para testar efeitos de ramos diferentes de uma vez).
+var debug_all_specs := false
+
+
+## Todos os pontos guardados do herói (das 3 especializações): {"couro_anta": 2, ...}.
+func all_talents_of(hero_id: StringName) -> Dictionary:
 	var p := progress(hero_id)
 	if not p.has("talents"):
 		p["talents"] = {}
 	return p.talents
+
+
+## Os talentos que VALEM: só os da especialização ativa.
+func talents_of(hero_id: StringName) -> Dictionary:
+	if debug_all_specs:
+		return all_talents_of(hero_id)
+	return Talents.only_branch(all_talents_of(hero_id), hero_id, active_spec(hero_id))
+
+
+## Testes: começa sem talentos em nenhum herói (só na memória; não grava).
+func debug_clear_talents() -> void:
+	for k in heroes:
+		heroes[k]["talents"] = {}
+		heroes[k].erase("spec")
+
+
+## Especialização ativa (ramo). Sem escolha ainda: a primeira.
+func active_spec(hero_id: StringName) -> String:
+	var p := progress(hero_id)
+	var branches := Talents.branches(hero_id)
+	var id := String(p.get("spec", ""))
+	for b in branches:
+		if String(b.id) == id:
+			return id
+	return String(branches[0].id) if not branches.is_empty() else ""
+
+
+func set_active_spec(hero_id: StringName, branch_id: String) -> void:
+	progress(hero_id)["spec"] = branch_id
+	hero_progress_changed.emit(hero_id)
+	save()
 
 
 func talent_rank(hero_id: StringName, id: String) -> int:
@@ -155,26 +190,43 @@ func talent_value(hero_id: StringName, id: String) -> float:
 	return Talents.value(talents_of(hero_id), id, hero_id)
 
 
-## Pontos ainda livres (1 a cada 2 níveis, mais os de teste).
-func talent_points_free(hero_id: StringName) -> int:
-	return Talents.points_for_level(level_of(hero_id)) + debug_talent_points - Talents.spent(talents_of(hero_id))
+## Nível usado nas regras (com os pontos de teste convertidos em níveis).
+func talent_level(hero_id: StringName) -> int:
+	return level_of(hero_id) + debug_talent_points * Talents.LEVELS_PER_POINT
 
 
-## Põe um ponto. Devolve "" se deu certo, ou o motivo.
+## Pontos ainda livres numa especialização (vazio = a ativa).
+func talent_points_free(hero_id: StringName, branch_id := "") -> int:
+	var bid := branch_id if branch_id != "" else active_spec(hero_id)
+	var spent := 0
+	for b in Talents.branches(hero_id):
+		if String(b.id) == bid:
+			spent = Talents.spent_in_branch(all_talents_of(hero_id), b)
+	return Talents.points_for_level(talent_level(hero_id)) - spent
+
+
+## Põe um ponto (só na especialização ativa). Devolve "" se deu certo, ou o motivo.
 func add_talent(hero_id: StringName, id: String) -> String:
-	var reason := Talents.can_add(talents_of(hero_id), hero_id, id, level_of(hero_id) + debug_talent_points * Talents.LEVELS_PER_POINT)
+	var t := all_talents_of(hero_id)
+	var reason := Talents.can_add(t, hero_id, id, talent_level(hero_id), active_spec(hero_id))
 	if reason != "":
 		return reason
-	var t := talents_of(hero_id)
 	t[id] = Talents.rank(t, id) + 1
 	hero_progress_changed.emit(hero_id)
 	save()
 	return ""
 
 
-## Redistribuir: devolve todos os pontos (grátis).
-func reset_talents(hero_id: StringName) -> void:
-	progress(hero_id)["talents"] = {}
+## Redistribuir: devolve os pontos de uma especialização (vazio = todas). Grátis.
+func reset_talents(hero_id: StringName, branch_id := "") -> void:
+	if branch_id == "":
+		progress(hero_id)["talents"] = {}
+	else:
+		var t := all_talents_of(hero_id)
+		for b in Talents.branches(hero_id):
+			if String(b.id) == branch_id:
+				for tt in b.talents:
+					t.erase(String(tt.id))
 	hero_progress_changed.emit(hero_id)
 	save()
 
@@ -327,6 +379,8 @@ func from_dict(data: Dictionary) -> void:
 		var level := int(p.get("level", 1))
 		var talents := Talents.sanitize(p.get("talents", {}), StringName(key), level + debug_talent_points * Talents.LEVELS_PER_POINT)
 		heroes[String(key)] = {"level": level, "xp": int(p.get("xp", 0)), "equipped": eq, "talents": talents}
+		if p.has("spec"):
+			heroes[String(key)]["spec"] = String(p.spec)
 	energy = clampi(int(data.get("energy", MAX_ENERGY)), 0, MAX_ENERGY)
 	energy_at = int(data.get("energy_at", 0))
 	highest_cleared = int(data.get("highest_cleared", -1))

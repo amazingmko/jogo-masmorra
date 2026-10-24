@@ -781,11 +781,11 @@ func _on_prop_activated(prop: RoomProp) -> void:
 
 func on_loot_collected(item: ItemData, qty: int, instance: Dictionary = {}) -> void:
 	if instance.is_empty():
-		_stats.loot[item.display_name] = _stats.loot.get(item.display_name, 0) + qty
+		_stats.loot[String(item.id)] = _stats.loot.get(String(item.id), 0) + qty
 		return
-	# Equipamento: conta por raridade e guarda a melhor peça para o resumo.
+	# Equipamento: conta por peça e raridade e guarda a melhor para o resumo.
 	var r := int(instance.rarity)
-	var key := "peça %s" % GameEnums.rarity_name(r)
+	var key := "%s#%d" % [String(item.id), r]
 	_stats.loot[key] = _stats.loot.get(key, 0) + 1
 	if _stats.best.is_empty() or r > int(_stats.best.rarity):
 		_stats.best = instance
@@ -856,15 +856,26 @@ func _finish(victory: bool, camp := false) -> void:
 	var lines := PackedStringArray()
 	if not full_rewards:
 		lines.append("Sem energia: reagentes reduzidos e sem troféus do chefe.")
-	var loot_parts := PackedStringArray()
-	for name in _stats.loot:
-		loot_parts.append("%d× %s" % [_stats.loot[name], name])
-	lines.append("Loot: " + (", ".join(loot_parts) if not loot_parts.is_empty() else "nada desta vez"))
-	if not _stats.best.is_empty():
-		lines.append("Melhor peça: %s (%s)" % [ItemFactory.display_name(_stats.best, ItemDB.catalog),
-			GameEnums.rarity_name(int(_stats.best.rarity))])
+	# loot em lista: ícone, nome e quantidade (o mais raro primeiro)
+	var entries := []
+	for key in _stats.loot:
+		var parts := String(key).split("#")
+		var item := ItemDB.get_item(StringName(parts[0]))
+		if item == null:
+			continue
+		var rarity := int(parts[1]) if parts.size() > 1 else int(item.rarity)
+		entries.append({"icon": CharacterPanel.icon_name(item), "name": item.display_name,
+			"qty": int(_stats.loot[key]), "rarity": rarity})
+	entries.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if a.rarity != b.rarity:
+			return a.rarity > b.rarity
+		return a.qty > b.qty)
+	_hud.set_panel_loot(entries)
+	if entries.is_empty():
+		lines.append("Nada caiu desta vez.")
 	if not _stats.buffs.is_empty():
-		lines.append("Bênçãos: " + ", ".join(PackedStringArray(_stats.buffs)))
+		for bname in _stats.buffs:
+			tags.append([String(bname), "suporte", Color("ffd98a")])
 	if level_now > int(_stats.level_start):
 		lines.append("Subiu do nível %d para o %d!" % [_stats.level_start, level_now])
 	_hud.set_panel_chips(tags)

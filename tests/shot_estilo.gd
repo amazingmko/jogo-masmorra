@@ -132,9 +132,12 @@ func _process(_d: float) -> bool:
 		_m._hud.show_toast("Sala limpa!", UiStyle.GOLD)
 	elif _f == 200:
 		_shot("luta")
-		_m._hud.show_panel("Você caiu", "A mata venceu desta vez. Os reagentes e o XP ficam com você.", "Voltar ao hub")
-		_m._hud._panel_button2.text = "Jogar de novo"
-		_m._hud._panel_button2.visible = true
+		# resumo de uma run de verdade (o mesmo que aparece no fim)
+		_m._stats.loot = {"couro_jacare": 21, "fibra_tucum": 11, "madeira_lei": 22, "minerio_ferro": 13,
+			"pena_arara": 6, "latex_seringueira": 9, "oleo_andiroba": 1, "pelo_mapinguari": 3}
+		_m._stats.kills = 66
+		_m._stats.xp = 276
+		_m._finish(false, true)
 	elif _f == 216:
 		_shot("dialogo")
 		print("capturas: ", _shots)

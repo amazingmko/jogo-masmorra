@@ -22,6 +22,9 @@ var _hero_chips: HBoxContainer
 var _wave_chips: HBoxContainer
 var _panel_chips: HFlowContainer
 var _panel_chip_items: Array = []
+var _panel_loot: GridContainer
+var _panel_loot_box: PanelContainer
+var _panel_loot_items: Array = []
 var _hero_label: Label
 var _wave_label: Label
 var _help_label: Label
@@ -187,8 +190,19 @@ func set_panel_chips(items: Array) -> void:
 	_panel_chip_items = items
 
 
+## Lista de loot do próximo painel: [{icon, name, qty, rarity}]. Vale só para o próximo show_panel.
+func set_panel_loot(entries: Array) -> void:
+	_panel_loot_items = entries
+
+
 func show_panel(title: String, text: String, button_text: String = "Recomeçar") -> void:
 	_ask_callback = Callable()
+	for ch in _panel_loot.get_children():
+		ch.queue_free()
+	for e in _panel_loot_items.slice(0, 12):
+		_panel_loot.add_child(_loot_row(e))
+	_panel_loot_box.visible = not _panel_loot_items.is_empty()
+	_panel_loot_items = []
 	for ch in _panel_chips.get_children():
 		ch.queue_free()
 	for it in _panel_chip_items:
@@ -197,6 +211,7 @@ func show_panel(title: String, text: String, button_text: String = "Recomeçar")
 	_panel_chip_items = []
 	_panel_title.text = title
 	_panel_text.text = text
+	_panel_text.visible = text != ""
 	_panel_button.text = button_text
 	_panel_button2.visible = false
 	_panel.visible = true
@@ -481,6 +496,23 @@ func _build_panel() -> void:
 	_panel_chips.custom_minimum_size = Vector2(600, 0)
 	_panel_chips.visible = false
 	box.add_child(_panel_chips)
+	# loot: lista em duas colunas (ícone, nome, quantidade)
+	_panel_loot_box = PanelContainer.new()
+	_panel_loot_box.add_theme_stylebox_override("panel", UiStyle.section())
+	_panel_loot_box.visible = false
+	var lv := VBoxContainer.new()
+	lv.add_theme_constant_override("separation", 6)
+	_panel_loot_box.add_child(lv)
+	var lt := Label.new()
+	lt.text = "Loot"
+	UiStyle.title_label(lt, 20)
+	lv.add_child(lt)
+	_panel_loot = GridContainer.new()
+	_panel_loot.columns = 2
+	_panel_loot.add_theme_constant_override("h_separation", 16)
+	_panel_loot.add_theme_constant_override("v_separation", 4)
+	lv.add_child(_panel_loot)
+	box.add_child(_panel_loot_box)
 	_panel_text = _make_label(18)
 	_panel_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_panel_text.autowrap_mode = TextServer.AUTOWRAP_WORD
@@ -586,3 +618,41 @@ func _make_bar(fill_color: Color) -> ProgressBar:
 	bar.add_theme_stylebox_override("fill", fill)
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return bar
+
+
+## Uma linha do loot: casinha com o ícone (borda na raridade), o nome e "×N".
+func _loot_row(e: Dictionary) -> Control:
+	var row := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0, 0, 0, 0.3)
+	sb.set_corner_radius_all(6)
+	sb.content_margin_left = 4
+	sb.content_margin_right = 10
+	sb.content_margin_top = 2
+	sb.content_margin_bottom = 2
+	row.add_theme_stylebox_override("panel", sb)
+	row.custom_minimum_size = Vector2(300, 0)
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 8)
+	row.add_child(h)
+	var slot := PanelContainer.new()
+	slot.custom_minimum_size = Vector2(42, 42)
+	var ss := UiStyle.slot_box(int(e.rarity))
+	ss.set_content_margin_all(4)
+	slot.add_theme_stylebox_override("panel", ss)
+	var ic := TextureRect.new()
+	ic.texture = UiStyle.icon(String(e.icon))
+	ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	slot.add_child(ic)
+	h.add_child(slot)
+	var n := UiStyle.label(String(e.name), 16, GameEnums.rarity_color(int(e.rarity)) if int(e.rarity) > 0 else UiStyle.TEXT)
+	n.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	n.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	h.add_child(n)
+	var q := Label.new()
+	q.text = "×%d" % int(e.qty)
+	UiStyle.title_label(q, 20, UiStyle.GOLD)
+	q.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	h.add_child(q)
+	return row

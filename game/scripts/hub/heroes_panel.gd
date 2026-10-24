@@ -158,11 +158,14 @@ func _info(hero: HeroData) -> Control:
 		ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		row.add_child(ic)
+		var active: bool = String(b.id) == GameState.active_spec(hero.id)
 		var bl := Label.new()
 		bl.text = b.name
-		UiStyle.title_label(bl, 17, UiStyle.TEXT)
+		UiStyle.title_label(bl, 17, UiStyle.GOLD if active else UiStyle.TEXT)
 		bl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(bl)
+		if active:
+			row.add_child(UiStyle.chip("Ativa", "", UiStyle.OK, 12))
 		row.add_child(SpecInfo.role_chips(String(b.id), 13))
 		specs.add_child(row)
 	var fill := Control.new()

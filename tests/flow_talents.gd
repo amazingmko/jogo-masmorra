@@ -195,6 +195,8 @@ func _process(_d: float) -> bool:
 		check(moved_12 < 0.3, "golpes 1 e 2 sem sair do lugar (%.2f m)" % moved_12)
 		check(_player.global_position.distance_to(p2) > 1.5, "giro (golpe 3) avança com o golpe: %.1f m, sem patinar" % _player.global_position.distance_to(p2))
 		print("fim: ", "TUDO OK" if _ok else "COM FALHAS")
+		_gs.debug_clear_talents()  # não deixa talentos para os outros testes
+		_gs.save()
 		quit(0 if _ok else 1)
 	return false
 
@@ -209,28 +211,41 @@ func _companions() -> int:
 
 func _test_rules() -> void:
 	var h := &"icamiaba"
-	check(T.points_for_level(1) == 0 and T.points_for_level(40) == 20, "1 ponto a cada 2 níveis (20 no nível 40)")
+	_gs.debug_all_specs = false
+	check(T.points_for_level(1) == 0 and T.points_for_level(2) == 1 and T.points_for_level(38) == 13 and T.points_for_level(40) == 13, "1 ponto a cada 3 níveis (13 no nível 38)")
+	_gs.set_active_spec(h, "protecao")
 	check(_gs.add_talent(h, "couro_anta") != "", "nível 1: sem pontos")
 	_gs.progress(h).level = 20
-	check(_gs.talent_points_free(h) == 10, "nível 20: 10 pontos")
+	check(_gs.talent_points_free(h) == 7, "nível 20: 7 pontos")
 	var armor0: int = _gs.stats_for(h).armor
-	check(_gs.add_talent(h, "casco_vivo") != "", "fileira 2 fechada sem 3 pontos no ramo")
 	for i in 3:
 		check(_gs.add_talent(h, "couro_anta") == "", "Couro de Anta %d/3" % (i + 1))
 	check(_gs.add_talent(h, "couro_anta") != "", "não passa do máximo")
 	check(_gs.stats_for(h).armor > armor0, "Couro de Anta aumenta a armadura (%d -> %d)" % [armor0, _gs.stats_for(h).armor])
-	check(_gs.add_talent(h, "casco_vivo") == "", "3 pontos no ramo abrem a fileira 2")
-	check(_gs.add_talent(h, "revide_feroz") != "", "pontos de um ramo não abrem outro")
+	check(_gs.add_talent(h, "casco_vivo") == "", "nível 20 abre a fileira 2")
+	check(_gs.add_talent(h, "muralha_espelhada") != "", "talento máximo só no nível 30")
+	check(_gs.add_talent(h, "revide_feroz") != "", "só aprende na especialização ativa")
+	# trocar de especialização: cada uma guarda os seus pontos; só a ativa vale
+	_gs.set_active_spec(h, "furia")
+	check(_gs.talent_rank(h, "couro_anta") == 0 and _gs.stats_for(h).armor == armor0, "Proteção guardada não vale com Fúria ativa")
+	check(_gs.talent_points_free(h) == 7, "Fúria tem os seus próprios 7 pontos")
+	check(_gs.add_talent(h, "ponta_pedra") == "", "aprende na Fúria ativa")
+	_gs.set_active_spec(h, "protecao")
+	check(_gs.talent_rank(h, "couro_anta") == 3 and _gs.talent_rank(h, "ponta_pedra") == 0, "volta para Proteção com os pontos dela")
 	var copy: Dictionary = _gs.to_dict()
-	_gs.reset_talents(h)
-	check(_gs.talent_points_free(h) == 10, "Redistribuir devolve tudo")
+	_gs.reset_talents(h, "protecao")
+	check(_gs.talent_points_free(h) == 7 and _gs.all_talents_of(h).has("ponta_pedra"), "Redistribuir devolve só a especialização")
 	_gs.from_dict(copy)
-	check(_gs.talent_rank(h, "couro_anta") == 3 and _gs.talent_rank(h, "casco_vivo") == 1, "talentos sobrevivem ao save")
+	check(_gs.active_spec(h) == "protecao" and _gs.talent_rank(h, "couro_anta") == 3 and _gs.talent_rank(h, "casco_vivo") == 1, "especialização e talentos sobrevivem ao save")
 	_gs.reset_talents(h)
+	_gs.debug_all_specs = true  # os testes de efeito abaixo ligam talentos de ramos diferentes juntos
 	var m := &"mateira"
 	_gs.progress(m).level = 40
 	_gs.reset_talents(m)
+	_gs.debug_all_specs = false
+	_gs.set_active_spec(m, String(T.branch_of(m, "pes_leves").id))
 	var speed0: float = _gs.stats_for(m).move_speed
 	_gs.add_talent(m, "pes_leves")
 	check(_gs.stats_for(m).move_speed > speed0, "Pés Leves aumenta a velocidade")
 	_gs.reset_talents(m)
+	_gs.debug_all_specs = true
