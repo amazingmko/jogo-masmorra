@@ -672,6 +672,68 @@ def watermarks():
 PALETA_ATIVA = ["abissal"]
 
 
+def seal_parts(P):
+    """Selo (no lugar das pílulas): losango de metal com encaixe escuro para o ícone e uma placa
+    com a ponta chanfrada saindo dele; o ponto (sem ícone) é um losango pequeno. Tudo branco/neutro
+    onde o jogo tinge com a cor do selo."""
+    out = {}
+    m = P["metal"]
+    # losango 48x48: aro de metal com relevo e encaixe escuro
+    S = 48 * SS
+    im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    c = S / 2
+    outer = [(c, 0), (S, c), (c, S), (0, c)]
+    d = ImageDraw.Draw(im)
+    d.polygon(outer, fill=(4, 6, 10, 255))
+    bevel_poly(im, [(c, 2 * SS), (S - 2 * SS, c), (c, S - 2 * SS), (2 * SS, c)], [m[0], m[1], m[2], m[3]], 6)
+    k = 0.70
+    inner = [(c, c - c * k), (c + c * k, c), (c, c + c * k), (c - c * k, c)]
+    d.polygon(inner, fill=(6, 12, 22, 255))
+    d.line([inner[3], inner[0], inner[1]], fill=(0, 0, 0, 255), width=SS)
+    out["selo_losango"] = im.resize((48, 48), Image.LANCZOS)
+    # brilho do encaixe (branco; o jogo tinge com a cor do selo, bem fraco)
+    g = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    ImageDraw.Draw(g).polygon(inner, fill=(255, 255, 255, 255))
+    g = g.filter(ImageFilter.GaussianBlur(3 * SS))
+    out["selo_brilho"] = g.resize((48, 48), Image.LANCZOS)
+    # placa 96x30: corpo escuro, filetes de metal em cima e embaixo, ponta direita chanfrada
+    W, H = 96 * SS, 30 * SS
+    im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    ch = 11 * SS
+    poly = [(0, 0), (W - ch, 0), (W, H / 2), (W - ch, H), (0, H)]
+    d.polygon(poly, fill=(4, 6, 10, 255))
+    inset = [(0, 2 * SS), (W - ch - SS, 2 * SS), (W - 2.5 * SS, H / 2), (W - ch - SS, H - 2 * SS), (0, H - 2 * SS)]
+    body = vgrad(W, H, tuple(min(255, v + 18) for v in P["bg_top"]), P["bg_bot"], 245)
+    mask = Image.new("L", (W, H), 0)
+    ImageDraw.Draw(mask).polygon(inset, fill=255)
+    im.paste(body, (0, 0), mask)
+    d.line([inset[0], inset[1], inset[2]], fill=m[1] + (255,), width=SS)
+    d.line([inset[2], inset[3], inset[4]], fill=m[3] + (255,), width=SS)
+    out["selo_placa"] = im.resize((96, 30), Image.LANCZOS)
+    # ponto (selo sem ícone): losango pequeno branco com contorno escuro
+    S = 24 * SS
+    im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    c = S / 2
+    d.polygon([(c, 0), (S, c), (c, S), (0, c)], fill=(4, 6, 10, 255))
+    d.polygon([(c, 3 * SS), (S - 3 * SS, c), (c, S - 3 * SS), (3 * SS, c)], fill=(255, 255, 255, 255))
+    d.polygon([(c, 3 * SS), (S - 3 * SS, c), (c, c)], fill=(255, 255, 255, 255))
+    out["selo_ponto"] = im.resize((24, 24), Image.LANCZOS)
+    # contas de energia (pips): losango aceso (branco, tingido) e apagado
+    for name, fill in [("conta", (255, 255, 255, 255)), ("conta_vazia", (30, 40, 56, 255))]:
+        im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+        d = ImageDraw.Draw(im)
+        d.polygon([(c, 0), (S, c), (c, S), (0, c)], fill=(4, 6, 10, 255))
+        d.polygon([(c, 3 * SS), (S - 3 * SS, c), (c, S - 3 * SS), (3 * SS, c)], fill=fill)
+        if name == "conta":
+            d.polygon([(c, 3 * SS), (S - 3 * SS, c), (c, c - SS), (3 * SS, c)], fill=(255, 255, 255, 255))
+        else:
+            d.polygon([(c, 3 * SS), (S - 3 * SS, c), (c, S - 3 * SS), (3 * SS, c)], outline=m[3] + (255,), width=SS)
+        out[name] = im.resize((24, 24), Image.LANCZOS)
+    return out
+
+
 def main():
     for name, P in PALETAS.items():
         if name not in PALETA_ATIVA:
@@ -692,6 +754,8 @@ def main():
         for r in range(4):
             slot(P, r).save(os.path.join(out, "casa_%d.png" % r))
         ring(P).save(os.path.join(out, "anel.png"))
+        for k, im in seal_parts(P).items():
+            im.save(os.path.join(out, k + ".png"))
     ic = os.path.join(ROOT, "icones")
     os.makedirs(ic, exist_ok=True)
     for k, im in icon_items().items():

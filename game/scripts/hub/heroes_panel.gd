@@ -102,7 +102,7 @@ func _hero_card(hero: HeroData) -> Control:
 		top.add_child(UiStyle.chip("Em uso", "", UiStyle.GOLD, 13))
 	top.add_child(UiStyle.chip("%d" % GameState.level_of(hero.id), "nivel", Color("ffd25a"), 13))
 	var roles := HBoxContainer.new()
-	roles.add_theme_constant_override("separation", 4)
+	roles.add_theme_constant_override("separation", 0)
 	roles.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for r in SpecInfo.hero_roles(hero.id).slice(0, 3):
 		var spec: Array = SpecInfo.ROLE[r]

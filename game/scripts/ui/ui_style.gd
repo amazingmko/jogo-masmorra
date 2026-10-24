@@ -252,45 +252,86 @@ static func label(text: String, size := 17, color: Color = Color(0, 0, 0, 0), bo
 
 # ---------- componentes ----------
 
-## Selo: pílula com ícone e texto (no lugar de "Força · Placa"). icon: nome em icones/s_<nome>.png.
-static func chip(text: String, icon := "", color: Color = Color(0, 0, 0, 0), size := 15) -> PanelContainer:
+## Selo (a "pílula" do jogo): um losango de metal com o ícone encaixado, sobreposto a uma placa
+## escura de ponta chanfrada com o texto. Sem ícone, um losango pequeno na cor do selo.
+## icon: nome em icones/s_<nome>.png.
+static func chip(text: String, icon := "", color: Color = Color(0, 0, 0, 0), size := 15) -> Control:
 	var col := c("accent") if color.a == 0.0 else color
-	var p := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.02, 0.05, 0.1, 0.78)
-	sb.border_color = Color(col, 0.75)
-	sb.set_border_width_all(2)
-	sb.set_corner_radius_all(20)
-	sb.content_margin_left = 6 if icon != "" else 12
-	sb.content_margin_right = 12
-	sb.content_margin_top = 2
-	sb.content_margin_bottom = 3
-	p.add_theme_stylebox_override("panel", sb)
-	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	p.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 5)
-	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	p.add_child(h)
+	var d := float(size + 17)          # lado do losango
+	var overlap := d * 0.42
+	var root := HBoxContainer.new()
+	root.add_theme_constant_override("separation", -int(overlap))
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	# losango (por cima da placa)
+	var gem := Control.new()
+	gem.custom_minimum_size = Vector2(d, d)
+	gem.z_index = 1
+	gem.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	gem.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	root.add_child(gem)
 	if icon != "":
-		var t := TextureRect.new()
-		t.texture = load("res://game/ui/icones/s_%s.png" % icon)
-		t.custom_minimum_size = Vector2(size + 9, size + 9)
-		t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		t.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		h.add_child(t)
+		for layer in [["selo_losango.png", Color.WHITE, 0.0], ["selo_brilho.png", Color(col, 0.45), 0.0]]:
+			var t := TextureRect.new()
+			t.texture = load(dir() + layer[0])
+			t.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			t.modulate = layer[1]
+			t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			gem.add_child(t)
+		var ic := TextureRect.new()
+		ic.texture = load("res://game/ui/icones/s_%s.png" % icon)
+		ic.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		var pad := d * 0.24
+		ic.offset_left = pad
+		ic.offset_top = pad
+		ic.offset_right = -pad
+		ic.offset_bottom = -pad
+		ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		gem.add_child(ic)
+	else:
+		gem.custom_minimum_size = Vector2(d * 0.62, d * 0.62)
+		var dot := TextureRect.new()
+		dot.texture = load(dir() + "selo_ponto.png")
+		dot.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		dot.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		dot.modulate = col
+		dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		gem.add_child(dot)
+		overlap = d * 0.62 * 0.45
+		root.add_theme_constant_override("separation", -int(overlap))
+	# placa com o texto
+	var plate := PanelContainer.new()
+	var sb := StyleBoxTexture.new()
+	sb.texture = load(dir() + "selo_placa.png")
+	sb.texture_margin_left = 3
+	sb.texture_margin_right = 12
+	sb.texture_margin_top = 8
+	sb.texture_margin_bottom = 8
+	sb.content_margin_left = overlap + 5
+	sb.content_margin_right = 15
+	sb.content_margin_top = 2
+	sb.content_margin_bottom = 4
+	plate.add_theme_stylebox_override("panel", sb)
+	plate.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(plate)
 	var l := Label.new()
 	l.text = text
 	l.add_theme_font_override("font", title_font())
 	l.add_theme_font_size_override("font_size", size)
-	l.add_theme_color_override("font_color", TEXT if color.a == 0.0 else col.lerp(Color.WHITE, 0.25))
+	l.add_theme_color_override("font_color", TEXT if color.a == 0.0 else col.lerp(Color.WHITE, 0.3))
 	l.add_theme_color_override("font_outline_color", OUTLINE)
 	l.add_theme_constant_override("outline_size", 4)
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	h.add_child(l)
-	return p
+	plate.add_child(l)
+	if text == "":
+		plate.visible = false
+		root.add_theme_constant_override("separation", 0)
+	return root
 
 
 ## Fileira de selos.
@@ -370,24 +411,18 @@ static func set_bar(b: ProgressBar, value: float, max_value: float, text := "") 
 	(b.get_node("Texto") as Label).text = text
 
 
-## Pontos (energia, talentos): n de total acesos.
+## Contas (energia, pontos de talento): n de total acesas, em losango.
 static func pips(n: int, total: int, color: Color, size := 16) -> HBoxContainer:
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 4)
+	h.add_theme_constant_override("separation", 1)
 	for i in total:
-		var p := Panel.new()
-		p.custom_minimum_size = Vector2(size, size)
-		var sb := StyleBoxFlat.new()
-		sb.set_corner_radius_all(size)
-		sb.bg_color = color if i < n else Color(0, 0, 0, 0.5)
-		sb.border_color = color.lightened(0.3) if i < n else Color(color, 0.45)
-		sb.set_border_width_all(2)
-		if i < n:
-			sb.shadow_color = Color(color, 0.5)
-			sb.shadow_size = 4
-		p.add_theme_stylebox_override("panel", sb)
-		p.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		h.add_child(p)
+		var t := TextureRect.new()
+		t.texture = load(dir() + ("conta.png" if i < n else "conta_vazia.png"))
+		t.custom_minimum_size = Vector2(size + 4, size + 4)
+		t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		t.modulate = color if i < n else Color.WHITE
+		t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		h.add_child(t)
 	return h
 
 
