@@ -14,6 +14,10 @@ var _spin := 0.0
 var _yaw := 0.0
 var _dragging := false
 var _touched := false
+var _statue: Node3D
+var _breath := 0.0
+## Altura da vitrine (m): a mesma do herói no jogo.
+const SHOWCASE_HEIGHT := 1.8
 
 
 func setup(hero: HeroData, min_size := Vector2(230, 340)) -> HeroPreview:
@@ -101,7 +105,15 @@ func setup(hero: HeroData, min_size := Vector2(230, 340)) -> HeroPreview:
 	world.add_child(ring)
 	_model_root = Node3D.new()
 	world.add_child(_model_root)
-	if hero.model:
+	# Vitrine: o modelo completo do Tripo (bem mais detalhado que o do jogo), parado na pose dele.
+	# Sem a vitrine, cai no modelo do jogo com a animação de parado.
+	var showcase := "res://game/art/herois/vitrine/%s.glb" % String(hero.id)
+	if ResourceLoader.exists(showcase):
+		var statue: Node3D = load(showcase).instantiate()
+		_model_root.add_child(statue)
+		_fit_statue(statue)
+		_statue = statue
+	elif hero.model:
 		var model: Node3D = hero.model.instantiate()
 		_model_root.add_child(model)
 		HeroGear.attach(model, hero.id)
@@ -129,6 +141,39 @@ func _process(delta: float) -> void:
 		_model_root.rotation.y = _yaw
 	if _animator and is_instance_valid(_animator):
 		_animator.update(delta, 0.0, 1.0)
+	if _statue and is_instance_valid(_statue):
+		# respiração bem leve (a vitrine não tem esqueleto)
+		_breath += delta
+		_statue.scale.y = _statue.scale.x * (1.0 + sin(_breath * 2.2) * 0.006)
+
+
+## Põe a vitrine em pé no pedestal: altura do herói, centrada, pés no chão.
+func _fit_statue(statue: Node3D) -> void:
+	var box := AABB()
+	var first := true
+	for mi in statue.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		var xf := statue.global_transform.affine_inverse() * m.global_transform if statue.is_inside_tree() else _local_xf(statue, m)
+		var b := xf * m.get_aabb()
+		box = b if first else box.merge(b)
+		first = false
+		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	if first:
+		return
+	var k := SHOWCASE_HEIGHT / maxf(box.size.y, 0.001)
+	statue.scale = Vector3.ONE * k
+	var c := box.get_center()
+	statue.position = Vector3(-c.x * k, -box.position.y * k, -c.z * k)
+
+
+func _local_xf(root: Node3D, n: Node3D) -> Transform3D:
+	var xf := Transform3D()
+	var cur: Node = n
+	while cur != null and cur != root:
+		if cur is Node3D:
+			xf = (cur as Node3D).transform * xf
+		cur = cur.get_parent()
+	return xf
 
 
 func _fit_preview() -> void:

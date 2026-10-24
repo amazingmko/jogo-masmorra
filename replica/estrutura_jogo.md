@@ -25,3 +25,13 @@ do país. O nome do jogo ainda não está definido (não amarrar o nome a um bio
 5. Lançar com a Amazônia completa; os outros biomas entram como atualizações.
 
 Ver também: replica/mundo_amazonia.md (zonas da Amazônia) e replica/multiplayer.md.
+
+## Online com busca por função (ideia da Samantha, 24/10/2026)
+- No futuro o jogo será online, com busca de partida por função, sozinho ou já em grupo
+  (como a busca de masmorra de MMORPG).
+- Composição para entrar: **2 DPS** (inteligência ou agilidade), **1 healer/suporte** e **1 tank**.
+- O grupo escolhe o mundo/região e entra para farmar.
+- Consequência para os talentos: cada jogador entra com uma especialização ativa (a função
+  dele na fila). Ver a proposta de "uma especialização ativa por vez" (talentos estilo WoW).
+- Técnico: hoje o multijogador é na mesma rede Wi-Fi (anfitrião no celular). Online pede um
+  servidor (de partida e de fila) e conta de jogador; planejar quando o 1º mundo estiver pronto.

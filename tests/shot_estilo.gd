@@ -16,6 +16,8 @@ func _initialize() -> void:
 			UiStyle.palette = arg.trim_prefix("palette=")
 		elif arg.begins_with("variant="):
 			UiStyle.variant = arg.trim_prefix("variant=")
+		elif arg.begins_with("watermark="):
+			UiStyle.watermark = arg.trim_prefix("watermark=")
 		elif arg.begins_with("out="):
 			_out = arg.trim_prefix("out=")
 
@@ -26,7 +28,7 @@ func _cp() -> GDScript:
 
 
 func _shot(name: String) -> void:
-	root.get_viewport().get_texture().get_image().save_png("%s/%s_%s.png" % [_out, UiStyle.palette, name])
+	root.get_viewport().get_texture().get_image().save_png("%s/%s_%s_%s.png" % [_out, UiStyle.variant, UiStyle.watermark, name])
 	_shots += 1
 
 

@@ -920,6 +920,7 @@ func _build_modal() -> void:
 	_modal.offset_bottom = -12
 	_modal.add_theme_stylebox_override("panel", UiStyle.panel())
 	add_child(_modal)
+	_modal.add_child(UiStyle.watermark_rect())
 
 	var outer := VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 12)

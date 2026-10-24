@@ -464,6 +464,7 @@ func _build_panel() -> void:
 	_panel.custom_minimum_size = Vector2(640, 220)
 	_panel.add_theme_stylebox_override("panel", UiStyle.panel())
 	add_child(_panel)
+	_panel.add_child(UiStyle.watermark_rect(0.18))
 
 	var box := VBoxContainer.new()
 	box.alignment = BoxContainer.ALIGNMENT_CENTER

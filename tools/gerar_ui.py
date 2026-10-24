@@ -592,6 +592,77 @@ def small_icons():
     return out
 
 
+def watermarks():
+    """Fundos de janela (marca d'água): brancos com transparência, o jogo aplica bem fraco e
+    tingido. 1280x720 (proporção da tela)."""
+    W, H = 1280, 720
+    out = {}
+    # 1) emblema geométrico (losangos escalonados e raios), centrado
+    S = 2
+    im = Image.new("RGBA", (W * S, H * S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    cx, cy = W * S / 2, H * S / 2
+    for k in range(9):
+        r = (60 + k * 34) * S
+        w = (3 if k % 3 == 0 else 1) * S
+        d.polygon([(cx, cy - r), (cx + r, cy), (cx, cy + r), (cx - r, cy)], outline=(255, 255, 255, 200 - k * 12), width=w)
+    for k in range(24):
+        a = k / 24 * math.tau
+        r0, r1 = 360 * S, (420 if k % 2 == 0 else 390) * S
+        d.line([(cx + math.cos(a) * r0, cy + math.sin(a) * r0), (cx + math.cos(a) * r1, cy + math.sin(a) * r1)], fill=(255, 255, 255, 150), width=2 * S)
+    d.ellipse([cx - 440 * S, cy - 440 * S, cx + 440 * S, cy + 440 * S], outline=(255, 255, 255, 120), width=2 * S)
+    for k in range(3):
+        r = (24 + k * 14) * S
+        d.polygon([(cx, cy - r), (cx + r, cy), (cx, cy + r), (cx - r, cy)], fill=(255, 255, 255, 230 - k * 60))
+    out["emblema"] = im.resize((W, H), Image.LANCZOS)
+    # 2) folhagem: silhuetas de folhas grandes saindo dos cantos
+    im = Image.new("RGBA", (W * S, H * S), (0, 0, 0, 0))
+    rng = random.Random(4)
+    def leaf(cx, cy, length, ang, width):
+        g = Image.new("RGBA", (W * S, H * S), (0, 0, 0, 0))
+        gd = ImageDraw.Draw(g)
+        pts = []
+        for i in range(21):
+            t = i / 20
+            x = t * length
+            y = math.sin(t * math.pi) * width * (1 - t * 0.3)
+            pts.append((x, y))
+        pts += [(x, -y) for x, y in reversed(pts)]
+        ca, sa = math.cos(ang), math.sin(ang)
+        gd.polygon([(cx + x * ca - y * sa, cy + x * sa + y * ca) for x, y in pts], fill=(255, 255, 255, 200))
+        gd.line([(cx, cy), (cx + length * ca, cy + length * sa)], fill=(0, 0, 0, 0), width=3 * S)
+        return g
+    for (ox, oy, base) in [(0, 0, 0.6), (W * S, 0, math.pi - 0.6), (0, H * S, -0.6), (W * S, H * S, math.pi + 0.6)]:
+        for k in range(6):
+            a = base + rng.uniform(-0.7, 0.7)
+            im.alpha_composite(leaf(ox, oy, rng.uniform(260, 420) * S, a, rng.uniform(40, 70) * S))
+    out["folhas"] = im.resize((W, H), Image.LANCZOS)
+    # 3) constelação: estrelas, linhas finas e um círculo de mapa celeste
+    im = Image.new("RGBA", (W * S, H * S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    rng = random.Random(9)
+    for i in range(120):
+        x, y = rng.uniform(0, W * S), rng.uniform(0, H * S)
+        r = rng.choice([1, 1, 1, 2, 3]) * S
+        d.ellipse([x - r, y - r, x + r, y + r], fill=(255, 255, 255, rng.randint(90, 220)))
+    for c in range(5):
+        pts = [(rng.uniform(0.1, 0.9) * W * S, rng.uniform(0.1, 0.9) * H * S)]
+        for i in range(rng.randint(3, 5)):
+            px, py = pts[-1]
+            pts.append((px + rng.uniform(-140, 140) * S, py + rng.uniform(-90, 90) * S))
+        d.line(pts, fill=(255, 255, 255, 130), width=S)
+        for x, y in pts:
+            d.ellipse([x - 4 * S, y - 4 * S, x + 4 * S, y + 4 * S], fill=(255, 255, 255, 220))
+    for k, r in enumerate([300, 330]):
+        d.ellipse([W * S / 2 - r * S, H * S / 2 - r * S, W * S / 2 + r * S, H * S / 2 + r * S], outline=(255, 255, 255, 90), width=S)
+    for k in range(72):
+        a = k / 72 * math.tau
+        r0, r1 = 300 * S, (330 if k % 6 == 0 else 312) * S
+        d.line([(W * S / 2 + math.cos(a) * r0, H * S / 2 + math.sin(a) * r0), (W * S / 2 + math.cos(a) * r1, H * S / 2 + math.sin(a) * r1)], fill=(255, 255, 255, 90), width=S)
+    out["constelacao"] = im.resize((W, H), Image.LANCZOS)
+    return out
+
+
 ## Só a paleta escolhida é gerada (a Abissal); as outras ficam aqui para comparar no futuro.
 PALETA_ATIVA = ["abissal"]
 
@@ -620,6 +691,8 @@ def main():
     os.makedirs(ic, exist_ok=True)
     for k, im in icon_items().items():
         im.save(os.path.join(ic, k + ".png"))
+    for k, im in watermarks().items():
+        im.save(os.path.join(ROOT, "fundo_%s.png" % k))
     for k, im in small_icons().items():
         im.save(os.path.join(ic, "s_" + k + ".png"))
     print("ok")

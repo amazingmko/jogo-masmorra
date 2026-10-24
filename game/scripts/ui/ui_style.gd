@@ -8,8 +8,11 @@ extends RefCounted
 ## (azul-marinho + linhas claras). Fontes: Lilita One (títulos/botões) + Nunito (texto).
 
 static var palette := "abissal"
-## "aventura" (Lilita One) ou "epico" (Cinzel) nos títulos.
+## Fonte dos títulos e botões (em teste): "aventura" (Lilita One), "classico" (Marcellus SC, no
+## espírito do WoW) ou "gotico" (Grenze Gotisch, fantasia medieval). Texto corrido: Nunito.
 static var variant := "aventura"
+## Fundo sutil das janelas (marca d'água): "emblema", "folhas", "constelacao" ou "" (nenhum).
+static var watermark := "emblema"
 
 const OUTLINE := Color("07080b")
 const OK := Color("6fdc7b")
@@ -58,7 +61,14 @@ static func _font(file: String, weight := 0) -> Font:
 
 
 static func title_font() -> Font:
-	return _font("cinzel.ttf", 800) if variant == "epico" else _font("lilita_one.ttf")
+	match variant:
+		"classico":
+			return _font("marcellus_sc.ttf")
+		"gotico":
+			return _font("grenze_gotisch.ttf", 700)
+		"epico":
+			return _font("cinzel.ttf", 800)
+	return _font("lilita_one.ttf")
 
 
 static func body_font() -> Font:
@@ -70,7 +80,23 @@ static func bold_font() -> Font:
 
 
 static func button_font() -> Font:
-	return _font("lilita_one.ttf")
+	return title_font()
+
+
+## Marca d'água das janelas: imagem bem fraca, tingida com a cor de destaque, atrás do conteúdo.
+## Põe como PRIMEIRO filho de um PanelContainer (ele empilha os filhos no mesmo retângulo).
+static func watermark_rect(strength := 0.16) -> Control:
+	var t := TextureRect.new()
+	t.name = "MarcaDagua"
+	if watermark == "":
+		return t
+	t.texture = load("res://game/ui/fundo_%s.png" % watermark)
+	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	t.modulate = Color(c("accent"), strength)
+	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	t.clip_contents = true
+	return t
 
 
 static func icon(name: String) -> Texture2D:
