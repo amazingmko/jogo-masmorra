@@ -1,29 +1,52 @@
 class_name UiStyle
 extends RefCounted
-## Identidade visual da interface: fontes, moldura dos painéis (madeira + faixa de inspiração
-## marajoara), botões de madeira e a faixa dos avisos. Um tema só, aplicado na janela inteira:
-## tudo que é Label/Button/Panel herda daqui. As texturas saem de tools/gerar_ui.py.
+## Identidade visual da interface, igual em todos os biomas: moldura de metal com cantoneiras e
+## pedra, placa de título, botões, abas e casas de item (borda na cor da raridade). Um tema só,
+## aplicado na janela inteira. Texturas: tools/gerar_ui.py (game/ui/<paleta>/ e game/ui/icones/).
 ##
-## Duas propostas de fonte (para escolher olhando): "aventura" (Lilita One + Nunito) e "epico"
-## (Cinzel + Nunito). A escolhida fica; a outra sai.
+## Paletas em teste: "obsidiana" (preto + ouro), "pedra_lunar" (ardósia + prata) e "abissal"
+## (azul-marinho + linhas claras). Fontes: Lilita One (títulos/botões) + Nunito (texto).
 
-const DIR := "res://game/ui/"
+static var palette := "obsidiana"
+## "aventura" (Lilita One) ou "epico" (Cinzel) nos títulos.
 static var variant := "aventura"
 
-const TEXT := Color("f1e4c6")        # creme
-const TEXT_DIM := Color("bba98a")
-const GOLD := Color("f0c060")
-const OUTLINE := Color("1a0f08")
+const OUTLINE := Color("07080b")
+const OK := Color("6fdc7b")
+const BAD := Color("ff6b6b")
+
+const PALETTES := {
+	"obsidiana": {"text": Color("efe6d2"), "dim": Color("a39c8c"), "title": Color("f3cf72"), "accent": Color("40c4d6"), "line": Color("6b5428"), "row": Color(1, 1, 1, 0.04), "gold_text": Color("2b1a04")},
+	"pedra_lunar": {"text": Color("e9eef6"), "dim": Color("9aa6ba"), "title": Color("dfe8f5"), "accent": Color("60ded6"), "line": Color("4f5d75"), "row": Color(1, 1, 1, 0.045), "gold_text": Color("0b2b2c")},
+	"abissal": {"text": Color("e6f4ff"), "dim": Color("8eaecb"), "title": Color("ffd98a"), "accent": Color("8fdcff"), "line": Color("2c5a86"), "row": Color(0.5, 0.8, 1.0, 0.05), "gold_text": Color("2b1a04")},
+}
 
 static var _fonts := {}
 static var _theme: Theme
+static var _theme_key := ""
+
+
+static func c(key: String) -> Color:
+	return PALETTES[palette][key]
+
+
+static var TEXT: Color:
+	get: return c("text")
+static var TEXT_DIM: Color:
+	get: return c("dim")
+static var GOLD: Color:
+	get: return c("title")
+
+
+static func dir() -> String:
+	return "res://game/ui/%s/" % palette
 
 
 static func _font(file: String, weight := 0) -> Font:
 	var key := "%s:%d" % [file, weight]
 	if _fonts.has(key):
 		return _fonts[key]
-	var base: FontFile = load(DIR + "fontes/" + file)
+	var base: FontFile = load("res://game/ui/fontes/" + file)
 	var f: Font = base
 	if weight > 0:
 		var v := FontVariation.new()
@@ -34,97 +57,103 @@ static func _font(file: String, weight := 0) -> Font:
 	return f
 
 
-## Títulos de janela, números de dano, avisos.
 static func title_font() -> Font:
 	return _font("cinzel.ttf", 800) if variant == "epico" else _font("lilita_one.ttf")
 
 
-## Texto corrido (descrições, listas).
 static func body_font() -> Font:
 	return _font("nunito.ttf", 650)
 
 
-## Texto dos botões.
+static func bold_font() -> Font:
+	return _font("nunito.ttf", 800)
+
+
 static func button_font() -> Font:
-	return _font("cinzel.ttf", 700) if variant == "epico" else _font("lilita_one.ttf")
+	return _font("lilita_one.ttf")
 
 
-static func _tex_box(file: String, margin: int, content: Vector4, tile := false) -> StyleBoxTexture:
+static func icon(name: String) -> Texture2D:
+	var path := "res://game/ui/icones/%s.png" % name
+	return load(path) if ResourceLoader.exists(path) else null
+
+
+static func _tex_box(file: String, margin: Vector4, content: Vector4) -> StyleBoxTexture:
 	var sb := StyleBoxTexture.new()
-	sb.texture = load(DIR + file)
-	sb.texture_margin_left = margin
-	sb.texture_margin_right = margin
-	sb.texture_margin_top = margin
-	sb.texture_margin_bottom = margin
+	sb.texture = load(dir() + file)
+	sb.texture_margin_left = margin.x
+	sb.texture_margin_top = margin.y
+	sb.texture_margin_right = margin.z
+	sb.texture_margin_bottom = margin.w
 	sb.content_margin_left = content.x
 	sb.content_margin_top = content.y
 	sb.content_margin_right = content.z
 	sb.content_margin_bottom = content.w
-	if tile:
-		sb.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
-		sb.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
 	return sb
 
 
-## Moldura grande (janelas do hub, diálogos).
+## Moldura grande (janelas, diálogos).
 static func panel() -> StyleBoxTexture:
-	return _tex_box("moldura_painel.png", 34, Vector4(40, 36, 40, 36), true)
+	return _tex_box("moldura.png", Vector4(84, 84, 84, 84), Vector4(34, 30, 34, 28))
 
 
-## Caixa simples por dentro de uma janela (cartões, listas): madeira escura com filete.
-static func card(accent: Color = Color("6b4a2c"), selected := false) -> StyleBoxFlat:
+## Placa do título da janela e faixa dos avisos.
+static func plate() -> StyleBoxTexture:
+	return _tex_box("placa.png", Vector4(44, 20, 44, 20), Vector4(52, 6, 52, 9))
+
+
+## Casa de item (rarity -1 = vazia).
+static func slot_box(rarity := -1) -> StyleBoxTexture:
+	return _tex_box("casa.png" if rarity < 0 else "casa_%d.png" % rarity, Vector4(18, 18, 18, 18), Vector4(8, 8, 8, 8))
+
+
+static func tab_box(active: bool) -> StyleBoxTexture:
+	return _tex_box("aba_ativa.png" if active else "aba.png", Vector4(14, 14, 14, 6), Vector4(18, 8, 18, 8))
+
+
+## Caixa por dentro de uma janela (seções): fundo mais escuro e um filete.
+static func section(highlight := false) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.17, 0.115, 0.08, 0.92) if not selected else Color(0.27, 0.18, 0.09, 0.95)
-	sb.border_color = accent if not selected else GOLD
-	sb.set_border_width_all(2 if not selected else 3)
+	sb.bg_color = Color(0, 0, 0, 0.28) if not highlight else Color(c("accent"), 0.10)
+	sb.border_color = c("line") if not highlight else c("title")
+	sb.set_border_width_all(1 if not highlight else 2)
 	sb.set_corner_radius_all(6)
 	sb.set_content_margin_all(12)
-	sb.shadow_color = Color(0, 0, 0, 0.35)
-	sb.shadow_size = 3
-	sb.shadow_offset = Vector2(0, 2)
 	return sb
 
 
-## Estilos de botão: "madeira" (comum) ou "ouro" (ação principal).
-static func button_boxes(kind := "madeira") -> Dictionary:
-	var c := Vector4(16, 8, 16, 11)
-	if kind == "ouro":
-		return {"normal": _tex_box("botao_ouro.png", 14, c), "hover": _tex_box("botao_ouro_hover.png", 14, c),
-			"pressed": _tex_box("botao_press.png", 14, c), "disabled": _tex_box("botao_off.png", 14, c),
-			"focus": StyleBoxEmpty.new()}
-	return {"normal": _tex_box("botao.png", 14, c), "hover": _tex_box("botao_hover.png", 14, c),
-		"pressed": _tex_box("botao_press.png", 14, c), "disabled": _tex_box("botao_off.png", 14, c),
+static func button_boxes(kind := "normal") -> Dictionary:
+	var m := Vector4(14, 14, 14, 14)
+	var cm := Vector4(18, 8, 18, 11)
+	var gold := kind == "ouro"
+	return {"normal": _tex_box("botao_ouro.png" if gold else "botao.png", m, cm),
+		"hover": _tex_box("botao_ouro_hover.png" if gold else "botao_hover.png", m, cm),
+		"pressed": _tex_box("botao_press.png", m, cm), "disabled": _tex_box("botao_off.png", m, cm),
 		"focus": StyleBoxEmpty.new()}
 
 
-static func style_button(b: Button, kind := "madeira", font_size := 20) -> void:
+static func style_button(b: Button, kind := "normal", font_size := 20) -> void:
 	var boxes := button_boxes(kind)
 	for k in boxes:
 		b.add_theme_stylebox_override(k, boxes[k])
 	b.add_theme_font_override("font", button_font())
 	b.add_theme_font_size_override("font_size", font_size)
-	var dark := kind == "ouro"
-	b.add_theme_color_override("font_color", Color("2a1606") if dark else TEXT)
-	b.add_theme_color_override("font_hover_color", Color("1a0d03") if dark else Color.WHITE)
+	var gold := kind == "ouro"
+	b.add_theme_color_override("font_color", c("gold_text") if gold else TEXT)
+	b.add_theme_color_override("font_hover_color", c("gold_text") if gold else Color.WHITE)
 	b.add_theme_color_override("font_pressed_color", TEXT)
-	b.add_theme_color_override("font_disabled_color", Color("9a9a9a"))
-	b.add_theme_color_override("font_outline_color", Color(1, 0.9, 0.7, 0.35) if dark else OUTLINE)
-	b.add_theme_constant_override("outline_size", 2 if dark else 5)
+	b.add_theme_color_override("font_disabled_color", Color("8a8a8a"))
+	b.add_theme_color_override("font_outline_color", Color(1, 1, 1, 0.3) if gold else OUTLINE)
+	b.add_theme_constant_override("outline_size", 2 if gold else 5)
 
 
-## Faixa dos avisos no meio da tela.
 static func ribbon() -> StyleBoxTexture:
-	var sb := _tex_box("faixa_aviso.png", 0, Vector4(70, 12, 70, 16))
-	sb.texture_margin_left = 40
-	sb.texture_margin_right = 40
-	sb.texture_margin_top = 20
-	sb.texture_margin_bottom = 20
-	return sb
+	return plate()
 
 
-## O tema da janela inteira.
 static func theme() -> Theme:
-	if _theme:
+	var key := palette + variant
+	if _theme and _theme_key == key:
 		return _theme
 	var t := Theme.new()
 	t.default_font = body_font()
@@ -132,7 +161,7 @@ static func theme() -> Theme:
 	t.set_color("font_color", "Label", TEXT)
 	t.set_color("font_outline_color", "Label", OUTLINE)
 	t.set_constant("outline_size", "Label", 4)
-	t.set_stylebox("panel", "PanelContainer", card())
+	t.set_stylebox("panel", "PanelContainer", section())
 	t.set_stylebox("panel", "Panel", panel())
 	var boxes := button_boxes()
 	for k in boxes:
@@ -143,25 +172,22 @@ static func theme() -> Theme:
 	t.set_color("font_hover_color", "Button", Color.WHITE)
 	t.set_color("font_outline_color", "Button", OUTLINE)
 	t.set_constant("outline_size", "Button", 5)
-	# barra de rolagem fina, cor de madeira
 	var grab := StyleBoxFlat.new()
-	grab.bg_color = Color("8a5e36")
+	grab.bg_color = c("line").lightened(0.25)
 	grab.set_corner_radius_all(4)
-	grab.content_margin_left = 6
-	grab.content_margin_right = 6
+	grab.content_margin_left = 5
+	grab.content_margin_right = 5
 	var track := StyleBoxFlat.new()
-	track.bg_color = Color(0, 0, 0, 0.25)
+	track.bg_color = Color(0, 0, 0, 0.3)
 	track.set_corner_radius_all(4)
-	track.content_margin_left = 6
-	track.content_margin_right = 6
-	t.set_stylebox("grabber", "VScrollBar", grab)
-	t.set_stylebox("grabber_highlight", "VScrollBar", grab)
-	t.set_stylebox("grabber_pressed", "VScrollBar", grab)
+	track.content_margin_left = 5
+	track.content_margin_right = 5
+	for s in ["grabber", "grabber_highlight", "grabber_pressed"]:
+		t.set_stylebox(s, "VScrollBar", grab)
 	t.set_stylebox("scroll", "VScrollBar", track)
-	# campo de texto (IP)
 	var edit := StyleBoxFlat.new()
-	edit.bg_color = Color(0.08, 0.05, 0.03, 0.9)
-	edit.border_color = Color("8a5e36")
+	edit.bg_color = Color(0, 0, 0, 0.45)
+	edit.border_color = c("line").lightened(0.2)
 	edit.set_border_width_all(2)
 	edit.set_corner_radius_all(5)
 	edit.set_content_margin_all(8)
@@ -169,21 +195,33 @@ static func theme() -> Theme:
 	t.set_stylebox("focus", "LineEdit", edit)
 	t.set_color("font_color", "LineEdit", TEXT)
 	_theme = t
+	_theme_key = key
 	return t
 
 
-## Liga a identidade na janela (chamar uma vez, no começo de cada cena com interface).
 static func apply(window: Window) -> void:
 	window.theme = theme()
-	ThemeDB.fallback_font = body_font()  # Label3D (números de dano) e o que não tiver tema
+	ThemeDB.fallback_font = body_font()
 
 
-## Rótulo de título (janela, seção).
-static func title_label(l: Label, size: int, color: Color = GOLD) -> void:
+static func title_label(l: Label, size: int, color: Color = Color(0, 0, 0, 0)) -> void:
 	l.add_theme_font_override("font", title_font())
 	l.add_theme_font_size_override("font_size", size)
-	l.add_theme_color_override("font_color", color)
+	l.add_theme_color_override("font_color", GOLD if color.a == 0.0 else color)
 	l.add_theme_color_override("font_outline_color", OUTLINE)
 	l.add_theme_constant_override("outline_size", maxi(4, size / 5))
-	l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.5))
+	l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.55))
 	l.add_theme_constant_override("shadow_offset_y", 2)
+
+
+static func label(text: String, size := 17, color: Color = Color(0, 0, 0, 0), bold := false) -> Label:
+	var l := Label.new()
+	l.text = text
+	if bold:
+		l.add_theme_font_override("font", bold_font())
+	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_color_override("font_color", TEXT if color.a == 0.0 else color)
+	l.add_theme_color_override("font_outline_color", OUTLINE)
+	l.add_theme_constant_override("outline_size", 4)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return l

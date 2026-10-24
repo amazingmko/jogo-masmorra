@@ -211,11 +211,13 @@ func show_buff_choice(options: Array[BuffData], title: String) -> void:
 		card.autowrap_mode = TextServer.AUTOWRAP_WORD
 		card.add_theme_font_size_override("font_size", 19)
 		card.add_theme_font_override("font", UiStyle.body_font())
-		var style := UiStyle.card(GameEnums.rarity_color(buff.rarity))
+		var style := UiStyle.section()
+		style.border_color = GameEnums.rarity_color(buff.rarity)
 		style.set_border_width_all(3)
+		style.bg_color = Color(0.06, 0.07, 0.1, 0.95)
 		card.add_theme_stylebox_override("normal", style)
 		var hover := style.duplicate()
-		hover.bg_color = Color(0.3, 0.2, 0.1, 0.98)
+		hover.bg_color = Color(0.12, 0.13, 0.18, 0.98)
 		card.add_theme_stylebox_override("hover", hover)
 		card.add_theme_stylebox_override("pressed", hover)
 		card.pressed.connect(func() -> void:
@@ -418,7 +420,7 @@ func _build_panel() -> void:
 	_panel_button.pressed.connect(_on_panel_button.bind(true))
 	_panel_button2 = Button.new()
 	_panel_button2.custom_minimum_size = Vector2(220, 60)
-	UiStyle.style_button(_panel_button2, "madeira", 24)
+	UiStyle.style_button(_panel_button2, "normal", 24)
 	_panel_button2.pressed.connect(_on_panel_button.bind(false))
 	_panel_button2.visible = false
 	var buttons := HBoxContainer.new()

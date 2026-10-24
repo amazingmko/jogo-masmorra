@@ -6,9 +6,9 @@ extends CanvasLayer
 
 signal enter_dungeon_requested
 
-const TEXT := UiStyle.TEXT
-const MUTED := UiStyle.TEXT_DIM
-const GOLD := UiStyle.GOLD
+var TEXT := UiStyle.TEXT
+var MUTED := UiStyle.TEXT_DIM
+var GOLD := UiStyle.GOLD
 const OK_COLOR := Color("6fdc7b")
 const BAD_COLOR := Color("ff6b6b")
 const PROFESSIONS := [&"ferreiro", &"curtidor", &"tecela", &"erveira"]
@@ -24,6 +24,8 @@ var _hero_label: Label
 var _xp_bar: ProgressBar
 var _xp_label: Label
 var _modal: PanelContainer
+var _top_bar: Control
+var _help: Control
 var _modal_title: Label
 var _modal_body: VBoxContainer
 var _open_station: StringName = &""
@@ -33,7 +35,7 @@ var _use_energy := true
 var _craft_prof: StringName = &""
 var _craft_item: StringName = &""
 var _craft_msg := ""
-var _craft_msg_color := TEXT
+var _craft_msg_color := UiStyle.TEXT
 ## Árvore de talentos aberta (pelo Quadro de Heróis) e o último aviso dela.
 var _talent_hero: StringName = &""
 var _talent_msg := ""
@@ -85,6 +87,8 @@ func activate_current_station() -> void:
 func _open(station_id: StringName) -> void:
 	_open_station = station_id
 	_modal.visible = true
+	_top_bar.visible = false
+	_help.visible = false
 	action_button.visible = false
 	joystick.release()
 	joystick.visible = false
@@ -93,6 +97,8 @@ func _open(station_id: StringName) -> void:
 
 func _close() -> void:
 	_modal.visible = false
+	_top_bar.visible = true
+	_help.visible = true
 	_open_station = &""
 	joystick.visible = true
 	action_button.visible = _station != null
@@ -581,7 +587,7 @@ func _recipe_card(recipe: RecipeData) -> Control:
 		recipe.xp_reward, int(round(recipe.xp_reward * Crafting.FAIL_XP_FRACTION))], 14, MUTED, true))
 
 	var reason := Crafting.check(recipe, GameState.inventory, GameState.professions, GameState.worn_uids())
-	var make := _button("Fabricar" if reason == "" else reason, 18, TEXT if reason == "" else MUTED, false, "ouro" if reason == "" else "madeira")
+	var make := _button("Fabricar" if reason == "" else reason, 18, TEXT if reason == "" else MUTED, false, "ouro" if reason == "" else "normal")
 	make.disabled = reason != ""
 	var rid: StringName = recipe.id
 	make.pressed.connect(func() -> void: _do_craft(rid))
@@ -638,7 +644,7 @@ func _num(v: float) -> String:
 ## Botão escolhido (dificuldade, aba, talento): madeira mais clara com a borda na cor dele.
 func _selected_style(color: Color) -> StyleBoxFlat:
 	var st := StyleBoxFlat.new()
-	st.bg_color = Color("6e4626").lerp(color, 0.18)
+	st.bg_color = Color(0.1, 0.11, 0.14).lerp(color, 0.22)
 	st.border_color = color
 	st.set_border_width_all(3)
 	st.set_corner_radius_all(7)
@@ -654,90 +660,10 @@ func _selected_style(color: Color) -> StyleBoxFlat:
 # ---------- baú e equipamento ----------
 
 func _fill_bag() -> void:
-	var hero := _player.hero
-	_modal_title.text = "Baú e Equipamento — %s" % hero.display_name
-	var columns := HBoxContainer.new()
-	columns.add_theme_constant_override("separation", 18)
-	columns.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_modal_body.add_child(columns)
-
-	# Esquerda: o que está vestido e os atributos.
-	var left := VBoxContainer.new()
-	left.custom_minimum_size = Vector2(380, 0)
-	left.add_theme_constant_override("separation", 4)
-	columns.add_child(left)
-	left.add_child(_label("Vestido (toque para tirar)", 18, GOLD))
-	var equipped := GameState.equipped_items(hero.id)
-	for slot in GameEnums.SLOT_NAMES.size():
-		if slot == GameEnums.Slot.OFFHAND and hero.hero_class != GameEnums.HeroClass.TANK:
-			continue  # escudo é só de tanque
-		var inst: Dictionary = equipped.get(slot, {})
-		var text := "%s: —" % GameEnums.SLOT_NAMES[slot]
-		var color := MUTED
-		if not inst.is_empty():
-			text = "%s: %s" % [GameEnums.SLOT_NAMES[slot], ItemFactory.display_name(inst, ItemDB.catalog)]
-			color = GameEnums.rarity_color(int(inst.rarity))
-		var b := _button(text, 16, color)
-		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		b.disabled = inst.is_empty()
-		var slot_index := slot
-		b.pressed.connect(func() -> void: GameState.unequip(hero.id, slot_index))
-		left.add_child(b)
-
-	var st := _player.stats
-	left.add_child(_label("Atributos", 18, GOLD))
-	var lines := PackedStringArray([
-		"Poder %d · Vida %d · Escudo %d" % [GameState.power_of(hero.id), st.max_health, st.max_shield],
-		"%s %d · Vigor %d" % [GameEnums.PRIMARY_NAMES[hero.primary_stat], st.primary, st.vigor],
-		"Armadura %d (reduz %d%% do dano)" % [st.armor, int(round(st.damage_reduction * 100))],
-		"Dano da arma %d · Crítico %d%%" % [st.weapon.damage, int(round(st.crit_chance * 100))],
-		"Aceleração %d%% · Sorte %d%%" % [int(st.haste), int(st.luck)],
-	])
-	if hero.hero_class == GameEnums.HeroClass.TANK:
-		lines.insert(3, "Bloqueio %d%% (o golpe bloqueado perde 70%%)" % int(round(st.block_chance * 100)))
-	lines.append("Sem escudo: +%d%% de dano recebido" % int(Player.EXPOSED_BONUS * 100))
-	left.add_child(_label("\n".join(lines), 16))
-	var kit := HeroKit.for_hero(hero)
-	kit.player = _player  # textos com os talentos do herói
-	var powers := kit.describe()
-	kit.free()
-	if not powers.is_empty():
-		left.add_child(_label("Poderes", 18, GOLD))
-		var p := _label("\n".join(powers), 14)
-		p.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		p.custom_minimum_size = Vector2(380, 0)
-		left.add_child(p)
-
-	# Direita: abas de equipamento e materiais.
-	var right := VBoxContainer.new()
-	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right.add_theme_constant_override("separation", 6)
-	columns.add_child(right)
-	var tabs := HBoxContainer.new()
-	tabs.add_theme_constant_override("separation", 8)
-	right.add_child(tabs)
-	for tab in [["equip", "Equipamentos"], ["mat", "Materiais"]]:
-		var t := _button(tab[1], 17, GOLD if _bag_tab == tab[0] else TEXT)
-		var tab_id: String = tab[0]
-		t.pressed.connect(func() -> void:
-			_bag_tab = tab_id
-			_refresh_open_panel())
-		tabs.add_child(t)
-
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.custom_minimum_size = Vector2(0, 380)
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	right.add_child(scroll)
-	var list := VBoxContainer.new()
-	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	list.add_theme_constant_override("separation", 4)
-	scroll.add_child(list)
-
-	if _bag_tab == "mat":
-		_fill_materials(list)
-	else:
-		_fill_equipment_list(list, hero, equipped)
+	_modal_title.text = "Personagem"
+	var panel := CharacterPanel.new()
+	_modal_body.add_child(panel)
+	panel.build(_player)
 
 
 func _fill_materials(list: VBoxContainer) -> void:
@@ -837,6 +763,7 @@ func _build_top_bar() -> void:
 	box.position = Vector2(20, 16)
 	box.add_theme_constant_override("separation", 4)
 	add_child(box)
+	_top_bar = box
 	_hero_label = _label("", 24)
 	UiStyle.title_label(_hero_label, 26, TEXT)
 	box.add_child(_hero_label)
@@ -863,6 +790,7 @@ func _build_top_bar() -> void:
 	help.offset_right = -20
 	help.offset_top = 18
 	add_child(help)
+	_help = help
 
 
 func _build_controls() -> void:
@@ -894,8 +822,8 @@ func _build_modal() -> void:
 	_modal.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_modal.offset_left = 50
 	_modal.offset_right = -50
-	_modal.offset_top = 92   # abaixo da barra do herói (nome e XP continuam à vista)
-	_modal.offset_bottom = -14
+	_modal.offset_top = 12   # a janela usa a tela toda (a barra do herói some enquanto ela está aberta)
+	_modal.offset_bottom = -12
 	_modal.add_theme_stylebox_override("panel", UiStyle.panel())
 	add_child(_modal)
 
@@ -904,12 +832,19 @@ func _build_modal() -> void:
 	_modal.add_child(outer)
 	var header := HBoxContainer.new()
 	outer.add_child(header)
+	var plate := PanelContainer.new()
+	plate.add_theme_stylebox_override("panel", UiStyle.plate())
+	plate.custom_minimum_size = Vector2(340, 0)
+	header.add_child(plate)
 	_modal_title = _label("", 30, GOLD)
-	UiStyle.title_label(_modal_title, 34)
-	_modal_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(_modal_title)
-	var close := _button("Fechar", 18)
-	close.custom_minimum_size = Vector2(120, 0)
+	UiStyle.title_label(_modal_title, 30)
+	_modal_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	plate.add_child(_modal_title)
+	var fill := Control.new()
+	fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(fill)
+	var close := _button("X", 22)
+	close.custom_minimum_size = Vector2(56, 52)
 	close.pressed.connect(_close)
 	header.add_child(close)
 	_modal_body = VBoxContainer.new()
@@ -920,7 +855,9 @@ func _build_modal() -> void:
 
 
 ## wrap: quebra linhas (só use quando o rótulo estiver dentro de um container com largura).
-func _label(text: String, font_size: int, color: Color = TEXT, wrap: bool = false) -> Label:
+func _label(text: String, font_size: int, color: Color = Color(0, 0, 0, 0), wrap: bool = false) -> Label:
+	if color.a == 0.0:
+		color = TEXT
 	var l := Label.new()
 	l.text = text
 	if wrap:
@@ -936,8 +873,10 @@ func _label(text: String, font_size: int, color: Color = TEXT, wrap: bool = fals
 	return l
 
 
-## kind: "madeira" (comum) ou "ouro" (ação principal da janela).
-func _button(text: String, font_size: int, color: Color = TEXT, wrap: bool = false, kind := "madeira") -> Button:
+## kind: "normal" (comum) ou "ouro" (ação principal da janela).
+func _button(text: String, font_size: int, color: Color = Color(0, 0, 0, 0), wrap: bool = false, kind := "normal") -> Button:
+	if color.a == 0.0:
+		color = TEXT
 	var b := Button.new()
 	b.text = text
 	UiStyle.style_button(b, kind, font_size)
@@ -953,5 +892,5 @@ func _button(text: String, font_size: int, color: Color = TEXT, wrap: bool = fal
 
 func _card_panel(border: Color) -> PanelContainer:
 	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", UiStyle.card(Color("6b4a2c") if border.a < 0.5 else border, border == GOLD))
+	p.add_theme_stylebox_override("panel", UiStyle.section(border == GOLD))
 	return p
