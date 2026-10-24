@@ -79,8 +79,31 @@ func _process(_d: float) -> bool:
 		_ui._open(&"portal")
 	elif _f == 82:
 		_shot("portal")
+		_ui._portal_tab = "grupo"
+		_ui._refresh_open_panel()
+	elif _f == 96:
+		_shot("portal_grupo")
+		_ui._portal_tab = "solo"
+		_ui._close()
+		_ui._open(&"herois")
+	elif _f == 112:
+		_shot("herois")
+		gs.progress(&"icamiaba")["talents"] = {"couro_anta": 3, "escudo_firme": 2, "casco_vivo": 2, "pele_pedra": 1, "guarda_imovel": 1, "ponta_pedra": 2}
+		_ui._talent_hero = &"icamiaba"
+		_ui._open_station = &"talentos"
+		_ui._refresh_open_panel()
+	elif _f == 128:
+		_shot("talentos")
+		_ui._close()
+		_ui._craft_prof = &"ferreiro"
+		_ui._open(&"artesao")
+	elif _f == 144:
+		_shot("oficina")
+		_ui._close()
+	elif _f == 156:
+		_shot("hub")
 		change_scene_to_file("res://game/scenes/main.tscn")
-	elif _f == 100:
+	elif _f == 176:
 		_m = current_scene
 		var p = _m.get_node("Player")
 		p.health.max_health = 99999
@@ -92,7 +115,7 @@ func _process(_d: float) -> bool:
 			var e = _m._spawn(&"queixada", room, p.global_position + Vector3(2.5 + i * 0.8, 0.1, -1.5 + i * 1.2))
 			if e:
 				e.training_dummy = true
-	elif _f == 110:
+	elif _f == 186:
 		var p = _m.get_node("Player")
 		var enemies := get_nodes_in_group("enemies")
 		for i in enemies.size():
@@ -100,12 +123,12 @@ func _process(_d: float) -> bool:
 		Fx.float_text(_m, p.global_position + Vector3(0, 3.0, 0), "MURALHA!", Color("e8c26a"))
 		_m._hud.show_toast("+3 Madeira de Lei", Color("6fbf4a"))
 		_m._hud.show_toast("Sala limpa!", UiStyle.GOLD)
-	elif _f == 124:
+	elif _f == 200:
 		_shot("luta")
 		_m._hud.show_panel("Você caiu", "A mata venceu desta vez. Os reagentes e o XP ficam com você.", "Voltar ao hub")
 		_m._hud._panel_button2.text = "Jogar de novo"
 		_m._hud._panel_button2.visible = true
-	elif _f == 140:
+	elif _f == 216:
 		_shot("dialogo")
 		print("capturas: ", _shots)
 		quit(0)

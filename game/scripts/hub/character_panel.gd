@@ -24,9 +24,16 @@ static var tab := "equip"
 static var selected := {}
 
 var _preview: SubViewport
+var _view: TextureRect
 var _model_root: Node3D
 var _animator: HeroAnimator
 var _spin := 0.0
+## Giro do herói: o jogador arrasta para girar; sem mexer, ele balança devagar sozinho.
+var _yaw := 0.0
+var _dragging := false
+var _touched := false
+## Renderiza o herói maior que a tela e reduz (bordas lisas, detalhes nítidos).
+const SUPERSAMPLE := 1.6
 
 
 static func icon_name(template: ItemData) -> String:
@@ -59,8 +66,10 @@ func _refresh() -> void:
 
 func _process(delta: float) -> void:
 	if _model_root and is_instance_valid(_model_root):
-		_spin += delta * 0.35
-		_model_root.rotation.y = sin(_spin) * 0.6   # vai e volta devagar (mostra frente e lados)
+		if not _touched:
+			_spin += delta * 0.35
+			_yaw = sin(_spin) * 0.6   # vai e volta devagar (mostra frente e lados)
+		_model_root.rotation.y = _yaw
 	if _animator and is_instance_valid(_animator):
 		_animator.update(delta, 0.0, 1.0)
 
@@ -71,35 +80,40 @@ func _doll() -> Control:
 	var hero := player.hero
 	var box := VBoxContainer.new()
 	box.custom_minimum_size = Vector2(400, 0)
-	box.add_theme_constant_override("separation", 6)
-	# nome, nível e poder
+	box.add_theme_constant_override("separation", 0)
+	# cabeçalho: nome (na mesma altura das abas da bolsa) e os selos de nível e poder
 	var head := HBoxContainer.new()
-	head.add_theme_constant_override("separation", 10)
+	head.add_theme_constant_override("separation", 6)
+	head.custom_minimum_size = Vector2(0, 46)
 	box.add_child(head)
-	var name_l := Label.new()
-	name_l.text = hero.display_name
-	UiStyle.title_label(name_l, 26)
-	name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(name_l)
-	head.add_child(_badge("Nv %d" % GameState.level_of(hero.id), UiStyle.TEXT))
-	head.add_child(_badge("Poder %d" % GameState.power_of(hero.id), UiStyle.c("accent")))
+	head.add_child(UiStyle.header(hero.display_name))
+	var fill := Control.new()
+	fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(fill)
+	head.add_child(UiStyle.chip("%d" % GameState.level_of(hero.id), "nivel", Color("ffd25a")))
+	head.add_child(UiStyle.chip("%d" % GameState.power_of(hero.id), "poder", UiStyle.c("accent")))
+	var body := UiStyle.column_body()
+	box.add_child(body)
+	var inner := VBoxContainer.new()
+	inner.add_theme_constant_override("separation", 8)
+	body.add_child(inner)
 	# peças | herói | peças
 	var mid := HBoxContainer.new()
-	mid.add_theme_constant_override("separation", 6)
+	mid.add_theme_constant_override("separation", 4)
 	mid.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	box.add_child(mid)
+	inner.add_child(mid)
 	var equipped := GameState.equipped_items(hero.id)
 	mid.add_child(_slot_column(LEFT_SLOTS, equipped, hero))
 	mid.add_child(_hero_view(hero))
 	mid.add_child(_slot_column(RIGHT_SLOTS, equipped, hero))
-	# arma embaixo, no meio
+	# arma embaixo, no meio, entre os selos da classe
 	var bottom := HBoxContainer.new()
 	bottom.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.add_child(bottom)
+	bottom.add_theme_constant_override("separation", 14)
+	inner.add_child(bottom)
+	bottom.add_child(UiStyle.chip(GameEnums.PRIMARY_NAMES[hero.primary_stat], UiStyle.primary_icon(hero.primary_stat)))
 	bottom.add_child(_equip_slot(GameEnums.Slot.WEAPON, equipped, hero))
-	var cls := UiStyle.label("%s · %s" % [GameEnums.PRIMARY_NAMES[hero.primary_stat], GameEnums.ARMOR_NAMES[hero.armor_type()]], 15, UiStyle.TEXT_DIM)
-	cls.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(cls)
+	bottom.add_child(UiStyle.chip(GameEnums.ARMOR_NAMES[hero.armor_type()], UiStyle.armor_icon(hero.armor_type())))
 	return box
 
 
@@ -125,7 +139,7 @@ func _badge(text: String, color: Color) -> Control:
 
 func _slot_column(slots: Array, equipped: Dictionary, hero: HeroData) -> Control:
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 10)
+	col.add_theme_constant_override("separation", 14)
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
 	for s in slots:
 		if s == GameEnums.Slot.OFFHAND and hero.hero_class != GameEnums.HeroClass.TANK:
@@ -206,57 +220,83 @@ func _short(n: int) -> String:
 
 
 ## O herói em 3D, num pedestal com o anel de luz, num mundo só dele (não mexe no hub).
+## Renderiza em resolução maior que a da tela (SUPERSAMPLE) e na escala real do aparelho: nítido
+## também no celular. Arrastar gira o herói; dois toques voltam para a frente.
 func _hero_view(hero: HeroData) -> Control:
-	var cont := SubViewportContainer.new()
-	cont.custom_minimum_size = Vector2(220, 330)
-	cont.stretch = true
-	cont.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_view = TextureRect.new()
+	_view.custom_minimum_size = Vector2(230, 340)
+	_view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_view.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_view.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	_view.mouse_filter = Control.MOUSE_FILTER_STOP
+	_view.gui_input.connect(_on_view_input)
 	_preview = SubViewport.new()
 	_preview.own_world_3d = true
 	_preview.transparent_bg = true
-	_preview.msaa_3d = Viewport.MSAA_2X
-	cont.add_child(_preview)
+	_preview.msaa_3d = Viewport.MSAA_4X
+	_preview.size = Vector2i(460, 680)
+	_preview.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_view.add_child(_preview)
+	_view.texture = _preview.get_texture()
+	_view.resized.connect(_fit_preview)
 	var world := Node3D.new()
 	_preview.add_child(world)
 	var cam := Camera3D.new()
-	cam.fov = 30
-	cam.position = Vector3(0, 1.25, 4.6)
-	cam.rotation_degrees = Vector3(-6, 0, 0)
+	cam.fov = 28
+	cam.position = Vector3(0, 1.2, 5.0)
+	cam.rotation_degrees = Vector3(-5, 0, 0)
 	world.add_child(cam)
 	var env := WorldEnvironment.new()
 	env.environment = Environment.new()
 	env.environment.background_mode = Environment.BG_CLEAR_COLOR
 	env.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.environment.ambient_light_color = Color(0.75, 0.78, 0.9)
-	env.environment.ambient_light_energy = 0.7
+	env.environment.ambient_light_color = Color(0.7, 0.76, 0.92)
+	env.environment.ambient_light_energy = 0.55
+	env.environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	world.add_child(env)
+	# luz de estúdio: principal quente na frente, recorte frio atrás (na cor da interface)
 	var key := DirectionalLight3D.new()
-	key.rotation_degrees = Vector3(-40, 30, 0)
-	key.light_energy = 1.2
+	key.rotation_degrees = Vector3(-35, 25, 0)
+	key.light_energy = 1.35
+	key.light_color = Color("fff1dc")
 	world.add_child(key)
+	var fill := DirectionalLight3D.new()
+	fill.rotation_degrees = Vector3(-15, -60, 0)
+	fill.light_energy = 0.45
+	fill.light_color = Color("cfe0ff")
+	world.add_child(fill)
 	var rim := OmniLight3D.new()
-	rim.position = Vector3(-1.2, 2.2, -1.5)
+	rim.position = Vector3(-1.0, 2.3, -1.6)
 	rim.light_color = UiStyle.c("accent")
-	rim.light_energy = 2.0
-	rim.omni_range = 4.0
+	rim.light_energy = 2.4
+	rim.omni_range = 4.5
 	world.add_child(rim)
+	var rim2 := OmniLight3D.new()
+	rim2.position = Vector3(1.2, 1.4, -1.4)
+	rim2.light_color = Color("ffd9a0")
+	rim2.light_energy = 1.4
+	rim2.omni_range = 3.5
+	world.add_child(rim2)
 	# pedestal: disco de pedra escura e o anel de luz no chão
 	var ped := MeshInstance3D.new()
 	var cyl := CylinderMesh.new()
-	cyl.top_radius = 0.75
-	cyl.bottom_radius = 0.82
-	cyl.height = 0.16
+	cyl.top_radius = 0.78
+	cyl.bottom_radius = 0.86
+	cyl.height = 0.18
+	cyl.radial_segments = 48
 	ped.mesh = cyl
 	var pm := StandardMaterial3D.new()
-	pm.albedo_color = Color(0.13, 0.14, 0.17)
-	pm.roughness = 0.6
-	pm.metallic = 0.3
+	pm.albedo_color = Color(0.1, 0.12, 0.16)
+	pm.roughness = 0.45
+	pm.metallic = 0.4
 	ped.material_override = pm
-	ped.position.y = -0.08
+	ped.position.y = -0.09
 	world.add_child(ped)
 	var ring := MeshInstance3D.new()
 	var quad := PlaneMesh.new()
-	quad.size = Vector2(2.0, 2.0)
+	quad.size = Vector2(2.1, 2.1)
 	ring.mesh = quad
 	var rm := StandardMaterial3D.new()
 	rm.albedo_texture = load(UiStyle.dir() + "anel.png")
@@ -278,7 +318,39 @@ func _hero_view(hero: HeroData) -> Control:
 			_animator = anim
 		else:
 			anim.queue_free()
-	return cont
+	var hint := UiStyle.label("arraste para girar", 13, Color(UiStyle.TEXT_DIM, 0.8))
+	hint.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	hint.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	hint.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.offset_bottom = -2
+	_view.add_child(hint)
+	return _view
+
+
+## A imagem do herói tem o tamanho real em pixels do aparelho (vezes o SUPERSAMPLE).
+func _fit_preview() -> void:
+	if _preview == null or _view == null:
+		return
+	var k := get_viewport().get_final_transform().get_scale().x * SUPERSAMPLE
+	var px := (_view.size * k).round()
+	_preview.size = Vector2i(clampi(int(px.x), 64, 2048), clampi(int(px.y), 64, 2048))
+
+
+func _on_view_input(e: InputEvent) -> void:
+	if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
+		_dragging = e.pressed
+		if e.double_click:
+			_yaw = 0.0
+			_touched = true
+	elif e is InputEventScreenTouch:
+		_dragging = e.pressed
+		if e.double_tap:
+			_yaw = 0.0
+			_touched = true
+	elif (e is InputEventMouseMotion and _dragging) or e is InputEventScreenDrag:
+		_yaw += e.relative.x * 0.012
+		_touched = true
 
 
 # ---------- atributos ----------
@@ -286,16 +358,18 @@ func _hero_view(hero: HeroData) -> Control:
 func _stats() -> Control:
 	var hero := player.hero
 	var st := player.stats
-	var box := PanelContainer.new()
-	box.add_theme_stylebox_override("panel", UiStyle.section())
-	box.custom_minimum_size = Vector2(250, 0)
+	var outer := VBoxContainer.new()
+	outer.custom_minimum_size = Vector2(250, 0)
+	outer.add_theme_constant_override("separation", 0)
+	var hrow := HBoxContainer.new()
+	hrow.custom_minimum_size = Vector2(0, 46)
+	hrow.add_child(UiStyle.header("Atributos"))
+	outer.add_child(hrow)
+	var box := UiStyle.column_body()
+	outer.add_child(box)
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 0)
 	box.add_child(col)
-	var t := Label.new()
-	t.text = "Atributos"
-	UiStyle.title_label(t, 22)
-	col.add_child(t)
 	var rows := [
 		["Vida", str(st.max_health), Color("ff7a7a")],
 		["Escudo", str(st.max_shield), Color("a9c4ff")],
@@ -325,7 +399,7 @@ func _stats() -> Control:
 		h.add_child(k)
 		h.add_child(UiStyle.label(rows[i][1], 18, rows[i][2], true))
 		col.add_child(r)
-	return box
+	return outer
 
 
 # ---------- bolsa ----------
@@ -337,6 +411,7 @@ func _bag() -> Control:
 	box.add_theme_constant_override("separation", 0)
 	var tabs := HBoxContainer.new()
 	tabs.add_theme_constant_override("separation", 4)
+	tabs.custom_minimum_size = Vector2(0, 46)
 	box.add_child(tabs)
 	for t in [["equip", "Equipamentos"], ["mat", "Reagentes"]]:
 		var b := Button.new()
@@ -344,6 +419,7 @@ func _bag() -> Control:
 		b.focus_mode = Control.FOCUS_NONE
 		for k in ["normal", "hover", "pressed"]:
 			b.add_theme_stylebox_override(k, UiStyle.tab_box(tab == t[0]))
+		b.custom_minimum_size = Vector2(0, 46)
 		b.add_theme_font_override("font", UiStyle.button_font())
 		b.add_theme_font_size_override("font_size", 18)
 		b.add_theme_color_override("font_color", UiStyle.GOLD if tab == t[0] else UiStyle.TEXT_DIM)
@@ -354,11 +430,7 @@ func _bag() -> Control:
 			selected = {}
 			_refresh())
 		tabs.add_child(b)
-	var frame := PanelContainer.new()
-	var fsb := UiStyle.section()
-	fsb.corner_radius_top_left = 0
-	frame.add_theme_stylebox_override("panel", fsb)
-	frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var frame := UiStyle.column_body()
 	box.add_child(frame)
 	var inner := VBoxContainer.new()
 	inner.add_theme_constant_override("separation", 10)
@@ -438,7 +510,7 @@ func _detail() -> Control:
 		n.text = item.display_name
 		UiStyle.title_label(n, 22, GameEnums.rarity_color(int(item.rarity)))
 		col.add_child(n)
-		col.add_child(UiStyle.label("Reagente · ×%d" % int(GameState.inventory.stacks.get(selected.mat, 0)), 15, UiStyle.TEXT_DIM))
+		col.add_child(UiStyle.chips([["Reagente", "mapa"], ["×%d" % int(GameState.inventory.stacks.get(selected.mat, 0)), "", UiStyle.GOLD]]))
 		var d := UiStyle.label(item.description, 15)
 		d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		d.custom_minimum_size = Vector2(380, 0)
@@ -456,11 +528,11 @@ func _detail() -> Control:
 	n2.text = ItemFactory.display_name(inst, ItemDB.catalog)
 	UiStyle.title_label(n2, 22, GameEnums.rarity_color(r))
 	col.add_child(n2)
-	var sub := "%s · %s" % [GameEnums.rarity_name(r), GameEnums.SLOT_NAMES[int(template.slot)]]
+	var tags := [[GameEnums.rarity_name(r), "", GameEnums.rarity_color(r)], [GameEnums.SLOT_NAMES[int(template.slot)]]]
 	if template.kind == ItemData.Kind.ARMOR:
-		sub += " · " + GameEnums.ARMOR_NAMES[template.armor_type]
-	sub += " · Poder %d" % GameEnums.RARITY_GEAR_POWER[clampi(r, 0, 3)]
-	col.add_child(UiStyle.label(sub, 15, UiStyle.TEXT_DIM))
+		tags.append([GameEnums.ARMOR_NAMES[template.armor_type], UiStyle.armor_icon(template.armor_type)])
+	tags.append(["%d" % GameEnums.RARITY_GEAR_POWER[clampi(r, 0, 3)], "poder"])
+	col.add_child(UiStyle.chips(tags))
 	# atributos com a diferença para o que está vestido
 	var worn: Dictionary = GameState.equipped_items(hero.id).get(int(template.slot), {})
 	var is_worn: bool = not worn.is_empty() and String(worn.uid) == String(inst.uid)

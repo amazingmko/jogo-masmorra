@@ -24,7 +24,7 @@ SS = 4
 
 PALETAS = {
     "obsidiana": {
-        "bg_top": (26, 28, 36), "bg_bot": (14, 15, 20), "alpha": 252,
+        "bg_top": (26, 28, 36), "bg_bot": (14, 15, 20), "alpha": 255,
         "metal": [(255, 236, 170), (232, 192, 104), (196, 148, 62), (150, 104, 38), (96, 64, 22)],
         "gem": (64, 196, 214), "line": (232, 192, 104), "glow": None,
         "btn": [(56, 58, 70), (34, 36, 44)], "btn_hi": [(74, 76, 92), (44, 46, 56)],
@@ -32,7 +32,7 @@ PALETAS = {
         "slot": [(20, 22, 28), (8, 9, 12)],
     },
     "pedra_lunar": {
-        "bg_top": (40, 50, 68), "bg_bot": (24, 30, 42), "alpha": 252,
+        "bg_top": (40, 50, 68), "bg_bot": (24, 30, 42), "alpha": 255,
         "metal": [(245, 249, 255), (200, 210, 224), (150, 162, 182), (104, 116, 138), (62, 70, 88)],
         "gem": (96, 222, 214), "line": (200, 210, 224), "glow": None,
         "btn": [(62, 76, 98), (40, 50, 66)], "btn_hi": [(80, 96, 122), (50, 62, 80)],
@@ -40,7 +40,7 @@ PALETAS = {
         "slot": [(26, 32, 44), (14, 18, 26)],
     },
     "abissal": {
-        "bg_top": (14, 30, 54), "bg_bot": (6, 12, 26), "alpha": 246,
+        "bg_top": (14, 30, 54), "bg_bot": (6, 12, 26), "alpha": 255,
         "metal": [(236, 250, 255), (176, 226, 248), (110, 180, 220), (60, 116, 160), (26, 54, 84)],
         "gem": (255, 204, 96), "line": (150, 220, 255), "glow": (90, 200, 255),
         "btn": [(24, 52, 86), (12, 28, 50)], "btn_hi": [(34, 70, 112), (16, 38, 66)],
@@ -472,8 +472,116 @@ def icon_items():
     return icons
 
 
+def small_icons():
+    """Ícones dos selos (atributos, armadura, poder, energia...): 48 px, traço simples e cor forte."""
+    out = {}
+
+    def canvas():
+        S = 96 * SS
+        return Image.new("RGBA", (S, S), (0, 0, 0, 0)), S
+
+    def done(im):
+        S = im.width
+        a = im.split()[3]
+        ol = Image.new("RGBA", (S, S), (6, 8, 14, 255))
+        ol.putalpha(a.filter(ImageFilter.MaxFilter(13)))
+        base = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+        base.alpha_composite(ol)
+        base.alpha_composite(_shade(im, (255, 255, 255, 90)))
+        return base.resize((48, 48), Image.LANCZOS)
+
+    im, S = canvas(); d = ImageDraw.Draw(im)  # força: punho
+    d.rounded_rectangle([S * .22, S * .3, S * .78, S * .78], 14 * SS, fill=(232, 96, 72))
+    for i in range(4):
+        d.rounded_rectangle([S * (.22 + i * .14), S * .2, S * (.35 + i * .14), S * .44], 6 * SS, fill=(250, 130, 100))
+    d.rectangle([S * .3, S * .78, S * .7, S * .9], fill=(190, 70, 52))
+    out["forca"] = done(im)
+    im, S = canvas(); d = ImageDraw.Draw(im)  # agilidade: pena verde
+    d.ellipse([S * .3, S * .08, S * .7, S * .8], fill=(110, 220, 120))
+    d.line([(S * .5, S * .14), (S * .42, S * .94)], fill=(230, 255, 230), width=4 * SS)
+    out["agilidade"] = done(im)
+    im, S = canvas(); d = ImageDraw.Draw(im)  # inteligência: orbe azul
+    d.ellipse([S * .16, S * .16, S * .84, S * .84], fill=(80, 150, 255))
+    d.ellipse([S * .3, S * .26, S * .52, S * .48], fill=(220, 240, 255))
+    out["inteligencia"] = done(im)
+    im, S = canvas(); d = ImageDraw.Draw(im)  # tecido: dobras roxas
+    d.polygon([(S * .16, S * .2), (S * .84, S * .2), (S * .74, S * .84), (S * .5, S * .7), (S * .26, S * .84)], fill=(170, 110, 230))
+    d.line([(S * .5, S * .2), (S * .5, S * .7)], fill=(120, 70, 180), width=4 * SS)
+    out["tecido"] = done(im)
+    im, S = canvas(); d = ImageDraw.Draw(im)  # couro: pele
+    d.polygon([(S * .2, S * .16), (S * .5, S * .26), (S * .8, S * .16), (S * .72, S * .5), (S * .82, S * .84), (S * .5, S * .74), (S * .18, S * .84), (S * .28, S * .5)], fill=(196, 132, 72))
+    out["couro"] = done(im)
+    im, S = canvas(); d = ImageDraw.Draw(im)  # placa: placa de metal com rebites
+    d.polygon([(S * .5, S * .1), (S * .84, S * .24), (S * .78, S * .66), (S * .5, S * .9), (S * .22, S * .66), (S * .16, S * .24)], fill=(196, 206, 222))
+    d.line([(S * .5, S * .14), (S * .5, S * .86)], fill=(130, 140, 160), width=4 * SS)
+    out["placa"] = done(im)
+    im, S = canvas(); d = ImageDraw.Draw(im)  # poder: cristal
+    d.polygon([(S * .5, S * .06), (S * .82, S * .4), (S * .5, S * .94), (S * .18, S * .4)], fill=(90, 220, 255))
+    d.polygon([(S * .5, S * .06), (S * .62, S * .4), (S * .5, S * .94), (S * .38, S * .4)], fill=(190, 245, 255))
+    out["poder"] = done(im)
+    im, S = canvas(); d = ImageDraw.Draw(im)  # nível: estrela
+    pts = []
+    for k in range(10):
+        r = S * (.44 if k % 2 == 0 else .19)
+        a = -math.pi / 2 + k * math.pi / 5
+        pts.append((S * .5 + math.cos(a) * r, S * .54 + math.sin(a) * r))
+    d.polygon(pts, fill=(255, 210, 80))
+    out["nivel"] = done(im)
+    im, S = canvas(); d = ImageDraw.Draw(im)  # energia: raio
+    d.polygon([(S * .58, S * .06), (S * .22, S * .56), (S * .48, S * .56), (S * .4, S * .94), (S * .8, S * .4), (S * .54, S * .4)], fill=(255, 220, 70))
+    out["energia"] = done(im)
+    im, S = canvas(); d = ImageDraw.Draw(im)  # vida: coração
+    d.ellipse([S * .14, S * .2, S * .52, S * .58], fill=(240, 80, 90))
+    d.ellipse([S * .48, S * .2, S * .86, S * .58], fill=(240, 80, 90))
+    d.polygon([(S * .16, S * .46), (S * .84, S * .46), (S * .5, S * .88)], fill=(240, 80, 90))
+    out["vida"] = done(im)
+    im, S = canvas(); d = ImageDraw.Draw(im)  # escudo
+    d.polygon([(S * .5, S * .08), (S * .84, S * .2), (S * .8, S * .58), (S * .5, S * .92), (S * .2, S * .58), (S * .16, S * .2)], fill=(130, 170, 255))
+    out["escudo"] = done(im)
+    im, S = canvas(); d = ImageDraw.Draw(im)  # cadeado
+    d.arc([S * .28, S * .1, S * .72, S * .56], 180, 360, fill=(200, 205, 215), width=9 * SS)
+    d.line([(S * .28, S * .33), (S * .28, S * .5)], fill=(200, 205, 215), width=9 * SS)
+    d.line([(S * .72, S * .33), (S * .72, S * .5)], fill=(200, 205, 215), width=9 * SS)
+    d.rounded_rectangle([S * .18, S * .44, S * .82, S * .9], 8 * SS, fill=(220, 170, 70))
+    d.ellipse([S * .44, S * .56, S * .56, S * .68], fill=(60, 40, 10))
+    out["cadeado"] = done(im)
+    im, S = canvas(); d = ImageDraw.Draw(im)  # coroa (anfitrião)
+    d.polygon([(S * .14, S * .74), (S * .14, S * .3), (S * .34, S * .5), (S * .5, S * .22), (S * .66, S * .5), (S * .86, S * .3), (S * .86, S * .74)], fill=(255, 205, 80))
+    out["coroa"] = done(im)
+    im, S = canvas(); d = ImageDraw.Draw(im)  # chefe: caveira
+    d.ellipse([S * .2, S * .12, S * .8, S * .66], fill=(236, 230, 214))
+    d.rectangle([S * .32, S * .56, S * .68, S * .84], fill=(236, 230, 214))
+    d.ellipse([S * .3, S * .34, S * .46, S * .5], fill=(30, 20, 20))
+    d.ellipse([S * .54, S * .34, S * .7, S * .5], fill=(30, 20, 20))
+    out["chefe"] = done(im)
+    im, S = canvas(); d = ImageDraw.Draw(im)  # mapa / áreas
+    d.polygon([(S * .12, S * .2), (S * .38, S * .12), (S * .62, S * .22), (S * .88, S * .14), (S * .88, S * .8), (S * .62, S * .88), (S * .38, S * .78), (S * .12, S * .86)], fill=(214, 190, 140))
+    d.line([(S * .25, S * .7), (S * .45, S * .45), (S * .7, S * .55)], fill=(200, 60, 50), width=4 * SS)
+    out["mapa"] = done(im)
+    im, S = canvas(); d = ImageDraw.Draw(im)  # espada (dano)
+    d.polygon([(S * .78, S * .1), (S * .9, S * .22), (S * .4, S * .7), (S * .3, S * .6)], fill=(214, 222, 236))
+    d.line([(S * .22, S * .52), (S * .48, S * .78)], fill=(200, 160, 70), width=6 * SS)
+    d.line([(S * .3, S * .7), (S * .14, S * .86)], fill=(120, 80, 40), width=7 * SS)
+    out["espada"] = done(im)
+    im, S = canvas(); d = ImageDraw.Draw(im)  # chance: trevo
+    for cx, cy in [(.36, .36), (.64, .36), (.36, .64), (.64, .64)]:
+        d.ellipse([S * (cx - .17), S * (cy - .17), S * (cx + .17), S * (cy + .17)], fill=(100, 210, 110))
+    out["chance"] = done(im)
+    im, S = canvas(); d = ImageDraw.Draw(im)  # xp: orbe verde com seta
+    d.ellipse([S * .14, S * .14, S * .86, S * .86], fill=(110, 220, 140))
+    d.polygon([(S * .5, S * .26), (S * .72, S * .52), (S * .58, S * .52), (S * .58, S * .74), (S * .42, S * .74), (S * .42, S * .52), (S * .28, S * .52)], fill=(240, 255, 240))
+    out["xp"] = done(im)
+    return out
+
+
+## Só a paleta escolhida é gerada (a Abissal); as outras ficam aqui para comparar no futuro.
+PALETA_ATIVA = ["abissal"]
+
+
 def main():
     for name, P in PALETAS.items():
+        if name not in PALETA_ATIVA:
+            continue
         out = os.path.join(ROOT, name)
         os.makedirs(out, exist_ok=True)
         panel(P).save(os.path.join(out, "moldura.png"))
@@ -494,6 +602,8 @@ def main():
     os.makedirs(ic, exist_ok=True)
     for k, im in icon_items().items():
         im.save(os.path.join(ic, k + ".png"))
+    for k, im in small_icons().items():
+        im.save(os.path.join(ic, "s_" + k + ".png"))
     print("ok")
 
 

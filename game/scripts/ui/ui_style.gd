@@ -7,7 +7,7 @@ extends RefCounted
 ## Paletas em teste: "obsidiana" (preto + ouro), "pedra_lunar" (ardósia + prata) e "abissal"
 ## (azul-marinho + linhas claras). Fontes: Lilita One (títulos/botões) + Nunito (texto).
 
-static var palette := "obsidiana"
+static var palette := "abissal"
 ## "aventura" (Lilita One) ou "epico" (Cinzel) nos títulos.
 static var variant := "aventura"
 
@@ -225,3 +225,153 @@ static func label(text: String, size := 17, color: Color = Color(0, 0, 0, 0), bo
 	l.add_theme_constant_override("outline_size", 4)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return l
+
+
+# ---------- componentes ----------
+
+## Selo: pílula com ícone e texto (no lugar de "Força · Placa"). icon: nome em icones/s_<nome>.png.
+static func chip(text: String, icon := "", color: Color = Color(0, 0, 0, 0), size := 15) -> PanelContainer:
+	var col := c("accent") if color.a == 0.0 else color
+	var p := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.02, 0.05, 0.1, 0.78)
+	sb.border_color = Color(col, 0.75)
+	sb.set_border_width_all(2)
+	sb.set_corner_radius_all(20)
+	sb.content_margin_left = 6 if icon != "" else 12
+	sb.content_margin_right = 12
+	sb.content_margin_top = 2
+	sb.content_margin_bottom = 3
+	p.add_theme_stylebox_override("panel", sb)
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 5)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.add_child(h)
+	if icon != "":
+		var t := TextureRect.new()
+		t.texture = load("res://game/ui/icones/s_%s.png" % icon)
+		t.custom_minimum_size = Vector2(size + 9, size + 9)
+		t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		h.add_child(t)
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_override("font", title_font())
+	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_color_override("font_color", TEXT if color.a == 0.0 else col.lerp(Color.WHITE, 0.25))
+	l.add_theme_color_override("font_outline_color", OUTLINE)
+	l.add_theme_constant_override("outline_size", 4)
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(l)
+	return p
+
+
+## Fileira de selos.
+static func chips(items: Array, sep := 6) -> HBoxContainer:
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", sep)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for it in items:
+		h.add_child(chip(it[0], it[1] if it.size() > 1 else "", it[2] if it.size() > 2 else Color(0, 0, 0, 0)))
+	return h
+
+
+## Cabeçalho de coluna (mesma altura das abas: as colunas começam alinhadas).
+static func header(text: String) -> Control:
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", tab_box(true))
+	p.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	p.custom_minimum_size = Vector2(0, 46)
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_override("font", button_font())
+	l.add_theme_font_size_override("font_size", 18)
+	l.add_theme_color_override("font_color", GOLD)
+	l.add_theme_color_override("font_outline_color", OUTLINE)
+	l.add_theme_constant_override("outline_size", 4)
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	p.add_child(l)
+	return p
+
+
+## Corpo de coluna logo abaixo do cabeçalho/abas (canto de cima-esquerdo reto, colado nelas).
+static func column_body() -> PanelContainer:
+	var p := PanelContainer.new()
+	var sb := section()
+	sb.corner_radius_top_left = 0
+	p.add_theme_stylebox_override("panel", sb)
+	p.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	return p
+
+
+## Barra com o número escrito dentro (vida, XP).
+static func bar(fill: Color, width := 260.0, height := 20.0) -> ProgressBar:
+	var b := ProgressBar.new()
+	b.custom_minimum_size = Vector2(width, height)
+	b.show_percentage = false
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color(0.02, 0.04, 0.08, 0.85)
+	bg.border_color = Color(c("line"), 1.0).lightened(0.15)
+	bg.set_border_width_all(2)
+	bg.set_corner_radius_all(6)
+	var fg := StyleBoxFlat.new()
+	fg.bg_color = fill
+	fg.border_color = fill.lightened(0.4)
+	fg.border_width_top = 3
+	fg.set_corner_radius_all(5)
+	b.add_theme_stylebox_override("background", bg)
+	b.add_theme_stylebox_override("fill", fg)
+	b.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var l := Label.new()
+	l.name = "Texto"
+	l.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.add_theme_font_override("font", title_font())
+	l.add_theme_font_size_override("font_size", maxi(int(height * 0.72), 13))
+	l.add_theme_color_override("font_color", Color.WHITE)
+	l.add_theme_color_override("font_outline_color", OUTLINE)
+	l.add_theme_constant_override("outline_size", 4)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(l)
+	return b
+
+
+static func set_bar(b: ProgressBar, value: float, max_value: float, text := "") -> void:
+	b.max_value = maxf(max_value, 1.0)
+	b.value = value
+	(b.get_node("Texto") as Label).text = text
+
+
+## Pontos (energia, talentos): n de total acesos.
+static func pips(n: int, total: int, color: Color, size := 16) -> HBoxContainer:
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 4)
+	for i in total:
+		var p := Panel.new()
+		p.custom_minimum_size = Vector2(size, size)
+		var sb := StyleBoxFlat.new()
+		sb.set_corner_radius_all(size)
+		sb.bg_color = color if i < n else Color(0, 0, 0, 0.5)
+		sb.border_color = color.lightened(0.3) if i < n else Color(color, 0.45)
+		sb.set_border_width_all(2)
+		if i < n:
+			sb.shadow_color = Color(color, 0.5)
+			sb.shadow_size = 4
+		p.add_theme_stylebox_override("panel", sb)
+		p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		h.add_child(p)
+	return h
+
+
+## Ícone do atributo principal e do tipo de armadura (para os selos).
+static func primary_icon(stat: int) -> String:
+	return ["forca", "agilidade", "inteligencia"][clampi(stat, 0, 2)]
+
+
+static func armor_icon(armor: int) -> String:
+	return ["tecido", "couro", "placa"][clampi(armor, 0, 2)]

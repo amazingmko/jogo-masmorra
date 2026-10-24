@@ -22,7 +22,8 @@ var _player: Player
 var _station: HubStation
 var _hero_label: Label
 var _xp_bar: ProgressBar
-var _xp_label: Label
+var _top_chips: HBoxContainer
+var _energy_box: HBoxContainer
 var _modal: PanelContainer
 var _top_bar: Control
 var _help: Control
@@ -122,28 +123,171 @@ func _refresh_open_panel() -> void:
 			_fill_talents()
 
 
+## Regiões do portal, agrupadas por bioma. world: índice em Difficulty.WORLDS (-1 = em breve).
+const REGIONS := [
+	{"biome": "Amazônia", "id": "terra_firme", "name": "Terra Firme", "world": 0, "boss": "Mapinguari",
+		"desc": "Mata fechada de terra firme. Tudo o que cai são reagentes para a oficina."},
+	{"biome": "Amazônia", "id": "igapo", "name": "Várzea e Igapó", "world": 1, "boss": "Iara", "soon": true,
+		"desc": "Floresta alagada: a água sobe e desce no meio da luta."},
+	{"biome": "Amazônia", "id": "urnas", "name": "Cidade das Urnas", "world": -1, "boss": "Anhangá",
+		"desc": "Ruínas de pedra e cerâmica, tochas e espíritos antigos."},
+	{"biome": "Cerrado", "id": "cerrado", "name": "Em breve", "world": -1, "boss": "?", "desc": ""},
+]
+var _region := "terra_firme"
+var _portal_tab := "solo"
+
+
+func _region_lock(r: Dictionary) -> String:
+	if int(r.world) < 0 or r.get("soon", false):
+		return "Em breve"
+	if int(r.world) >= Difficulty.WORLDS.size():
+		return "Em breve"
+	var lock := GameState.world_lock(int(r.world), _player.hero.id)
+	if lock == "":
+		return ""
+	# "Precisa vencer X no Normal e Poder 90 (o seu: 0)" -> curto para o selo
+	return "Poder %d" % int(Difficulty.WORLDS[int(r.world)].power) if lock.contains("Poder") else "Vença a anterior"
+
+
 func _fill_portal() -> void:
-	# o portal ficou comprido (multijogador no fim): conteúdo dentro de uma rolagem
-	var outer_body := _modal_body
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	outer_body.add_child(scroll)
-	var inner := VBoxContainer.new()
-	inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	inner.add_theme_constant_override("separation", 10)
-	scroll.add_child(inner)
-	_modal_body = inner
-	_fill_portal_content()
-	_modal_body = outer_body
-
-
-func _fill_portal_content() -> void:
-	_modal_title.text = "Portal da Masmorra"
+	_modal_title.text = "Portal"
 	if Net.active:
-		# já numa partida em grupo: o saguão vem primeiro (sem precisar rolar)
+		_portal_tab = "grupo"
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 14)
+	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_modal_body.add_child(row)
+	row.add_child(_portal_regions())
+	row.add_child(_portal_right())
+
+
+## Coluna das regiões: cartões por bioma; fechadas aparecem com cadeado e o que falta.
+func _portal_regions() -> Control:
+	var col := VBoxContainer.new()
+	col.custom_minimum_size = Vector2(330, 0)
+	col.add_theme_constant_override("separation", 0)
+	var h := HBoxContainer.new()
+	h.custom_minimum_size = Vector2(0, 46)
+	h.add_child(UiStyle.header("Regiões"))
+	col.add_child(h)
+	var body := UiStyle.column_body()
+	col.add_child(body)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 8)
+	body.add_child(list)
+	var biome := ""
+	for r in REGIONS:
+		if r.biome != biome:
+			biome = r.biome
+			var bl := Label.new()
+			bl.text = biome.to_upper()
+			UiStyle.title_label(bl, 16, UiStyle.TEXT_DIM)
+			list.add_child(bl)
+		list.add_child(_region_card(r))
+	return col
+
+
+func _region_card(r: Dictionary) -> Control:
+	var lock := _region_lock(r)
+	var sel: bool = r.id == _region
+	var b := Button.new()
+	b.focus_mode = Control.FOCUS_NONE
+	b.custom_minimum_size = Vector2(0, 64)
+	var sb := UiStyle.section(sel)
+	sb.bg_color = Color(UiStyle.c("accent"), 0.16) if sel else Color(0, 0, 0, 0.35)
+	for k in ["normal", "hover", "pressed"]:
+		b.add_theme_stylebox_override(k, sb)
+	var h := HBoxContainer.new()
+	h.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	h.offset_left = 10
+	h.offset_right = -10
+	h.add_theme_constant_override("separation", 10)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(h)
+	var ic := TextureRect.new()
+	ic.texture = load("res://game/ui/icones/s_%s.png" % ("mapa" if lock == "" else "cadeado"))
+	ic.custom_minimum_size = Vector2(36, 36)
+	ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ic.modulate = Color.WHITE if lock == "" else Color(1, 1, 1, 0.7)
+	h.add_child(ic)
+	var name_l := Label.new()
+	name_l.text = r.name
+	UiStyle.title_label(name_l, 20, UiStyle.GOLD if sel else (UiStyle.TEXT if lock == "" else UiStyle.TEXT_DIM))
+	name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	name_l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(name_l)
+	if lock != "":
+		h.add_child(UiStyle.chip(lock, "", UiStyle.TEXT_DIM, 13))
+	if r.world >= 0 or r.id == _region:
+		var rid: String = r.id
+		b.pressed.connect(func() -> void:
+			_region = rid
+			_refresh_open_panel())
+	else:
+		b.disabled = true
+		b.add_theme_stylebox_override("disabled", sb)
+	return b
+
+
+## Coluna da direita: abas Sozinho / Em grupo.
+func _portal_right() -> Control:
+	var col := VBoxContainer.new()
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.add_theme_constant_override("separation", 0)
+	var tabs := HBoxContainer.new()
+	tabs.custom_minimum_size = Vector2(0, 46)
+	tabs.add_theme_constant_override("separation", 4)
+	col.add_child(tabs)
+	for t in [["solo", "Expedição"], ["grupo", "Em grupo (Wi-Fi)"]]:
+		tabs.add_child(_tab_button(t[1], _portal_tab == t[0], func() -> void:
+			_portal_tab = t[0]
+			_refresh_open_panel()))
+	var body := UiStyle.column_body()
+	col.add_child(body)
+	var inner := VBoxContainer.new()
+	inner.add_theme_constant_override("separation", 12)
+	body.add_child(inner)
+	var outer := _modal_body
+	_modal_body = inner
+	if _portal_tab == "grupo":
 		_fill_multiplayer()
+	else:
+		_fill_expedition()
+	_modal_body = outer
+	return col
+
+
+func _tab_button(text: String, active: bool, on_press: Callable) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.focus_mode = Control.FOCUS_NONE
+	b.custom_minimum_size = Vector2(0, 46)
+	for k in ["normal", "hover", "pressed"]:
+		b.add_theme_stylebox_override(k, UiStyle.tab_box(active))
+	b.add_theme_font_override("font", UiStyle.button_font())
+	b.add_theme_font_size_override("font_size", 18)
+	b.add_theme_color_override("font_color", UiStyle.GOLD if active else UiStyle.TEXT_DIM)
+	b.add_theme_color_override("font_hover_color", UiStyle.GOLD)
+	b.add_theme_color_override("font_outline_color", UiStyle.OUTLINE)
+	b.add_theme_constant_override("outline_size", 4)
+	b.pressed.connect(on_press)
+	return b
+
+
+func _region_data() -> Dictionary:
+	for r in REGIONS:
+		if r.id == _region:
+			return r
+	return REGIONS[0]
+
+
+func _fill_expedition() -> void:
 	var hero := _player.hero
+	var r := _region_data()
+	var lock := _region_lock(r)
 	if _difficulty < 0:
 		_difficulty = GameState.selected_difficulty
 	if GameState.difficulty_lock(_difficulty, hero.id) != "":
@@ -151,25 +295,38 @@ func _fill_portal_content() -> void:
 	var energy := GameState.energy_now()
 	if energy <= 0:
 		_use_energy = false
-
-	_modal_body.add_child(_label("Terra Firme", 24, GOLD))
-	_modal_body.add_child(_label("Mata fechada com 5 áreas geradas aleatoriamente; na última, o Mapinguari. A masmorra deixa só reagentes: todo equipamento é fabricado na oficina. XP e reagentes ficam com o herói, mesmo perdendo.", 17, TEXT, true))
-	_modal_body.add_child(_label("Herói: %s, nível %d · Poder %d" % [hero.display_name,
-		GameState.level_of(hero.id), GameState.power_of(hero.id)], 17, MUTED))
-	var world_lock := GameState.world_lock(1, hero.id)
-	_modal_body.add_child(_label("Mundo 2 — %s (em breve). %s" % [Difficulty.WORLDS[1].name,
-		"Requisitos cumpridos!" if world_lock == "" else world_lock + "."],
-		15, OK_COLOR if world_lock == "" else MUTED, true))
-
-	_modal_body.add_child(_label("Dificuldade", 20, GOLD))
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-	_modal_body.add_child(row)
+	# região: nome, frase curta e selos
+	var name_l := Label.new()
+	name_l.text = r.name
+	UiStyle.title_label(name_l, 30)
+	_modal_body.add_child(name_l)
+	_modal_body.add_child(UiStyle.chips([["%d andares" % 10, "mapa"], ["Chefe: %s" % r.boss, "chefe", Color("ff8a6a")], ["Reagentes", "chance", Color("8fe38f")]]))
+	if r.desc != "":
+		var d := UiStyle.label(r.desc, 16, UiStyle.TEXT_DIM)
+		d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		d.custom_minimum_size = Vector2(400, 0)
+		_modal_body.add_child(d)
+	if lock != "":
+		var why := "Esta região ainda está sendo construída." if lock == "Em breve" else GameState.world_lock(int(r.world), hero.id)
+		_modal_body.add_child(UiStyle.chips([[why, "cadeado", UiStyle.TEXT_DIM]]))
+		return
+	# dificuldade
+	var drow := HBoxContainer.new()
+	drow.add_theme_constant_override("separation", 6)
+	_modal_body.add_child(drow)
+	var locked_note := ""
 	for d in 4:
-		var lock := GameState.difficulty_lock(d, hero.id)
-		var text := Difficulty.name_of(d) + ("" if lock == "" else "  (trancado)")
-		var b := _button(text, 18, Difficulty.color_of(d) if lock == "" else MUTED)
-		b.disabled = lock != ""
+		var dl := GameState.difficulty_lock(d, hero.id)
+		var b := _button(Difficulty.name_of(d), 18, Difficulty.color_of(d) if dl == "" else UiStyle.TEXT_DIM)
+		b.custom_minimum_size = Vector2(0, 50)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		if dl != "":
+			b.disabled = true
+			b.icon = load("res://game/ui/icones/s_cadeado.png")
+			b.expand_icon = false
+			b.add_theme_constant_override("icon_max_width", 22)
+			if locked_note == "":
+				locked_note = "%s: %s" % [Difficulty.name_of(d), dl.trim_prefix("Precisa ")]
 		if d == _difficulty:
 			b.add_theme_stylebox_override("normal", _selected_style(Difficulty.color_of(d)))
 			b.add_theme_stylebox_override("hover", _selected_style(Difficulty.color_of(d)))
@@ -177,47 +334,52 @@ func _fill_portal_content() -> void:
 		b.pressed.connect(func() -> void:
 			_difficulty = dd
 			_refresh_open_panel())
-		row.add_child(b)
-	var lines := PackedStringArray()
-	lines.append("Inimigos: vida ×%s · dano ×%s · mais agressivos, mais ondas e mais furiosos" % [
-		_num(Difficulty.HEALTH_MULT[_difficulty]), _num(Difficulty.DAMAGE_MULT[_difficulty])])
-	lines.append("Recompensa: XP ×%s · reagentes ×%s%s" % [_num(Difficulty.XP_MULT[_difficulty]),
-		_num(Difficulty.REWARD_MULT[_difficulty]), " · chance de Muiraquitã no chefe" if _difficulty == 3 else ""])
-	_modal_body.add_child(_label("\n".join(lines), 17, TEXT, true))
-	for d in range(1, 4):
-		var lock := GameState.difficulty_lock(d, hero.id)
-		if lock != "":
-			_modal_body.add_child(_label("%s: %s." % [Difficulty.name_of(d), lock], 15, MUTED, true))
-			break
-
-	_modal_body.add_child(_label("Energia", 20, GOLD))
+		drow.add_child(b)
+	_modal_body.add_child(UiStyle.chips([
+		["Vida ×%s" % _num(Difficulty.HEALTH_MULT[_difficulty]), "vida", Color("ff8a8a")],
+		["Dano ×%s" % _num(Difficulty.DAMAGE_MULT[_difficulty]), "espada", Color("ffcf6b")],
+		["XP ×%s" % _num(Difficulty.XP_MULT[_difficulty]), "xp", Color("8fe38f")],
+		["Reagentes ×%s" % _num(Difficulty.REWARD_MULT[_difficulty]), "chance", Color("8fe38f")]]))
+	if locked_note != "":
+		_modal_body.add_child(UiStyle.chips([[locked_note, "cadeado", UiStyle.TEXT_DIM]]))
+	# energia: pontos e o interruptor
+	var erow := HBoxContainer.new()
+	erow.add_theme_constant_override("separation", 10)
+	_modal_body.add_child(erow)
+	erow.add_child(UiStyle.chip("Energia", "energia", Color("ffd84a")))
+	var pips := UiStyle.pips(energy, GameState.MAX_ENERGY, Color("ffd84a"), 18)
+	pips.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	erow.add_child(pips)
 	var wait := GameState.seconds_to_next_energy()
-	var energy_text := "%d/%d" % [energy, GameState.MAX_ENERGY]
-	energy_text += " · cheia" if wait == 0 else " · próxima em %d min" % ceili(wait / 60.0)
-	_modal_body.add_child(_label(energy_text, 17, TEXT))
-	var toggle := _button("", 17, OK_COLOR if _use_energy else MUTED, true)
-	if energy <= 0:
-		toggle.text = "Sem energia: a run rende só %d%% dos reagentes e nenhum troféu do chefe. Jogar continua liberado." % int(Difficulty.NO_ENERGY_REWARD * 100)
-		toggle.disabled = true
-	elif _use_energy:
-		toggle.text = "[x] Usar 1 energia: recompensa completa (toque para guardar a energia)"
-	else:
-		toggle.text = "[  ] Guardar a energia: a run rende só %d%% dos reagentes e nenhum troféu" % int(Difficulty.NO_ENERGY_REWARD * 100)
+	if wait > 0:
+		erow.add_child(UiStyle.label("+1 em %d min" % ceili(wait / 60.0), 15, UiStyle.TEXT_DIM))
+	var fill := Control.new()
+	fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	erow.add_child(fill)
+	var toggle := _button("Recompensa completa" if _use_energy else "Guardar energia", 17, Color("ffd84a") if _use_energy else UiStyle.TEXT_DIM)
+	toggle.icon = load("res://game/ui/icones/s_energia.png") if _use_energy else null
+	toggle.add_theme_constant_override("icon_max_width", 22)
+	toggle.disabled = energy <= 0
+	if _use_energy:
+		toggle.add_theme_stylebox_override("normal", _selected_style(Color("ffd84a")))
+		toggle.add_theme_stylebox_override("hover", _selected_style(Color("ffd84a")))
 	toggle.pressed.connect(func() -> void:
 		_use_energy = not _use_energy
 		_refresh_open_panel())
-	_modal_body.add_child(toggle)
-
-	if not Net.active:
-		var enter := _button("Entrar na masmorra (%s)" % Difficulty.name_of(_difficulty), 24, TEXT, false, "ouro")
-		enter.custom_minimum_size.y = 60
-		enter.pressed.connect(func() -> void:
-			GameState.selected_difficulty = _difficulty
-			GameState.run_difficulty = _difficulty
-			GameState.run_full_rewards = _use_energy and GameState.spend_energy()
-			enter_dungeon_requested.emit())
-		_modal_body.add_child(enter)
-		_fill_multiplayer()
+	erow.add_child(toggle)
+	if not _use_energy:
+		_modal_body.add_child(UiStyle.label("Sem energia a run rende %d%% dos reagentes e nenhum troféu do chefe." % int(Difficulty.NO_ENERGY_REWARD * 100), 14, UiStyle.TEXT_DIM))
+	var spacer := Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_modal_body.add_child(spacer)
+	var enter := _button("Entrar  (%s)" % Difficulty.name_of(_difficulty), 26, TEXT, false, "ouro")
+	enter.custom_minimum_size = Vector2(0, 64)
+	enter.pressed.connect(func() -> void:
+		GameState.selected_difficulty = _difficulty
+		GameState.run_difficulty = _difficulty
+		GameState.run_full_rewards = _use_energy and GameState.spend_energy()
+		enter_dungeon_requested.emit())
+	_modal_body.add_child(enter)
 
 
 func _on_net_lobby() -> void:
@@ -241,28 +403,30 @@ var _net_msg := ""
 
 
 func _fill_multiplayer() -> void:
-	_modal_body.add_child(_label("Jogar com amigos (mesmo Wi-Fi, até 4)", 20, GOLD))
 	if _net_msg != "":
-		_modal_body.add_child(_label(_net_msg, 15, BAD_COLOR, true))
+		_modal_body.add_child(UiStyle.chips([[_net_msg, "cadeado", UiStyle.BAD]]))
 	if not Net.active:
+		_modal_body.add_child(UiStyle.chips([["Mesmo Wi-Fi", "mapa"], ["Até 4 jogadores", "coroa", UiStyle.GOLD], ["Mais difícil", "chefe", Color("ff8a6a")]]))
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
 		_modal_body.add_child(row)
-		var create := _button("Criar partida", 18, OK_COLOR)
+		var create := _button("Criar partida", 20, TEXT, false, "ouro")
+		create.custom_minimum_size = Vector2(0, 54)
+		create.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		create.pressed.connect(func() -> void:
 			_net_msg = Net.host()
 			_refresh_open_panel())
 		row.add_child(create)
-		var search := _button("Procurar partidas", 18, TEXT)
+		var search := _button("Procurar partidas", 20)
+		search.custom_minimum_size = Vector2(0, 54)
+		search.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		search.pressed.connect(func() -> void:
 			Net.start_search()
 			_refresh_open_panel())
 		row.add_child(search)
-		if Net.found.is_empty():
-			_modal_body.add_child(_label("Nenhuma partida achada ainda (o anfitrião precisa tocar em \"Criar partida\").", 15, MUTED, true))
 		for ip in Net.found:
 			var info: Dictionary = Net.found[ip]
-			var b := _button("Entrar na partida de %s (%d/%d) · %s" % [info.name, info.count, Net.MAX_PLAYERS, ip], 17, OK_COLOR)
+			var b := _button("Entrar: %s  (%d/%d)" % [info.name, info.count, Net.MAX_PLAYERS], 18, UiStyle.OK)
 			var ip_s := String(ip)
 			b.pressed.connect(func() -> void:
 				Net.stop_search()
@@ -273,13 +437,15 @@ func _fill_multiplayer() -> void:
 		ip_row.add_theme_constant_override("separation", 8)
 		_modal_body.add_child(ip_row)
 		var edit := LineEdit.new()
-		edit.placeholder_text = "ou digite o IP (ex.: 192.168.0.10)"
+		edit.placeholder_text = "IP do anfitrião (ex.: 192.168.0.10)"
 		edit.text = _join_ip
-		edit.custom_minimum_size = Vector2(320, 44)
+		edit.custom_minimum_size = Vector2(320, 48)
+		edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		edit.add_theme_font_size_override("font_size", 17)
 		edit.text_changed.connect(func(t: String) -> void: _join_ip = t.strip_edges())
 		ip_row.add_child(edit)
-		var go := _button("Entrar pelo IP", 17, TEXT)
+		var go := _button("Entrar pelo IP", 18)
+		go.custom_minimum_size = Vector2(0, 48)
 		go.pressed.connect(func() -> void:
 			if _join_ip != "":
 				Net.stop_search()
@@ -287,59 +453,106 @@ func _fill_multiplayer() -> void:
 				_refresh_open_panel())
 		ip_row.add_child(go)
 		return
-	# na partida: quem está nela e o botão de começar (só o anfitrião)
+	# na partida: um cartão por jogador e o botão de começar (só o anfitrião)
 	var ids := Net.players.keys()
 	ids.sort()
 	if ids.is_empty():
-		_modal_body.add_child(_label("Conectando...", 17, MUTED))
+		_modal_body.add_child(UiStyle.label("Conectando...", 17, UiStyle.TEXT_DIM))
 	for id in ids:
 		var prof: Dictionary = Net.players[id]
 		var h := ItemDB.get_hero(StringName(prof.get("hero_id", "")))
-		var who := "%s · nível %d%s%s" % [h.display_name if h else "?", int(prof.get("level", 1)),
-			"  (você)" if int(id) == Net.my_id() else "", "  · anfitrião" if int(id) == 1 else ""]
-		_modal_body.add_child(_label(who, 17, TEXT))
+		var card := PanelContainer.new()
+		card.add_theme_stylebox_override("panel", UiStyle.section(int(id) == Net.my_id()))
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		card.add_child(row)
+		var n := Label.new()
+		n.text = h.display_name if h else "?"
+		UiStyle.title_label(n, 20, UiStyle.TEXT)
+		n.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(n)
+		row.add_child(UiStyle.chip("%d" % int(prof.get("level", 1)), "nivel", Color("ffd25a")))
+		if int(id) == 1:
+			row.add_child(UiStyle.chip("Anfitrião", "coroa", UiStyle.GOLD))
+		if int(id) == Net.my_id():
+			row.add_child(UiStyle.chip("Você", "", UiStyle.c("accent")))
+		_modal_body.add_child(card)
 	if Net.is_host():
 		var ips := Net.local_ips()
-		_modal_body.add_child(_label("Seu IP: %s" % (", ".join(ips) if not ips.is_empty() else "?"), 15, MUTED, true))
-		var start := _button("Começar com %d jogador(es) (%s)" % [Net.players.size(), Difficulty.name_of(_difficulty)], 22, TEXT, false, "ouro")
-		start.pressed.connect(func() -> void:
-			GameState.selected_difficulty = _difficulty
-			Net.start_run(_difficulty))
-		_modal_body.add_child(start)
-		_modal_body.add_child(_label("Mais jogadores = inimigos mais fortes e mais numerosos.", 15, MUTED, true))
-	else:
-		_modal_body.add_child(_label("Esperando o anfitrião começar...", 17, MUTED))
-	var leave := _button("Sair da partida", 17, BAD_COLOR)
+		_modal_body.add_child(UiStyle.chips([["Seu IP: %s" % (ips[0] if not ips.is_empty() else "?"), "mapa"], [Difficulty.name_of(_difficulty), "chefe", Difficulty.color_of(_difficulty)]]))
+	var spacer := Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_modal_body.add_child(spacer)
+	var row2 := HBoxContainer.new()
+	row2.add_theme_constant_override("separation", 8)
+	_modal_body.add_child(row2)
+	var leave := _button("Sair", 20, UiStyle.BAD)
+	leave.custom_minimum_size = Vector2(140, 60)
 	leave.pressed.connect(func() -> void:
 		Net.leave()
 		_refresh_open_panel())
-	_modal_body.add_child(leave)
+	row2.add_child(leave)
+	if Net.is_host():
+		var start := _button("Começar  (%d jogadores)" % Net.players.size(), 24, TEXT, false, "ouro")
+		start.custom_minimum_size = Vector2(0, 60)
+		start.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		start.pressed.connect(func() -> void:
+			GameState.selected_difficulty = _difficulty
+			Net.start_run(_difficulty))
+		row2.add_child(start)
+	else:
+		var wait := UiStyle.label("Esperando o anfitrião começar...", 17, UiStyle.TEXT_DIM)
+		wait.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row2.add_child(wait)
 
 
 func _fill_heroes() -> void:
-	_modal_title.text = "Quadro de Heróis"
+	_modal_title.text = "Heróis"
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 14)
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_modal_body.add_child(row)
 	for hero_id in GameState.unlocked_heroes:
 		var hero := ItemDB.get_hero(StringName(hero_id))
 		if hero == null:
 			continue
 		var p := GameState.progress(hero.id)
-		var card := VBoxContainer.new()
-		card.custom_minimum_size = Vector2(225, 0)
-		card.add_theme_constant_override("separation", 6)
-		var box := _card_panel(GOLD if hero.id == _player.hero_id else Color(1, 1, 1, 0.3))
-		box.add_child(card)
+		var sel := hero.id == _player.hero_id
+		var box := PanelContainer.new()
+		box.add_theme_stylebox_override("panel", UiStyle.section(sel))
+		box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(box)
-		card.add_child(_label(hero.display_name, 24, GOLD if hero.id == _player.hero_id else TEXT))
-		card.add_child(_label("Nível %d · %d/%d XP" % [p.level, p.xp, Progression.xp_to_next(p.level)], 16, MUTED))
-		card.add_child(_label("%s · %s" % [GameEnums.PRIMARY_NAMES[hero.primary_stat], GameEnums.ARMOR_NAMES[hero.armor_type()]], 18))
-		card.add_child(_label(hero.description, 15, MUTED, true))
+		var card := VBoxContainer.new()
+		card.add_theme_constant_override("separation", 8)
+		box.add_child(card)
+		var n := Label.new()
+		n.text = hero.display_name
+		UiStyle.title_label(n, 22, UiStyle.GOLD if sel else UiStyle.TEXT)
+		card.add_child(n)
+		var tags := HFlowContainer.new()
+		tags.add_theme_constant_override("h_separation", 5)
+		tags.add_theme_constant_override("v_separation", 5)
+		tags.add_child(UiStyle.chip("%d" % p.level, "nivel", Color("ffd25a")))
+		tags.add_child(UiStyle.chip(GameEnums.PRIMARY_NAMES[hero.primary_stat], UiStyle.primary_icon(hero.primary_stat)))
+		tags.add_child(UiStyle.chip(GameEnums.ARMOR_NAMES[hero.armor_type()], UiStyle.armor_icon(hero.armor_type())))
+		card.add_child(tags)
+		var xp := UiStyle.bar(Color("4fbf7a"), 100, 22)
+		xp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		UiStyle.set_bar(xp, p.xp, Progression.xp_to_next(p.level), "XP %d / %d" % [p.xp, Progression.xp_to_next(p.level)])
+		card.add_child(xp)
+		var d := UiStyle.label(hero.description, 15, UiStyle.TEXT_DIM)
+		d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		d.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		card.add_child(d)
+		var spacer := Control.new()
+		spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		card.add_child(spacer)
 		if Talents.has_tree(hero.id):
 			var free := GameState.talent_points_free(hero.id)
-			var tb := _button("Talentos" + (" (%d livre%s)" % [free, "s" if free != 1 else ""] if free > 0 else ""), 17, OK_COLOR if free > 0 else TEXT)
+			var tb := _button("Talentos", 18, UiStyle.OK if free > 0 else TEXT)
+			tb.custom_minimum_size.y = 50
+			if free > 0:
+				tb.text = "Talentos  +%d" % free
 			var tid := hero.id
 			tb.pressed.connect(func() -> void:
 				_talent_hero = tid
@@ -347,10 +560,16 @@ func _fill_heroes() -> void:
 				_open_station = &"talentos"
 				_refresh_open_panel())
 			card.add_child(tb)
-		if hero.id == _player.hero_id:
-			card.add_child(_label("Selecionado", 18, GOLD))
+		if sel:
+			var on := _button("Em uso", 18, UiStyle.GOLD)
+			on.custom_minimum_size.y = 50
+			on.disabled = true
+			on.add_theme_color_override("font_disabled_color", UiStyle.GOLD)
+			on.add_theme_stylebox_override("disabled", _selected_style(UiStyle.GOLD))
+			card.add_child(on)
 		else:
-			var pick := _button("Escolher", 18)
+			var pick := _button("Escolher", 18, TEXT, false, "ouro")
+			pick.custom_minimum_size.y = 50
 			pick.pressed.connect(func() -> void:
 				GameState.selected_hero = hero.id
 				_player.set_hero(hero)
@@ -367,39 +586,44 @@ func _fill_talents() -> void:
 		return
 	var talents := GameState.talents_of(hero.id)
 	var free := GameState.talent_points_free(hero.id)
-	_modal_title.text = "Talentos — %s" % hero.display_name
+	_modal_title.text = "Talentos"
 	var top := HBoxContainer.new()
-	top.add_theme_constant_override("separation", 12)
+	top.add_theme_constant_override("separation", 8)
 	_modal_body.add_child(top)
-	var info := _label("Pontos livres: %d  ·  gastos: %d  ·  1 ponto a cada 2 níveis (nível %d)" % [free, Talents.spent(talents), GameState.level_of(hero.id)], 17, OK_COLOR if free > 0 else MUTED)
-	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top.add_child(info)
+	var n := Label.new()
+	n.text = hero.display_name
+	UiStyle.title_label(n, 24)
+	top.add_child(n)
+	top.add_child(UiStyle.chip("%d livres" % free, "nivel", UiStyle.OK if free > 0 else UiStyle.TEXT_DIM))
+	top.add_child(UiStyle.chip("%d gastos" % Talents.spent(talents), "", UiStyle.TEXT_DIM))
+	if _talent_msg != "":
+		top.add_child(UiStyle.chip(_talent_msg, "", UiStyle.GOLD))
+	var fill := Control.new()
+	fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(fill)
 	if OS.is_debug_build():
-		var dbg := _button("Teste: +5 pontos", 15, MUTED)
+		var dbg := _button("+5 (teste)", 15, MUTED)
 		dbg.pressed.connect(func() -> void:
 			GameState.debug_talent_points += 5
 			GameState.save()
 			_refresh_open_panel())
 		top.add_child(dbg)
-	var reset := _button("Redistribuir (grátis)", 16)
+	var reset := _button("Redistribuir", 17)
 	reset.disabled = Talents.spent(talents) == 0
 	reset.pressed.connect(func() -> void:
 		GameState.reset_talents(hero.id)
 		_player.refresh_stats()
-		_talent_msg = "Pontos devolvidos."
+		_talent_msg = "Pontos devolvidos"
 		_refresh_open_panel())
 	top.add_child(reset)
-	var back := _button("Voltar", 16)
+	var back := _button("Voltar", 17)
 	back.pressed.connect(func() -> void:
 		_open_station = &"herois"
 		_refresh_open_panel())
 	top.add_child(back)
-	if _talent_msg != "":
-		_modal_body.add_child(_label(_talent_msg, 15, GOLD))
 
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.custom_minimum_size = Vector2(0, 420)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_modal_body.add_child(scroll)
 	var columns := HBoxContainer.new()
@@ -410,19 +634,24 @@ func _fill_talents() -> void:
 		var in_branch := Talents.spent_in_branch(talents, branch)
 		var col := VBoxContainer.new()
 		col.add_theme_constant_override("separation", 6)
-		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var box := _card_panel(GOLD if in_branch > 0 else Color(1, 1, 1, 0.25))
+		var box := PanelContainer.new()
+		box.add_theme_stylebox_override("panel", UiStyle.section(in_branch > 0))
 		box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		box.add_child(col)
 		columns.add_child(box)
-		col.add_child(_label("%s (%d)" % [branch.name, in_branch], 21, GOLD))
-		col.add_child(_label(branch.role, 14, MUTED))
+		var hrow := HBoxContainer.new()
+		col.add_child(hrow)
+		var bl := Label.new()
+		bl.text = branch.name
+		UiStyle.title_label(bl, 21)
+		bl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		hrow.add_child(bl)
+		hrow.add_child(UiStyle.chip("%d" % in_branch, "", UiStyle.GOLD if in_branch > 0 else UiStyle.TEXT_DIM))
+		col.add_child(UiStyle.label(branch.role, 14, UiStyle.TEXT_DIM))
 		for row in Talents.ROW_REQUIREMENT.size():
 			var open := Talents.row_open(talents, branch, row)
-			var head := "Fileira %d" % (row + 1) if row < 3 else "Talento máximo"
 			if not open:
-				head += " — abre com %d pontos aqui" % Talents.ROW_REQUIREMENT[row]
-			col.add_child(_label(head, 13, MUTED if open else BAD_COLOR.darkened(0.2)))
+				col.add_child(UiStyle.chip("%d pontos neste ramo" % Talents.ROW_REQUIREMENT[row], "cadeado", UiStyle.TEXT_DIM, 13))
 			for t in branch.talents:
 				if int(t.row) != row:
 					continue
@@ -432,48 +661,66 @@ func _fill_talents() -> void:
 func _talent_button(hero_id: StringName, t: Dictionary, talents: Dictionary, open: bool, free: int) -> Control:
 	var r := Talents.rank(talents, t.id)
 	var maxed := r >= int(t.max)
-	var color := GOLD if maxed else (OK_COLOR if r > 0 else (TEXT if open else MUTED))
-	var b := _button("%s  %d/%d\n%s" % [t.name, r, int(t.max), Talents.describe(t, r)], 14, color, true)
-	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	b.disabled = maxed or not open or free <= 0
+	var color := UiStyle.GOLD if maxed else (UiStyle.OK if r > 0 else (TEXT if open else MUTED))
+	var b := Button.new()
+	b.focus_mode = Control.FOCUS_NONE
+	var sb := UiStyle.section(r > 0)
+	sb.bg_color = Color(0, 0, 0, 0.35) if r == 0 else Color(color, 0.12)
+	sb.border_color = Color(color, 0.8) if r > 0 else UiStyle.c("line")
 	if int(t.row) == 3:
-		b.add_theme_stylebox_override("normal", _selected_style(GOLD.darkened(0.4)) if r == 0 else _selected_style(GOLD))
+		sb.border_color = UiStyle.GOLD if r > 0 else Color(UiStyle.GOLD, 0.5)
+		sb.set_border_width_all(2)
+	sb.set_content_margin_all(8)
+	for k in ["normal", "hover", "pressed", "disabled"]:
+		b.add_theme_stylebox_override(k, sb)
+	b.disabled = maxed or not open or free <= 0
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 2)
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var h := HBoxContainer.new()
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(h)
+	var name_l := Label.new()
+	name_l.text = t.name
+	UiStyle.title_label(name_l, 16, color)
+	name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(name_l)
+	var pips := UiStyle.pips(r, int(t.max), UiStyle.GOLD if maxed else UiStyle.OK, 11)
+	pips.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	h.add_child(pips)
+	var d := UiStyle.label(Talents.describe(t, r), 13, UiStyle.TEXT_DIM if open else Color(UiStyle.TEXT_DIM, 0.6))
+	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	d.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.add_child(d)
+	# o botão cresce com o texto (o conteúdo fica num container dentro dele)
+	var wrap := MarginContainer.new()
+	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wrap.add_theme_constant_override("margin_left", 9)
+	wrap.add_theme_constant_override("margin_right", 9)
+	wrap.add_theme_constant_override("margin_top", 6)
+	wrap.add_theme_constant_override("margin_bottom", 7)
+	wrap.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	wrap.add_child(v)
+	b.add_child(wrap)
+	wrap.minimum_size_changed.connect(func() -> void: b.custom_minimum_size.y = wrap.get_combined_minimum_size().y)
+	b.custom_minimum_size.y = 64
 	var id: String = t.id
 	b.pressed.connect(func() -> void:
 		var why := GameState.add_talent(hero_id, id)
-		_talent_msg = why if why != "" else "%s: %d/%d" % [t.name, r + 1, int(t.max)]
+		_talent_msg = why if why != "" else "%s %d/%d" % [t.name, r + 1, int(t.max)]
 		_player.refresh_stats()
 		_refresh_open_panel())
 	return b
 
 
 func _fill_artisan() -> void:
-	_modal_title.text = "Oficina dos Artesãos"
+	_modal_title.text = "Oficina"
 	var hero := _player.hero
 	if _craft_prof == &"":
 		_craft_prof = PROFESSION_FOR_ARMOR[hero.armor_type()]
-
-	var tabs := HBoxContainer.new()
-	tabs.add_theme_constant_override("separation", 8)
-	_modal_body.add_child(tabs)
-	for prof_id in PROFESSIONS:
-		var prof := ItemDB.catalog.get_profession(prof_id)
-		var t := _button("%s · nv %d" % [prof.display_name, GameState.professions.level_of(prof_id)], 17,
-			GOLD if prof_id == _craft_prof else TEXT)
-		var pid: StringName = prof_id
-		t.pressed.connect(func() -> void:
-			_craft_prof = pid
-			_craft_item = &""
-			_craft_msg = ""
-			_refresh_open_panel())
-		tabs.add_child(t)
-
 	var prof := ItemDB.catalog.get_profession(_craft_prof)
 	var lvl := GameState.professions.level_of(_craft_prof)
-	_modal_body.add_child(_label("%s — %s Nível %d · %d/%d XP" % [prof.display_name, prof.description, lvl,
-		GameState.professions.xp_of(_craft_prof), prof.xp_to_next(lvl)], 16, MUTED, true))
-	if _craft_msg != "":
-		_modal_body.add_child(_label(_craft_msg, 17, _craft_msg_color, true))
 
 	# Receitas da profissão, agrupadas pela peça.
 	var by_item := {}
@@ -495,39 +742,89 @@ func _fill_artisan() -> void:
 	if _craft_item == &"" or not by_item.has(_craft_item):
 		_craft_item = item_ids[0] if not item_ids.is_empty() else &""
 
+	# abas das profissões em cima de tudo
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 4)
+	tabs.custom_minimum_size = Vector2(0, 46)
+	_modal_body.add_child(tabs)
+	for prof_id in PROFESSIONS:
+		var pr := ItemDB.catalog.get_profession(prof_id)
+		var pid: StringName = prof_id
+		tabs.add_child(_tab_button(pr.display_name, prof_id == _craft_prof, func() -> void:
+			_craft_prof = pid
+			_craft_item = &""
+			_craft_msg = ""
+			_refresh_open_panel()))
+	var body := UiStyle.column_body()
+	_modal_body.add_child(body)
+	var inner := VBoxContainer.new()
+	inner.add_theme_constant_override("separation", 10)
+	body.add_child(inner)
+	# nível da profissão
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 10)
+	inner.add_child(top)
+	top.add_child(UiStyle.chip("Nível %d" % lvl, "nivel", Color("ffd25a")))
+	var xp := UiStyle.bar(Color("4fbf7a"), 260, 20)
+	xp.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	UiStyle.set_bar(xp, GameState.professions.xp_of(_craft_prof), prof.xp_to_next(lvl), "XP %d / %d" % [GameState.professions.xp_of(_craft_prof), prof.xp_to_next(lvl)])
+	top.add_child(xp)
+	var pd := UiStyle.label(prof.description, 15, UiStyle.TEXT_DIM)
+	pd.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pd.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	top.add_child(pd)
+	if _craft_msg != "":
+		var msg := UiStyle.label(_craft_msg, 16, _craft_msg_color)
+		msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		msg.custom_minimum_size = Vector2(600, 0)
+		inner.add_child(msg)
+
 	var columns := HBoxContainer.new()
-	columns.add_theme_constant_override("separation", 16)
+	columns.add_theme_constant_override("separation", 14)
 	columns.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_modal_body.add_child(columns)
+	inner.add_child(columns)
+	# esquerda: as peças, com ícone (borda na maior raridade que você já tem)
 	var left_scroll := ScrollContainer.new()
-	left_scroll.custom_minimum_size = Vector2(320, 340)
+	left_scroll.custom_minimum_size = Vector2(300, 0)
 	left_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	columns.add_child(left_scroll)
 	var left := VBoxContainer.new()
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	left.add_theme_constant_override("separation", 4)
+	left.add_theme_constant_override("separation", 6)
 	left_scroll.add_child(left)
 	for item_id in item_ids:
 		var item := ItemDB.get_item(item_id)
 		var best := _best_rarity_owned(item_id)
-		var text := item.display_name
-		if item.is_equipment() and ItemFactory.can_use(hero, item):
-			text += "  · seu herói"
-		var color := GameEnums.rarity_color(best) if best >= 0 else (TEXT if item_id == _craft_item else MUTED)
-		var b := _button(text, 16, color)
-		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		if item_id == _craft_item:
-			b.add_theme_stylebox_override("normal", _selected_style(GOLD))
+		var sel: bool = item_id == _craft_item
+		var b := Button.new()
+		b.focus_mode = Control.FOCUS_NONE
+		b.custom_minimum_size = Vector2(0, 56)
+		var sb := UiStyle.section(sel)
+		sb.set_content_margin_all(4)
+		for k in ["normal", "hover", "pressed"]:
+			b.add_theme_stylebox_override(k, sb)
+		var h := HBoxContainer.new()
+		h.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		h.offset_left = 6
+		h.add_theme_constant_override("separation", 8)
+		h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(h)
+		h.add_child(_mini_slot(CharacterPanel.icon_name(item), best, 46))
+		var nl := Label.new()
+		nl.text = item.display_name
+		UiStyle.title_label(nl, 17, UiStyle.GOLD if sel else (TEXT if ItemFactory.can_use(hero, item) or not item.is_equipment() else MUTED))
+		nl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		nl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		h.add_child(nl)
 		var iid: StringName = item_id
 		b.pressed.connect(func() -> void:
 			_craft_item = iid
 			_craft_msg = ""
 			_refresh_open_panel())
 		left.add_child(b)
-
+	# direita: as receitas da peça (uma por raridade)
 	var right_scroll := ScrollContainer.new()
 	right_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right_scroll.custom_minimum_size = Vector2(0, 340)
 	right_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	columns.add_child(right_scroll)
 	var right := VBoxContainer.new()
@@ -535,7 +832,7 @@ func _fill_artisan() -> void:
 	right.add_theme_constant_override("separation", 8)
 	right_scroll.add_child(right)
 	if _craft_item == &"":
-		right.add_child(_label("Nenhuma receita.", 16, MUTED))
+		right.add_child(UiStyle.label("Nenhuma receita.", 16, MUTED))
 		return
 	var recipes: Array = by_item[_craft_item]
 	recipes.sort_custom(func(a: RecipeData, b: RecipeData) -> bool: return int(a.result_rarity) < int(b.result_rarity))
@@ -543,55 +840,100 @@ func _fill_artisan() -> void:
 		right.add_child(_recipe_card(recipe))
 
 
-## Cartão de uma receita: raridade, chance, requisitos (tem/precisa) e o botão de fabricar.
+## Casinha pequena com ícone (lista da oficina, reagentes da receita). Com count_text, o número
+## vai embaixo da casa (tem/precisa), sem cobrir o ícone.
+func _mini_slot(icon: String, rarity: int, size: int, count_text := "", count_color := Color.WHITE) -> Control:
+	var p := PanelContainer.new()
+	p.custom_minimum_size = Vector2(size, size)
+	var sb := UiStyle.slot_box(rarity)
+	sb.set_content_margin_all(5)
+	p.add_theme_stylebox_override("panel", sb)
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var t := TextureRect.new()
+	t.texture = UiStyle.icon(icon)
+	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.add_child(t)
+	if count_text == "":
+		return p
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 1)
+	v.add_child(p)
+	var n := UiStyle.label(count_text, 14, count_color, true)
+	n.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(n)
+	return v
+
+
+func _count(n: int) -> String:
+	return str(n) if n < 1000 else ("%.1fk" % (n / 1000.0)).replace(".0k", "k").replace(".", ",")
+
+
+## Cartão de uma receita: raridade, chance, peça-base, reagentes (ícones com tem/precisa) e o botão.
 func _recipe_card(recipe: RecipeData) -> Control:
 	var item := ItemDB.get_item(recipe.result_item_id)
 	var r := int(recipe.result_rarity)
 	var color := GameEnums.rarity_color(r) if item.is_equipment() else TEXT
-	var box := _card_panel(color.darkened(0.3))
+	var box := PanelContainer.new()
+	var sb := UiStyle.section()
+	sb.border_color = Color(color, 0.7)
+	sb.set_border_width_all(2)
+	box.add_theme_stylebox_override("panel", sb)
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 3)
+	col.add_theme_constant_override("separation", 6)
 	box.add_child(col)
 	var streak := GameState.craft_streak(recipe.id)
 	var chance := Crafting.success_chance(recipe, GameState.professions, streak)
-	var head := recipe.display_name
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 6)
+	col.add_child(head)
+	var nl := Label.new()
+	nl.text = item.display_name if item.is_equipment() else recipe.display_name
+	UiStyle.title_label(nl, 19, color)
+	nl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(nl)
 	if item.is_equipment():
-		head = "[%s] %s · Poder %d" % [GameEnums.rarity_name(r), item.display_name, GameEnums.RARITY_GEAR_POWER[r]]
-	col.add_child(_label(head, 18, color, true))
-	var info := "Chance de sucesso %d%%" % int(round(chance * 100))
-	if streak > 0:
-		info += " (+%d%% por %d falha%s seguida%s)" % [streak * 10, streak, "s" if streak > 1 else "", "s" if streak > 1 else ""]
-	col.add_child(_label(info, 16, TEXT))
-
+		head.add_child(UiStyle.chip(GameEnums.rarity_name(r), "", color))
+		head.add_child(UiStyle.chip("%d" % GameEnums.RARITY_GEAR_POWER[r], "poder"))
+	head.add_child(UiStyle.chip("%d%%" % int(round(chance * 100)), "chance", UiStyle.OK if chance >= 0.5 else Color("ffcf6b")))
+	var notes := HBoxContainer.new()
+	notes.add_theme_constant_override("separation", 6)
 	var lvl := GameState.professions.level_of(recipe.profession_id)
 	if lvl < recipe.required_level:
-		col.add_child(_label("Precisa de nível %d na profissão (o seu: %d)" % [recipe.required_level, lvl], 15, BAD_COLOR))
+		notes.add_child(UiStyle.chip("Nível %d na profissão" % recipe.required_level, "cadeado", UiStyle.BAD))
 	if recipe.requires_base:
 		var base := Crafting.find_base(recipe, GameState.inventory, GameState.worn_uids())
-		var base_text := "Peça-base: %s %s" % [item.display_name, GameEnums.rarity_name(r - 1)]
-		if base.is_empty():
-			col.add_child(_label(base_text + " — não tem", 15, BAD_COLOR, true))
-		else:
-			var wearer := GameState.wearer_of(base.uid)
-			var note := " — vestida por %s; a nova é vestida no lugar" % ItemDB.get_hero(wearer).display_name if wearer != &"" else " — tem"
-			col.add_child(_label(base_text + note, 15, OK_COLOR, true))
-	var parts := PackedStringArray()
+		notes.add_child(UiStyle.chip("Base: %s" % GameEnums.rarity_name(r - 1), "", UiStyle.OK if not base.is_empty() else UiStyle.BAD))
+	if streak > 0:
+		notes.add_child(UiStyle.chip("+%d%% (falhas)" % (streak * 10), "", Color("ffcf6b")))
+	if notes.get_child_count() > 0:
+		col.add_child(notes)
+	# reagentes: ícone com tem/precisa
+	var bottom := HBoxContainer.new()
+	bottom.add_theme_constant_override("separation", 6)
+	col.add_child(bottom)
 	for ing_id in recipe.ingredients:
 		var need := int(recipe.ingredients[ing_id])
 		var have := GameState.inventory.count(StringName(ing_id))
 		var ing := ItemDB.get_item(StringName(ing_id))
-		parts.append("%s %d/%d" % [ing.display_name if ing else String(ing_id), have, need])
-	var enough := GameState.inventory.has_all(recipe.ingredients)
-	col.add_child(_label("Reagentes: " + " · ".join(parts), 15, OK_COLOR if enough else MUTED, true))
-	col.add_child(_label("+%d XP · na falha: perde metade dos reagentes, a peça-base volta e ganha %d XP" % [
-		recipe.xp_reward, int(round(recipe.xp_reward * Crafting.FAIL_XP_FRACTION))], 14, MUTED, true))
-
+		var slot := _mini_slot(CharacterPanel.icon_name(ing), -1, 50, "%s/%d" % [_count(have), need], UiStyle.OK if have >= need else UiStyle.BAD)
+		slot.tooltip_text = ing.display_name if ing else String(ing_id)
+		slot.mouse_filter = Control.MOUSE_FILTER_PASS
+		bottom.add_child(slot)
+	var fill := Control.new()
+	fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bottom.add_child(fill)
 	var reason := Crafting.check(recipe, GameState.inventory, GameState.professions, GameState.worn_uids())
-	var make := _button("Fabricar" if reason == "" else reason, 18, TEXT if reason == "" else MUTED, false, "ouro" if reason == "" else "normal")
+	var make := _button("Fabricar", 20, TEXT, false, "ouro" if reason == "" else "normal")
+	make.custom_minimum_size = Vector2(150, 54)
+	make.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	make.disabled = reason != ""
+	make.tooltip_text = reason
 	var rid: StringName = recipe.id
 	make.pressed.connect(func() -> void: _do_craft(rid))
-	col.add_child(make)
+	bottom.add_child(make)
 	return box
 
 
@@ -610,7 +952,7 @@ func _do_craft(recipe_id: StringName) -> void:
 			name = "%s %s (Poder %d)" % [item.display_name, GameEnums.rarity_name(int(recipe.result_rarity)),
 				GameEnums.RARITY_GEAR_POWER[int(recipe.result_rarity)]]
 			worn = GameState.wearer_of(res.uid) != &""
-		_craft_msg = "Sucesso! %s%s. +%d XP" % [name, " — já vestida" if worn else "", res.xp]
+		_craft_msg = "Sucesso! %s%s. +%d XP" % [name, " (já vestida)" if worn else "", res.xp]
 		_craft_msg_color = GameEnums.rarity_color(int(recipe.result_rarity)) if item.is_equipment() else OK_COLOR
 	else:
 		var lost := PackedStringArray()
@@ -622,7 +964,7 @@ func _do_craft(recipe_id: StringName) -> void:
 		_craft_msg_color = BAD_COLOR
 	var level_after := GameState.professions.level_of(recipe.profession_id)
 	if level_after > level_before:
-		_craft_msg += "  ·  %s subiu para o nível %d!" % [ItemDB.catalog.get_profession(recipe.profession_id).display_name, level_after]
+		_craft_msg += "\n%s subiu para o nível %d!" % [ItemDB.catalog.get_profession(recipe.profession_id).display_name, level_after]
 	_player.refresh_stats()
 	_refresh_top_bar()
 	_refresh_open_panel()
@@ -666,83 +1008,6 @@ func _fill_bag() -> void:
 	panel.build(_player)
 
 
-func _fill_materials(list: VBoxContainer) -> void:
-	if GameState.inventory.stacks.is_empty():
-		list.add_child(_label("Nenhum material ainda.", 17, MUTED))
-	for item_id in GameState.inventory.stacks:
-		var item := ItemDB.get_item(StringName(item_id))
-		if item == null:
-			continue
-		list.add_child(_label("%d× %s — %s" % [GameState.inventory.stacks[item_id], item.display_name, item.description], 16, TEXT, true))
-
-
-func _fill_equipment_list(list: VBoxContainer, hero: HeroData, equipped: Dictionary) -> void:
-	var pieces: Array = GameState.inventory.equipment.duplicate()
-	if pieces.is_empty():
-		list.add_child(_label("Nenhum equipamento ainda. Traga reagentes da masmorra e fabrique na oficina.", 17, MUTED, true))
-		return
-	# Primeiro o que o herói pode usar; depois por raridade e nível.
-	pieces.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		var ua := ItemFactory.can_use(hero, ItemDB.get_item(StringName(a.item_id)))
-		var ub := ItemFactory.can_use(hero, ItemDB.get_item(StringName(b.item_id)))
-		if ua != ub:
-			return ua
-		if int(a.rarity) != int(b.rarity):
-			return int(a.rarity) > int(b.rarity)
-		return String(a.item_id) < String(b.item_id))
-
-	for inst in pieces:
-		var template := ItemDB.get_item(StringName(inst.item_id))
-		if template == null:
-			continue
-		var usable := ItemFactory.can_use(hero, template)
-		var wearer := GameState.wearer_of(inst.uid)
-		var header := "[%s] %s" % [GameEnums.rarity_name(int(inst.rarity)), ItemFactory.display_name(inst, ItemDB.catalog)]
-		var detail := ItemFactory.describe_stats(inst.stats)
-		var note := ""
-		if wearer == hero.id:
-			note = "vestido"
-		elif wearer != &"":
-			note = "com %s" % ItemDB.get_hero(wearer).display_name
-		elif not usable:
-			note = _usage_note(template)
-		else:
-			note = _compare(inst, equipped.get(int(template.slot), {}), hero)
-		var b := _button("%s\n%s%s" % [header, detail, ("   ·   " + note) if note != "" else ""], 15,
-			GameEnums.rarity_color(int(inst.rarity)) if usable else MUTED, true)
-		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		b.disabled = not usable or wearer == hero.id
-		var uid: String = inst.uid
-		b.pressed.connect(func() -> void:
-			var err := GameState.equip(hero.id, uid)
-			if err != "":
-				push_warning(err)
-			GameState.save())
-		list.add_child(b)
-
-
-func _usage_note(template: ItemData) -> String:
-	if template.kind == ItemData.Kind.ARMOR:
-		var primary: int = GameEnums.PRIMARY_FOR_ARMOR[template.armor_type]
-		return "%s — heróis de %s" % [GameEnums.ARMOR_NAMES[template.armor_type], GameEnums.PRIMARY_NAMES[primary].to_lower()]
-	return "arma de outra classe (%s)" % template.weapon_type
-
-
-## "▲ +5 Força ▼ -2 Vigor" em relação à peça vestida no mesmo slot.
-func _compare(inst: Dictionary, current: Dictionary, hero: HeroData) -> String:
-	var keys := [GameEnums.PRIMARY_KEYS[hero.primary_stat], "vigor", "armor", "damage"]
-	var parts := PackedStringArray()
-	for key in keys:
-		var a := int(inst.stats.get(key, 0))
-		var b := int(current.get("stats", {}).get(key, 0))
-		if a == b or (a == 0 and b == 0):
-			continue
-		parts.append("%s%+d %s" % ["▲" if a > b else "▼", a - b, GameEnums.STAT_NAMES.get(key, key)])
-	if current.is_empty():
-		return "slot vazio — toque para vestir"
-	return " ".join(parts) if not parts.is_empty() else "igual ao vestido"
-
-
 # ---------- montagem ----------
 
 func _refresh_top_bar() -> void:
@@ -750,41 +1015,47 @@ func _refresh_top_bar() -> void:
 		return
 	var hero := _player.hero
 	var p := GameState.progress(hero.id)
-	_hero_label.text = "%s · nível %d · Poder %d · %s/%s" % [hero.display_name, p.level, GameState.power_of(hero.id),
-		GameEnums.PRIMARY_NAMES[hero.primary_stat], GameEnums.ARMOR_NAMES[hero.armor_type()]]
-	_xp_bar.max_value = Progression.xp_to_next(p.level)
-	_xp_bar.value = p.xp
-	_xp_label.text = "XP %d/%d · Energia %d/%d" % [p.xp, Progression.xp_to_next(p.level),
-		GameState.energy_now(), GameState.MAX_ENERGY]
+	_hero_label.text = hero.display_name
+	for ch in _top_chips.get_children():
+		ch.queue_free()
+	_top_chips.add_child(UiStyle.chip("%d" % p.level, "nivel", Color("ffd25a")))
+	_top_chips.add_child(UiStyle.chip("%d" % GameState.power_of(hero.id), "poder"))
+	_top_chips.add_child(UiStyle.chip(GameEnums.PRIMARY_NAMES[hero.primary_stat], UiStyle.primary_icon(hero.primary_stat)))
+	_top_chips.add_child(UiStyle.chip(GameEnums.ARMOR_NAMES[hero.armor_type()], UiStyle.armor_icon(hero.armor_type())))
+	UiStyle.set_bar(_xp_bar, p.xp, Progression.xp_to_next(p.level), "XP %d / %d" % [p.xp, Progression.xp_to_next(p.level)])
+	for ch in _energy_box.get_children():
+		ch.queue_free()
+	_energy_box.add_child(UiStyle.chip("", "energia", Color("ffd84a")))
+	var pips := UiStyle.pips(GameState.energy_now(), GameState.MAX_ENERGY, Color("ffd84a"), 14)
+	pips.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_energy_box.add_child(pips)
 
 
 func _build_top_bar() -> void:
 	var box := VBoxContainer.new()
-	box.position = Vector2(20, 16)
-	box.add_theme_constant_override("separation", 4)
+	box.position = Vector2(20, 14)
+	box.add_theme_constant_override("separation", 6)
 	add_child(box)
 	_top_bar = box
-	_hero_label = _label("", 24)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	box.add_child(row)
+	_hero_label = Label.new()
 	UiStyle.title_label(_hero_label, 26, TEXT)
-	box.add_child(_hero_label)
-	_xp_bar = ProgressBar.new()
-	_xp_bar.custom_minimum_size = Vector2(300, 14)
-	_xp_bar.show_percentage = false
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0.08, 0.05, 0.03, 0.75)
-	bg.border_color = Color("8a5e36")
-	bg.set_border_width_all(2)
-	bg.set_corner_radius_all(6)
-	var fill := StyleBoxFlat.new()
-	fill.bg_color = Color("e0a83c")
-	fill.set_corner_radius_all(6)
-	_xp_bar.add_theme_stylebox_override("background", bg)
-	_xp_bar.add_theme_stylebox_override("fill", fill)
-	box.add_child(_xp_bar)
-	_xp_label = _label("", 15, MUTED)
-	box.add_child(_xp_label)
+	row.add_child(_hero_label)
+	_top_chips = HBoxContainer.new()
+	_top_chips.add_theme_constant_override("separation", 5)
+	row.add_child(_top_chips)
+	var row2 := HBoxContainer.new()
+	row2.add_theme_constant_override("separation", 10)
+	box.add_child(row2)
+	_xp_bar = UiStyle.bar(Color("4fbf7a"), 300, 20)
+	row2.add_child(_xp_bar)
+	_energy_box = HBoxContainer.new()
+	_energy_box.add_theme_constant_override("separation", 4)
+	row2.add_child(_energy_box)
 
-	var help := _label("Base · ande até um ponto e toque no botão (PC: E)", 15, MUTED)
+	var help := UiStyle.label("Ande até um ponto e toque no botão  (PC: E)", 15, MUTED)
 	help.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	help.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	help.offset_right = -20
