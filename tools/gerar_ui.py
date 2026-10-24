@@ -571,6 +571,11 @@ def small_icons():
     d.ellipse([S * .14, S * .14, S * .86, S * .86], fill=(110, 220, 140))
     d.polygon([(S * .5, S * .26), (S * .72, S * .52), (S * .58, S * .52), (S * .58, S * .74), (S * .42, S * .74), (S * .42, S * .52), (S * .28, S * .52)], fill=(240, 255, 240))
     out["xp"] = done(im)
+    im, S = canvas(); d = ImageDraw.Draw(im)  # ouro: moeda com losango gravado
+    d.ellipse([S * .12, S * .12, S * .88, S * .88], fill=(200, 150, 40))
+    d.ellipse([S * .2, S * .2, S * .8, S * .8], fill=(250, 205, 80))
+    d.polygon([(S * .5, S * .3), (S * .66, S * .5), (S * .5, S * .7), (S * .34, S * .5)], fill=(200, 150, 40))
+    out["ouro"] = done(im)
     im, S = canvas(); d = ImageDraw.Draw(im)  # controle: redemoinho
     for k in range(3):
         r = .38 - k * .11

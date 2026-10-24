@@ -35,3 +35,21 @@ Ver também: replica/mundo_amazonia.md (zonas da Amazônia) e replica/multiplaye
   dele na fila). Ver a proposta de "uma especialização ativa por vez" (talentos estilo WoW).
 - Técnico: hoje o multijogador é na mesma rede Wi-Fi (anfitrião no celular). Online pede um
   servidor (de partida e de fila) e conta de jogador; planejar quando o 1º mundo estiver pronto.
+
+## Economia e progressão (aprovado em 24/10/2026; números em game/scripts/systems/economy.gd)
+- Bicho comum: só ouro (sobe com a dificuldade; igual com ou sem energia). Furioso: ouro ×3 e 12% de
+  chance de reagente. Mini-chefe e chefe: reagentes garantidos. Baús: alguns reagentes.
+- Reagente que sobra pode ser vendido (Comum 2, Raro 6, Épico 15, Lendário 40 de ouro cada);
+  o detalhe mostra "Usado em". Fabricar custa ouro (Comum 20, Raro 80, Épico 250, Lendário 800).
+- Proteção contra azar: cada vitória no chefe sem o troféu mais raro soma +10% de chance na próxima.
+- Dificuldade abre por conjunto mínimo (não mais por soma de Poder): Difícil = 6 peças Comuns,
+  Heroico = 6 Raras, Mítico = 6 Épicas, e vencer a anterior. O Poder fica só como número.
+- Reagente de cada raridade preso à dificuldade: Pena de Arara (peças Raras) só do Difícil para
+  cima; Pelo de Mapinguari (Épicas) do Heroico; Muiraquitã (Lendárias) só no Mítico.
+- Grupo: cada jogador precisa cumprir o requisito (a sala mostra ✓/✗; Começar só libera quando todos
+  podem); Sincronia de Poder (dentro da masmorra, peça acima da raridade da dificuldade vale como
+  ela); reagentes do chefe só para quem participou da luta; Mentor: +25% de ouro em grupo com
+  alguém 5+ níveis abaixo. Itens e reagentes ficam com quem pegou (não há troca).
+- Próximo: Provações do Folclore nos níveis 10/20/30 (pagas com ouro; abrem as fileiras de
+  talentos), sem arte nova do Tripo. Propor cada uma antes de construir.
+- Bônus semanal do chefe: não feito (depende do relógio do celular, que dá para burlar).

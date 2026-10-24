@@ -360,15 +360,40 @@ func _detail() -> Control:
 		inst = GameState.equipped_items(hero.id).get(int(selected.slot), {})
 	if selected.has("mat"):
 		var item := ItemDB.get_item(StringName(selected.mat))
+		var have := int(GameState.inventory.stacks.get(selected.mat, 0))
 		var n := Label.new()
 		n.text = item.display_name
 		UiStyle.title_label(n, 22, GameEnums.rarity_color(int(item.rarity)))
 		col.add_child(n)
-		col.add_child(UiStyle.chips([["Reagente", "mapa"], ["×%d" % int(GameState.inventory.stacks.get(selected.mat, 0)), "", UiStyle.GOLD]]))
-		var d := UiStyle.label(item.description, 15)
+		col.add_child(UiStyle.chips([["×%d" % have, "", UiStyle.GOLD], ["%d cada" % Economy.sell_price(item), "ouro", Color("ffd84a")]]))
+		var uses := Economy.uses_of(StringName(selected.mat), ItemDB.catalog)
+		var use_text := "Usado em: " + (", ".join(uses.slice(0, 4)) + (" e mais %d" % (uses.size() - 4) if uses.size() > 4 else "") if not uses.is_empty() else "nenhuma receita (pode vender)")
+		var d := UiStyle.label(use_text, 15, UiStyle.TEXT_DIM)
 		d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		d.custom_minimum_size = Vector2(380, 0)
 		col.add_child(d)
+		var fill := Control.new()
+		fill.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		col.add_child(fill)
+		var row := HBoxContainer.new()
+		row.alignment = BoxContainer.ALIGNMENT_END
+		row.add_theme_constant_override("separation", 8)
+		col.add_child(row)
+		for q in [1, 10]:
+			var sb := Button.new()
+			sb.text = "Vender %d" % q
+			sb.focus_mode = Control.FOCUS_NONE
+			UiStyle.style_button(sb, "normal", 18)
+			sb.custom_minimum_size = Vector2(130, 48)
+			sb.disabled = have < q
+			var qq: int = q
+			var mid: String = selected.mat
+			sb.pressed.connect(func() -> void:
+				GameState.sell_material(StringName(mid), qq)
+				if GameState.inventory.count(StringName(mid)) <= 0:
+					selected = {}
+				_refresh())
+			row.add_child(sb)
 		return p
 	if inst.is_empty():
 		var hint := UiStyle.label("Toque num item para ver os detalhes." if not selected.has("slot") else "Nada vestido aqui. Fabrique peças na oficina.", 16, UiStyle.TEXT_DIM)

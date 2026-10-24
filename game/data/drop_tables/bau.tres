@@ -40,6 +40,7 @@ max_qty = 2
 [sub_resource type="Resource" id="Resource_bygfc"]
 script = ExtResource("1_hlpk6")
 item_id = &"pena_arara"
+min_difficulty = 1
 max_qty = 2
 
 [sub_resource type="Resource" id="Resource_gvxg1"]
@@ -48,13 +49,8 @@ item_id = &"oleo_andiroba"
 weight = 8
 max_qty = 2
 
-[sub_resource type="Resource" id="Resource_45u0t"]
-script = ExtResource("1_hlpk6")
-item_id = &"semente_guarana"
-weight = 5
-
 [resource]
 script = ExtResource("2_56rfa")
 id = &"bau"
 rolls = 3
-entries = Array[ExtResource("1_hlpk6")]([SubResource("Resource_hlpk6"), SubResource("Resource_56rfa"), SubResource("Resource_nhi7f"), SubResource("Resource_3onyb"), SubResource("Resource_6a66u"), SubResource("Resource_bygfc"), SubResource("Resource_gvxg1"), SubResource("Resource_45u0t")])
+entries = Array[ExtResource("1_hlpk6")]([SubResource("Resource_hlpk6"), SubResource("Resource_56rfa"), SubResource("Resource_nhi7f"), SubResource("Resource_3onyb"), SubResource("Resource_6a66u"), SubResource("Resource_bygfc"), SubResource("Resource_gvxg1")])

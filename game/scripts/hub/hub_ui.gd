@@ -56,9 +56,16 @@ func setup(player: Player) -> void:
 	Net.found_changed.connect(_on_net_lobby)
 	Net.connection_failed.connect(_on_net_failed)
 	Net.disconnected.connect(_on_net_disconnected)
+	GameState.coins_changed.connect(_on_coins_changed)
 	GameState.hero_progress_changed.connect(func(_id: StringName) -> void:
 		_refresh_top_bar()
+		if Net.active:
+			Net.refresh_profile()  # a sala vê a peça/herói novo (requisito da dificuldade)
 		_refresh_open_panel())
+	_refresh_top_bar()
+
+
+func _on_coins_changed(_v: int) -> void:
 	_refresh_top_bar()
 
 
@@ -126,7 +133,7 @@ func _refresh_open_panel() -> void:
 ## Regiões do portal, agrupadas por bioma. world: índice em Difficulty.WORLDS (-1 = em breve).
 const REGIONS := [
 	{"biome": "Amazônia", "id": "terra_firme", "name": "Terra Firme", "world": 0, "boss": "Mapinguari",
-		"desc": "Mata fechada de terra firme. Tudo o que cai são reagentes para a oficina."},
+		"desc": "Mata fechada de terra firme. Bichos deixam ouro; os reagentes vêm dos chefes, dos baús e, às vezes, dos furiosos."},
 	{"biome": "Amazônia", "id": "igapo", "name": "Várzea e Igapó", "world": 1, "boss": "Iara", "soon": true,
 		"desc": "Floresta alagada: a água sobe e desce no meio da luta."},
 	{"biome": "Amazônia", "id": "urnas", "name": "Cidade das Urnas", "world": -1, "boss": "Anhangá",
@@ -146,7 +153,7 @@ func _region_lock(r: Dictionary) -> String:
 	if lock == "":
 		return ""
 	# "Precisa vencer X no Normal e Poder 90 (o seu: 0)" -> curto para o selo
-	return "Poder %d" % int(Difficulty.WORLDS[int(r.world)].power) if lock.contains("Poder") else "Vença a anterior"
+	return "6 peças" if lock.contains("peças") and not lock.contains("vencer") else "Vença a anterior"
 
 
 func _fill_portal() -> void:
@@ -260,6 +267,39 @@ func _portal_right() -> Control:
 	return col
 
 
+## "Para o Heroico:" + as 6 casinhas do equipamento (✓ se já tem a raridade pedida) + vencer a anterior.
+func _set_requirement_row(d: int, hero: HeroData) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	row.add_child(UiStyle.chip("Para o %s" % Difficulty.name_of(d), "cadeado", Difficulty.color_of(d)))
+	var need: int = Difficulty.SET_RARITY[d]
+	var equipped := GameState.equipped_items(hero.id)
+	for st in Difficulty.set_status(need, equipped):
+		var inst: Dictionary = equipped.get(st.slot, {})
+		var template := ItemDB.get_item(StringName(inst.get("item_id", ""))) if not inst.is_empty() else null
+		var icon: String = CharacterPanel.icon_name(template) if template else CharacterPanel.SLOT_ICON.get(st.slot, "lanca")
+		var slot := _mini_slot(icon, int(st.rarity), 44)
+		if template == null:
+			slot.get_child(0).modulate = Color(1, 1, 1, 0.25)
+		var mark := UiStyle.label("✓" if st.ok else "✗", 17, UiStyle.OK if st.ok else UiStyle.BAD, true)
+		mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		mark.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+		slot.add_child(mark)
+		slot.tooltip_text = GameEnums.SLOT_NAMES[st.slot]
+		row.add_child(slot)
+	var need_name: String = ["Comum", "Rara", "Épica", "Lendária"][need]
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	box.add_child(row)
+	var row2 := HBoxContainer.new()
+	row2.add_theme_constant_override("separation", 6)
+	row2.add_child(UiStyle.chip("cada peça %s ou melhor" % need_name, "", GameEnums.rarity_color(need)))
+	if GameState.highest_cleared < d - 1:
+		row2.add_child(UiStyle.chip("vencer o %s" % Difficulty.name_of(d - 1), "chefe", UiStyle.TEXT_DIM))
+	box.add_child(row2)
+	return box
+
+
 func _tab_button(text: String, active: bool, on_press: Callable) -> Button:
 	var b := Button.new()
 	b.text = text
@@ -340,8 +380,11 @@ func _fill_expedition() -> void:
 		["Dano ×%s" % _num(Difficulty.DAMAGE_MULT[_difficulty]), "espada", Color("ffcf6b")],
 		["XP ×%s" % _num(Difficulty.XP_MULT[_difficulty]), "xp", Color("8fe38f")],
 		["Reagentes ×%s" % _num(Difficulty.REWARD_MULT[_difficulty]), "chance", Color("8fe38f")]]))
-	if locked_note != "":
-		_modal_body.add_child(UiStyle.chips([[locked_note, "cadeado", UiStyle.TEXT_DIM]]))
+	# próxima dificuldade trancada: o que falta (as 6 peças com ✓/✗ e vencer a anterior)
+	for d in range(1, 4):
+		if GameState.difficulty_lock(d, hero.id) != "":
+			_modal_body.add_child(_set_requirement_row(d, hero))
+			break
 	# energia: pontos e o interruptor
 	var erow := HBoxContainer.new()
 	erow.add_theme_constant_override("separation", 10)
@@ -453,7 +496,27 @@ func _fill_multiplayer() -> void:
 				_refresh_open_panel())
 		ip_row.add_child(go)
 		return
-	# na partida: um cartão por jogador e o botão de começar (só o anfitrião)
+	# na partida: a dificuldade (o anfitrião escolhe), um cartão por jogador com ✓/✗ do requisito
+	# dele e o botão de começar (só quando todos podem entrar)
+	var diff := Net.lobby_difficulty()
+	var drow := HBoxContainer.new()
+	drow.add_theme_constant_override("separation", 6)
+	_modal_body.add_child(drow)
+	for d in 4:
+		var b := _button(Difficulty.name_of(d), 17, Difficulty.color_of(d))
+		b.custom_minimum_size = Vector2(0, 46)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.disabled = not Net.is_host()
+		if d == diff:
+			b.add_theme_stylebox_override("normal", _selected_style(Difficulty.color_of(d)))
+			b.add_theme_stylebox_override("disabled", _selected_style(Difficulty.color_of(d)))
+			b.add_theme_color_override("font_disabled_color", Difficulty.color_of(d))
+		var dd := d
+		b.pressed.connect(func() -> void:
+			_difficulty = dd
+			Net.refresh_profile(dd)
+			_refresh_open_panel())
+		drow.add_child(b)
 	var ids := Net.players.keys()
 	ids.sort()
 	if ids.is_empty():
@@ -476,10 +539,15 @@ func _fill_multiplayer() -> void:
 			row.add_child(UiStyle.chip("Anfitrião", "coroa", UiStyle.GOLD))
 		if int(id) == Net.my_id():
 			row.add_child(UiStyle.chip("Você", "", UiStyle.c("accent")))
+		var lock := Net.lock_for(int(id), diff)
+		if lock == "":
+			row.add_child(UiStyle.chip("Pode entrar", "", UiStyle.OK))
+		else:
+			row.add_child(UiStyle.chip(lock.trim_prefix("Precisa "), "cadeado", UiStyle.BAD))
 		_modal_body.add_child(card)
 	if Net.is_host():
 		var ips := Net.local_ips()
-		_modal_body.add_child(UiStyle.chips([["Seu IP: %s" % (ips[0] if not ips.is_empty() else "?"), "mapa"], [Difficulty.name_of(_difficulty), "chefe", Difficulty.color_of(_difficulty)]]))
+		_modal_body.add_child(UiStyle.chips([["Seu IP: %s" % (ips[0] if not ips.is_empty() else "?"), "mapa"]]))
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_modal_body.add_child(spacer)
@@ -493,12 +561,14 @@ func _fill_multiplayer() -> void:
 		_refresh_open_panel())
 	row2.add_child(leave)
 	if Net.is_host():
-		var start := _button("Começar  (%d jogadores)" % Net.players.size(), 24, TEXT, false, "ouro")
+		var can := Net.all_can_enter(diff)
+		var start := _button("Começar  (%d jogadores)" % Net.players.size() if can else "Alguém não pode entrar", 24, TEXT, false, "ouro" if can else "normal")
 		start.custom_minimum_size = Vector2(0, 60)
 		start.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		start.disabled = not can
 		start.pressed.connect(func() -> void:
-			GameState.selected_difficulty = _difficulty
-			Net.start_run(_difficulty))
+			GameState.selected_difficulty = diff
+			Net.start_run(diff))
 		row2.add_child(start)
 	else:
 		var wait := UiStyle.label("Esperando o anfitrião começar...", 17, UiStyle.TEXT_DIM)
@@ -517,6 +587,8 @@ func _fill_heroes() -> void:
 		_refresh_open_panel())
 	panel.hero_chosen.connect(func(hero: HeroData) -> void:
 		GameState.selected_hero = hero.id
+		if Net.active:
+			Net.refresh_profile()
 		_player.set_hero(hero)
 		GameState.save()
 		_refresh_top_bar()
@@ -721,6 +793,8 @@ func _recipe_card(recipe: RecipeData) -> Control:
 		head.add_child(UiStyle.chip(GameEnums.rarity_name(r), "", color))
 		head.add_child(UiStyle.chip("%d" % GameEnums.RARITY_GEAR_POWER[r], "poder"))
 	head.add_child(UiStyle.chip("%d%%" % int(round(chance * 100)), "chance", UiStyle.OK if chance >= 0.5 else Color("ffcf6b")))
+	var cost := Economy.craft_cost(recipe, ItemDB.catalog)
+	head.add_child(UiStyle.chip("%d" % cost, "ouro", Color("ffd84a") if GameState.coins >= cost else UiStyle.BAD))
 	var notes := HBoxContainer.new()
 	notes.add_theme_constant_override("separation", 6)
 	var lvl := GameState.professions.level_of(recipe.profession_id)
@@ -749,6 +823,8 @@ func _recipe_card(recipe: RecipeData) -> Control:
 	fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bottom.add_child(fill)
 	var reason := Crafting.check(recipe, GameState.inventory, GameState.professions, GameState.worn_uids())
+	if reason == "" and GameState.coins < cost:
+		reason = "Falta ouro."
 	var make := _button("Fabricar", 20, TEXT, false, "ouro" if reason == "" else "normal")
 	make.custom_minimum_size = Vector2(150, 54)
 	make.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -848,6 +924,7 @@ func _refresh_top_bar() -> void:
 	UiStyle.set_bar(_xp_bar, p.xp, Progression.xp_to_next(p.level), "XP %d / %d" % [p.xp, Progression.xp_to_next(p.level)])
 	for ch in _energy_box.get_children():
 		ch.queue_free()
+	_energy_box.add_child(UiStyle.chip("%d" % GameState.coins, "ouro", Color("ffd84a")))
 	_energy_box.add_child(UiStyle.chip("", "energia", Color("ffd84a")))
 	var pips := UiStyle.pips(GameState.energy_now(), GameState.MAX_ENERGY, Color("ffd84a"), 14)
 	pips.size_flags_vertical = Control.SIZE_SHRINK_CENTER

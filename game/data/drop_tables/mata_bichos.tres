@@ -28,6 +28,7 @@ item_id = &"oleo_andiroba"
 [sub_resource type="Resource" id="Resource_iyuss"]
 script = ExtResource("1_ywhfw")
 item_id = &"pena_arara"
+min_difficulty = 1
 weight = 4
 
 [resource]

@@ -60,6 +60,48 @@ func save() -> bool:
 	return SaveSystem.save_game(to_dict())
 
 
+## Proteção contra azar do chefe: vitórias seguidas sem o reagente mais raro da tabela dele.
+var boss_pity := {}
+
+
+## Depois do sorteio do chefe: se o troféu mais raro (o de maior raridade que pode cair nesta
+## dificuldade) não veio, a chance dele cresce na próxima vitória; se veio (ou a ajuda deu), zera.
+## Devolve os drops extras que a ajuda deu.
+func boss_pity_roll(table: DropTable, difficulty: int, drops: Array, rng: RandomNumberGenerator, full_rewards: bool) -> Array[Dictionary]:
+	var extra: Array[Dictionary] = []
+	if not full_rewards:
+		return extra
+	var rarest: ItemData = null
+	var tables: Array = [table]
+	for t in table.extra_tables:
+		tables.append(ItemDB.get_drop_table(t))
+	for t: DropTable in tables:
+		if t == null:
+			continue
+		for e in t.entries:
+			if e.min_difficulty > difficulty:
+				continue
+			var it := ItemDB.get_item(e.item_id)
+			if it and not it.is_equipment() and (rarest == null or int(it.rarity) > int(rarest.rarity)):
+				rarest = it
+	if rarest == null or int(rarest.rarity) < GameEnums.Rarity.EPIC:
+		return extra
+	var key := "%s:%d" % [String(rarest.id), difficulty]
+	var got := false
+	for d in drops:
+		got = got or d.item == rarest
+	if got:
+		boss_pity.erase(key)
+		return extra
+	var misses := int(boss_pity.get(key, 0))
+	if misses > 0 and rng.randf() < misses * Economy.PITY_STEP:
+		extra.append({"item": rarest, "qty": 1, "instance": {}})
+		boss_pity.erase(key)
+	else:
+		boss_pity[key] = misses + 1
+	return extra
+
+
 func add_coins(amount: int) -> void:
 	coins = maxi(coins + amount, 0)
 	coins_changed.emit(coins)
@@ -291,11 +333,11 @@ func power_of(hero_id: StringName) -> int:
 
 ## "" se o herói pode entrar nessa dificuldade; senão, o que falta.
 func difficulty_lock(d: int, hero_id: StringName) -> String:
-	return Difficulty.lock_reason(d, highest_cleared, power_of(hero_id))
+	return Difficulty.lock_reason(d, highest_cleared, equipped_items(hero_id))
 
 
 func world_lock(world: int, hero_id: StringName) -> String:
-	return Difficulty.world_lock_reason(world, highest_cleared, power_of(hero_id))
+	return Difficulty.world_lock_reason(world, highest_cleared, equipped_items(hero_id))
 
 
 func record_clear(d: int) -> void:
@@ -320,9 +362,14 @@ func craft(recipe_id: StringName) -> Dictionary:
 	var streak := int(craft_streaks.get(String(recipe_id), 0))
 	var base := Crafting.find_base(recipe, inventory, worn) if recipe else {}
 	var wearer := wearer_of(base.uid) if not base.is_empty() else &""
+	var cost := Economy.craft_cost(recipe, ItemDB.catalog) if recipe else 0
+	if recipe and coins < cost and Crafting.check(recipe, inventory, professions, worn) == "":
+		return {"ok": false, "success": false, "reason": "Falta ouro (precisa %d)." % cost}
 	var result := Crafting.craft(recipe, inventory, professions, ItemDB.catalog, null, streak, worn)
 	if not result.ok:
 		return result
+	add_coins(-cost)  # a taxa da oficina é paga em toda tentativa
+	result["gold"] = cost
 	if result.success:
 		craft_streaks.erase(String(recipe_id))
 		if wearer != &"" and result.uid != "":
@@ -335,6 +382,20 @@ func craft(recipe_id: StringName) -> Dictionary:
 	return result
 
 
+## Vende reagentes por ouro. Devolve o ouro ganho (0 se não tinha).
+func sell_material(item_id: StringName, qty: int) -> int:
+	var item := ItemDB.get_item(item_id)
+	var have := inventory.count(item_id)
+	var n := mini(qty, have)
+	if item == null or n <= 0:
+		return 0
+	inventory.remove_all({String(item_id): n})
+	var gold := n * Economy.sell_price(item)
+	add_coins(gold)
+	save()
+	return gold
+
+
 func craft_streak(recipe_id: StringName) -> int:
 	return int(craft_streaks.get(String(recipe_id), 0))
 
@@ -344,6 +405,7 @@ func craft_streak(recipe_id: StringName) -> int:
 func to_dict() -> Dictionary:
 	return {
 		"coins": coins,
+		"boss_pity": boss_pity.duplicate(),
 		"inventory": inventory.to_dict(),
 		"professions": professions.to_dict(),
 		"unlocked_heroes": Array(unlocked_heroes),
@@ -360,6 +422,7 @@ func to_dict() -> Dictionary:
 
 func from_dict(data: Dictionary) -> void:
 	coins = int(data.get("coins", 0))
+	boss_pity = (data.get("boss_pity", {}) as Dictionary).duplicate()
 	inventory.from_dict(data.get("inventory", {}))
 	professions.from_dict(data.get("professions", {}))
 	unlocked_heroes = PackedStringArray(data.get("unlocked_heroes", STARTING_HEROES))

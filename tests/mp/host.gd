@@ -30,6 +30,16 @@ func _run() -> void:
 	while net.players.size() < 2 and Time.get_ticks_msec() - t0 < 20000:
 		await process_frame
 	check(net.players.size() == 2, "o convidado entrou no saguão (%d jogadores)" % net.players.size())
+	# requisito de cada um: o convidado (sem peças) não pode entrar no Difícil
+	var guest_id := 0
+	for id in net.players:
+		if int(id) != 1:
+			guest_id = int(id)
+	check(net.lock_for(guest_id, 0) == "" and net.lock_for(guest_id, 1) != "", "sala: convidado pode o Normal e não o Difícil (%s)" % net.lock_for(guest_id, 1))
+	check(not net.all_can_enter(1) and net.all_can_enter(0), "sala: Começar só libera na dificuldade que todos podem")
+	net.start_run(1)
+	await _wait(0.5)
+	check(current_scene == null or current_scene.name != "Main", "o anfitrião não consegue forçar o Difícil")
 	net.start_requested.connect(func(): change_scene_to_file("res://game/scenes/main.tscn"))
 	net.start_run(0)
 	await _wait(4.0)
@@ -40,6 +50,7 @@ func _run() -> void:
 	var clones := [0]
 	node_added.connect(func(n): if n.get_script() and n.get_script().get_global_name() == &"WaterClone": clones[0] += 1)
 	check(m._replicas.size() == 1, "cópia do herói do convidado criada")
+	check(HeroStats.rarity_cap == 0, "grupo no Normal: Sincronia de Poder até Comum")
 	check(m._ready_peers.size() == 1, "convidado avisou que carregou")
 	var rep = m._replicas.values()[0]
 	check(rep.hero_id == &"encantado", "cópia tem o herói do convidado (%s)" % rep.hero_id)

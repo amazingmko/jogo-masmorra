@@ -80,7 +80,41 @@ func my_profile() -> Dictionary:
 	for slot in items:
 		eq[int(slot)] = items[slot]
 	return {"name": "Jogador", "hero_id": String(hero_id), "level": GameState.level_of(hero_id),
-		"equipped": eq, "talents": GameState.talents_of(hero_id).duplicate()}
+		"equipped": eq, "talents": GameState.talents_of(hero_id).duplicate(),
+		"cleared": GameState.highest_cleared, "spec": GameState.active_spec(hero_id)}
+
+
+## Requisito de cada jogador para a dificuldade escolhida pelo anfitrião ("" = pode).
+func lock_for(peer_id: int, difficulty: int) -> String:
+	var p: Dictionary = players.get(peer_id, {})
+	return Difficulty.lock_reason(difficulty, int(p.get("cleared", -1)), p.get("equipped", {}))
+
+
+## Dificuldade que o anfitrião escolheu (todos veem na sala).
+func lobby_difficulty() -> int:
+	return int(players.get(1, {}).get("difficulty", 0))
+
+
+## Atualiza o meu perfil na sala (troquei de herói/peça) e, se anfitrião, a dificuldade.
+func refresh_profile(difficulty := -1) -> void:
+	if not active:
+		return
+	var prof := my_profile()
+	if is_host():
+		prof["difficulty"] = difficulty if difficulty >= 0 else lobby_difficulty()
+		players[1] = prof
+		lobby_changed.emit()
+		_rpc_lobby.rpc(players)
+	else:
+		_rpc_profile.rpc_id(1, prof)
+
+
+## Todo mundo pode entrar nesta dificuldade?
+func all_can_enter(difficulty: int) -> bool:
+	for id in players:
+		if lock_for(int(id), difficulty) != "":
+			return false
+	return true
 
 
 # ---------- criar / entrar / sair ----------
@@ -158,7 +192,7 @@ func _rpc_profile(profile: Dictionary) -> void:
 	if not is_host():
 		return
 	var id := multiplayer.get_remote_sender_id()
-	if players.size() >= MAX_PLAYERS or not run.is_empty():
+	if not players.has(id) and (players.size() >= MAX_PLAYERS or not run.is_empty()):
 		_peer.disconnect_peer(id)
 		return
 	players[id] = profile
@@ -174,7 +208,7 @@ func _rpc_lobby(list: Dictionary) -> void:
 
 ## Anfitrião: todo mundo para a masmorra, com a mesma semente.
 func start_run(difficulty: int) -> void:
-	if not is_host():
+	if not is_host() or not all_can_enter(difficulty):
 		return
 	run = {"seed": randi() % 2000000000 + 1, "difficulty": difficulty}
 	_rpc_start.rpc(run)

@@ -13,6 +13,7 @@ const DUNGEON_SCENE := "res://game/scenes/main.tscn"
 
 func _ready() -> void:
 	get_tree().paused = false
+	HeroStats.rarity_cap = 3  # a Sincronia de Poder só vale dentro da masmorra em grupo
 	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	_player.combat_enabled = false
 	_player.global_position = Vector3(0, 0.1, -1)

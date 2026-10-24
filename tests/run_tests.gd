@@ -207,14 +207,25 @@ func _test_professions(catalog: ItemCatalog) -> void:
 
 
 func _test_difficulty_and_energy(catalog: ItemCatalog) -> void:
-	check(Difficulty.lock_reason(0, -1, 0) == "", "Normal sempre liberado")
-	check(Difficulty.lock_reason(1, -1, 500).contains("vencer o Normal"), "Difícil pede vencer o Normal")
-	check(Difficulty.lock_reason(1, 0, 60).contains("Poder 80"), "Difícil pede Poder 80")
-	check(Difficulty.lock_reason(1, 0, 80) == "", "Difícil libera com Normal vencido e Poder 80")
-	check(Difficulty.lock_reason(3, 1, 500) != "", "Mítico pede vencer o Heroico")
-	check(Difficulty.world_lock_reason(1, -1, 200).contains("vencer Terra Firme"), "Igapó pede vencer a Terra Firme")
-	check(Difficulty.world_lock_reason(1, 0, 60).contains("Poder 90"), "Igapó pede Poder 90")
-	check(Difficulty.world_lock_reason(1, 0, 90) == "", "Igapó libera com Terra Firme vencida e Poder 90")
+	var full := func(r: int, missing := -1) -> Dictionary:
+		var eq := {}
+		for slot in Difficulty.SET_SLOTS:
+			if slot != missing:
+				eq[slot] = {"rarity": r}
+		return eq
+	check(Difficulty.lock_reason(0, -1, {}) == "", "Normal sempre liberado")
+	check(Difficulty.lock_reason(1, -1, full.call(3)).contains("vencer o Normal"), "Difícil pede vencer o Normal")
+	check(Difficulty.lock_reason(1, 0, full.call(0, GameEnums.Slot.WEAPON)).contains("6 peças Comuns"), "Difícil pede as 6 peças (falta a arma)")
+	check(Difficulty.lock_reason(1, 0, full.call(0)) == "", "Difícil libera com Normal vencido e 6 peças Comuns")
+	var mixed: Dictionary = full.call(1)
+	mixed[GameEnums.Slot.HEAD] = {"rarity": 0}
+	mixed[GameEnums.Slot.FEET] = {"rarity": 3}
+	check(Difficulty.lock_reason(2, 1, mixed).contains("6 peças Raras"), "Heroico: uma Lendária não compensa uma Comum")
+	check(Difficulty.lock_reason(2, 1, full.call(1)) == "", "Heroico libera com 6 Raras")
+	check(Difficulty.lock_reason(3, 1, full.call(3)) != "", "Mítico pede vencer o Heroico")
+	check(Difficulty.world_lock_reason(1, -1, full.call(3)).contains("vencer Terra Firme"), "Igapó pede vencer a Terra Firme")
+	check(Difficulty.world_lock_reason(1, 0, {}).contains("Comuns"), "Igapó pede as 6 peças Comuns")
+	check(Difficulty.world_lock_reason(1, 0, full.call(0)) == "", "Igapó libera com Terra Firme vencida e 6 Comuns")
 	var R := GameEnums.Rarity
 	check(ItemFactory.gear_power({"rarity": R.COMMON}) * 6 == 60 and ItemFactory.gear_power({"rarity": R.LEGENDARY}) == 55,
 		"Poder: Comum 10 por peça (60 o conjunto), Lendária 55")
@@ -243,9 +254,25 @@ func _test_difficulty_and_energy(catalog: ItemCatalog) -> void:
 				if d.item.id == &"muiraquita":
 					muiraquitas[c] += int(d.qty)
 	check(totals[1] > totals[0] * 2.5, "Mítico rende ~3× mais reagentes (%d vs %d)" % [totals[1], totals[0]])
-	check(pelos[0] > 0 and muiraquitas[0] == 0, "chefe sempre deixa Pelo de Mapinguari; Muiraquitã não cai no Normal")
+	check(pelos[0] == 0 and muiraquitas[0] == 0, "Normal: chefe não deixa Pelo de Mapinguari nem Muiraquitã")
+	check(pelos[1] > 0, "Pelo de Mapinguari cai do Heroico para cima (%d no Mítico)" % pelos[1])
 	check(muiraquitas[1] > 0, "Muiraquitã cai no Mítico (%d em 300 chefes)" % muiraquitas[1])
 	check(totals[2] < totals[0] * 0.5 and pelos[2] == 0, "sem energia: bem menos reagentes e nenhum troféu")
+	# economia: ouro dos bichos, preço de venda e custo de fabricar
+	check(Economy.enemy_gold(3, false, 0) == 4 and Economy.enemy_gold(3, true, 0) == 12, "bicho comum 4 de ouro; furioso ×3")
+	check(Economy.enemy_gold(3, false, 3) > Economy.enemy_gold(3, false, 0) * 3, "Mítico rende bem mais ouro")
+	check(Economy.craft_cost(catalog.get_recipe(&"elmo_placa_raro"), catalog) == 80, "fabricar Raro custa 80 de ouro")
+	check(Economy.uses_of(&"pena_arara", catalog).has("Elmo de Placa"), "Pena de Arara: usada no Elmo de Placa")
+	var bau := catalog.get_drop_table(&"bau")
+	var penas := [0, 0]
+	for dd in 2:
+		var rng2 := RandomNumberGenerator.new()
+		rng2.seed = 5
+		for i in 200:
+			for d in LootRoller.roll(bau, catalog, rng2, {"difficulty": dd, "reward_mult": 1.0, "full_rewards": true}):
+				if d.item.id == &"pena_arara":
+					penas[dd] += 1
+	check(penas[0] == 0 and penas[1] > 0, "Pena de Arara (peças Raras) só cai do Difícil para cima")
 
 
 func _test_save_migration() -> void:

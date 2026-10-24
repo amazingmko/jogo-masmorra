@@ -1449,17 +1449,26 @@ func _on_died() -> void:
 	tween.tween_callback(queue_free)
 
 
+## O que cai: chefes deixam reagentes (com proteção contra azar no troféu mais raro); furiosos às
+## vezes; bichos comuns não deixam reagente (só ouro, que o main dá direto). Ver Economy.
 func _drop_loot() -> void:
 	var table := ItemDB.get_drop_table(data.drop_table_id)
 	if table == null:
 		return
-	# Furioso deixa o dobro (sorteia a tabela duas vezes).
-	for i in (2 if elite else 1):
-		for drop in LootRoller.roll(table, ItemDB.catalog, _rng, loot_context):
-			var pickup := LootPickup.create(drop.item, drop.qty, drop.instance)
-			get_parent().add_child(pickup)
-			var offset := Vector3(_rng.randf_range(-0.8, 0.8), 0.0, _rng.randf_range(-0.8, 0.8))
-			pickup.global_position = global_position + offset + Vector3(0, 0.4, 0)
+	var drops: Array[Dictionary] = []
+	if is_boss:
+		drops = LootRoller.roll(table, ItemDB.catalog, _rng, loot_context)
+		drops.append_array(GameState.boss_pity_roll(table, int(loot_context.get("difficulty", 0)), drops, _rng,
+			bool(loot_context.get("full_rewards", true))))
+		if not bool(loot_context.get("boss_eligible", true)):
+			return  # em grupo, quem ficou parado na luta não leva o do chefe
+	elif elite and _rng.randf() < Economy.ELITE_REAGENT_CHANCE:
+		drops = LootRoller.roll(table, ItemDB.catalog, _rng, loot_context)
+	for drop in drops:
+		var pickup := LootPickup.create(drop.item, drop.qty, drop.instance)
+		get_parent().add_child(pickup)
+		var offset := Vector3(_rng.randf_range(-0.8, 0.8), 0.0, _rng.randf_range(-0.8, 0.8))
+		pickup.global_position = global_position + offset + Vector3(0, 0.4, 0)
 
 
 # ---------- auxiliares ----------

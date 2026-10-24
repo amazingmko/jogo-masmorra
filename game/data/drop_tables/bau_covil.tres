@@ -41,19 +41,14 @@ max_qty = 4
 [sub_resource type="Resource" id="Resource_clex0"]
 script = ExtResource("1_8xh1q")
 item_id = &"pena_arara"
+min_difficulty = 1
 weight = 14
 min_qty = 2
 max_qty = 3
-
-[sub_resource type="Resource" id="Resource_bd17f"]
-script = ExtResource("1_8xh1q")
-item_id = &"semente_guarana"
-weight = 6
-max_qty = 2
 
 [resource]
 script = ExtResource("2_g07qp")
 id = &"bau_covil"
 rolls = 6
-entries = Array[ExtResource("1_8xh1q")]([SubResource("Resource_8xh1q"), SubResource("Resource_g07qp"), SubResource("Resource_dbnya"), SubResource("Resource_tclsa"), SubResource("Resource_3m36a"), SubResource("Resource_clex0"), SubResource("Resource_bd17f")])
+entries = Array[ExtResource("1_8xh1q")]([SubResource("Resource_8xh1q"), SubResource("Resource_g07qp"), SubResource("Resource_dbnya"), SubResource("Resource_tclsa"), SubResource("Resource_3m36a"), SubResource("Resource_clex0")])
 extra_tables = Array[StringName]([&"trofeus_chefe"])

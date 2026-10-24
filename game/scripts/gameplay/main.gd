@@ -135,6 +135,7 @@ func _process(_delta: float) -> void:
 	_update_loading()
 	if Net.active:
 		_net_tick(_delta)
+		_track_boss_participation(_delta)
 	# reserva de modelos: na tela de carregamento enche rápido; jogando, um por quadro só
 	# quando não tem luta (sem bicho vivo e sem onda chegando)
 	if _loading and _loading.visible:
@@ -247,6 +248,22 @@ func spawn_training_dummies() -> void:
 
 # ---------- run e andares ----------
 
+## Sincronia de Poder: em grupo, ninguém usa peça acima da raridade da dificuldade (Normal:
+## Comum, Difícil: Rara, Heroico: Épica, Mítico: Lendária). Sozinho, sem limite.
+func _apply_power_sync() -> void:
+	HeroStats.rarity_cap = difficulty if Net.active else 3
+	_player.refresh_stats()
+	for peer in _replicas:
+		_replicas[peer].refresh_stats()
+	if not Net.active:
+		return
+	var above := false
+	for inst in GameState.equipped_items(_player.hero_id).values():
+		above = above or int(inst.get("rarity", 0)) > HeroStats.rarity_cap
+	if above:
+		_hud.show_toast("Grupo: suas peças valem como %s" % ["Comuns", "Raras", "Épicas", "Lendárias"][HeroStats.rarity_cap], UiStyle.c("accent"))
+
+
 ## Começa uma run nova. Com seed > 0, repete exatamente a mesma masmorra (útil para bugs).
 func new_run(seed: int = 0) -> void:
 	get_tree().paused = false
@@ -254,6 +271,7 @@ func new_run(seed: int = 0) -> void:
 	_run_over = false
 	difficulty = clampi(int(Net.run.get("difficulty", GameState.run_difficulty)) if Net.active else GameState.run_difficulty, 0, 3)
 	full_rewards = GameState.run_full_rewards
+	_apply_power_sync()
 	_rng.seed = seed if seed > 0 else randi()
 	run_seed = _rng.seed
 	_stats = {"kills": 0, "loot": {}, "started": Time.get_ticks_msec(), "buffs": [], "xp": 0,
@@ -700,6 +718,7 @@ func _on_enemy_died(enemy: Enemy) -> void:
 			_stats.kills += 1
 			_player.on_enemy_killed(enemy.elite)
 			_give_xp(enemy.data.xp_reward * (ELITE_XP if enemy.elite else 1))
+			_give_gold(enemy)
 		if enemy.is_boss:
 			_hud.hide_boss()
 		return
@@ -709,6 +728,7 @@ func _on_enemy_died(enemy: Enemy) -> void:
 		_player.set_meta("last_killed", enemy)
 		_player.on_enemy_killed(enemy.elite)
 		_give_xp(enemy.data.xp_reward * (ELITE_XP if enemy.elite else 1))
+		_give_gold(enemy)
 		if enemy.elite:
 			_stats.elites = int(_stats.get("elites", 0)) + 1
 	if enemy.is_boss:
@@ -799,6 +819,55 @@ func _loot_context(profile: String) -> Dictionary:
 		"full_rewards": full_rewards, "night": night != null and night.is_night}
 
 
+## Ouro de cada bicho (cada jogador ganha o seu). Mentor: +25% em grupo com alguém bem mais fraco.
+func _give_gold(enemy: Enemy) -> void:
+	var g := Economy.enemy_gold(enemy.data.xp_reward, enemy.elite, difficulty)
+	if _is_mentor():
+		g = int(round(g * (1.0 + Economy.MENTOR_BONUS)))
+	GameState.add_coins(g)
+	_stats.gold = int(_stats.get("gold", 0)) + g
+	if enemy.elite or enemy.is_boss or g >= 10:
+		Fx.float_text(self, enemy.global_position + Vector3(0, 2.4, 0), "+%d ouro" % g, Color("ffd84a"))
+
+
+## Em grupo com alguém 5 níveis (ou mais) abaixo de mim.
+func _is_mentor() -> bool:
+	if not Net.active:
+		return false
+	var mine := GameState.level_of(_player.hero_id)
+	for id in Net.players:
+		if int(Net.players[id].get("level", mine)) <= mine - Economy.MENTOR_LEVEL_GAP:
+			return true
+	return false
+
+
+# ---------- participação na luta do chefe (só em grupo) ----------
+## Quem ficou parado/longe durante a luta do chefe não leva os reagentes dele.
+const BOSS_ACTIVE_SHARE := 0.4
+var _boss_fight_t := 0.0
+var _boss_active_t := 0.0
+
+
+func _track_boss_participation(delta: float) -> void:
+	if not Net.active:
+		return
+	var bosses := get_tree().get_nodes_in_group("enemies").filter(func(e: Node) -> bool: return e.is_boss and not e.health.is_dead)
+	if bosses.is_empty():
+		_boss_fight_t = 0.0
+		_boss_active_t = 0.0
+		return
+	_boss_fight_t += delta
+	var near := false
+	for b in bosses:
+		near = near or (b as Node3D).global_position.distance_to(_player.global_position) < 18.0
+	var acting := _player.velocity.length() > 0.5 or _player.touch_attack or _player._attack_left > 0.0 or _player.health.is_dead
+	if near and acting:
+		_boss_active_t += delta
+	var ok := _boss_fight_t < 6.0 or _boss_active_t / _boss_fight_t >= BOSS_ACTIVE_SHARE
+	for b in bosses:
+		b.loot_context["boss_eligible"] = ok
+
+
 func _give_xp(amount: int) -> void:
 	if amount <= 0:
 		return
@@ -815,6 +884,7 @@ func _on_leveled_up(hero_id: StringName, new_level: int) -> void:
 
 func _back_to_hub() -> void:
 	get_tree().paused = false
+	HeroStats.rarity_cap = 3
 	if Net.active:
 		Net.leave()
 	GameState.save()
@@ -852,6 +922,7 @@ func _finish(victory: bool, camp := false) -> void:
 		["%d derrotados" % _stats.kills, "espada", Color("ffcf6b")],
 		["%d:%02d" % [seconds / 60, seconds % 60], ""],
 		["+%d XP" % _stats.xp, "xp", Color("8fe38f")],
+		["+%d ouro" % int(_stats.get("gold", 0)), "ouro", Color("ffd84a")],
 		["Nível %d" % level_now, "nivel", Color("ffd25a") if level_now > int(_stats.level_start) else Color(0, 0, 0, 0)]]
 	var lines := PackedStringArray()
 	if not full_rewards:

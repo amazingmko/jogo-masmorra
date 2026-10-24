@@ -24,14 +24,27 @@ var totals := {}
 
 ## equipped: {slot(int): instance(Dictionary)}. buffs: Array[BuffData].
 ## talents: pontos da árvore do herói (Talents) — só os atributos simples entram aqui.
+## Sincronia de Poder (grupo): dentro da masmorra, peças acima desta raridade valem como se
+## fossem dela (o veterano não limpa a sala sozinho para os amigos). 3 = sem limite.
+static var rarity_cap := 3
+
+
+## Fator dos atributos de uma peça sob a Sincronia (1 = sem efeito).
+static func sync_factor(rarity: int) -> float:
+	if rarity <= rarity_cap:
+		return 1.0
+	return float(GameEnums.RARITY_POWER[rarity_cap]) / float(GameEnums.RARITY_POWER[clampi(rarity, 0, 3)])
+
+
 static func compute(hero: HeroData, level: int, equipped: Dictionary, catalog: ItemCatalog, buffs: Array = [], talents: Dictionary = {}) -> HeroStats:
 	var s := HeroStats.new()
 	var primary_key: String = GameEnums.PRIMARY_KEYS[hero.primary_stat]
 	var sum := {}
 	for slot in equipped:
 		var inst: Dictionary = equipped[slot]
+		var k := sync_factor(int(inst.get("rarity", 0)))
 		for key in inst.get("stats", {}):
-			sum[key] = sum.get(key, 0) + int(inst.stats[key])
+			sum[key] = sum.get(key, 0) + int(round(int(inst.stats[key]) * k))
 	s.totals = sum
 
 	var lvl_bonus := maxi(level - 1, 0)
@@ -44,7 +57,7 @@ static func compute(hero: HeroData, level: int, equipped: Dictionary, catalog: I
 	var weapon_template := catalog.get_item(StringName(weapon_inst.get("item_id", hero.starting_weapon_id)))
 	s.weapon = WeaponStats.from_item(weapon_template)
 	if not weapon_inst.is_empty():
-		s.weapon.damage = int(weapon_inst.stats.get("damage", s.weapon.damage))
+		s.weapon.damage = int(round(int(weapon_inst.stats.get("damage", s.weapon.damage)) * sync_factor(int(weapon_inst.get("rarity", 0)))))
 
 	var base_health := float(hero.max_health + s.vigor * 10)
 	var base_damage := float(s.weapon.damage) * (1.0 + s.primary / 100.0)
