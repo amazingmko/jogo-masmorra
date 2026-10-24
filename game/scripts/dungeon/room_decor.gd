@@ -579,7 +579,7 @@ const COLLIDE := {
 	"tronco_caido": [0.85, false], "muro_ruina": [0.92, false], "pilar_ruina": [0.82, true],
 	"totem_pedra": [0.85, true], "raiz_gigante": [0.85, false], "rocha_paredao": [0.88, false],
 	"itacoatiara": [0.85, false], "cupinzeiro": [0.8, true], "toco_oco": [0.85, true],
-	"sapopema": [0.85, true], "taboca": [0.5, false], "palmeira_caida": [0.75, false],
+	"sapopema": [0.85, true], "taboca": [0.82, false], "palmeira_caida": [0.82, false],
 	"arvore_tombada": [0.65, false], "sauveiro": [0.75, true],
 }
 const COLLIDE_H := 2.0

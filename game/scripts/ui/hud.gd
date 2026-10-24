@@ -39,6 +39,7 @@ var _player: Player
 
 
 func _ready() -> void:
+	UiStyle.apply(get_tree().root)
 	add_to_group("loot_listeners")
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_status()
@@ -136,21 +137,33 @@ func set_wave(text: String) -> void:
 	_wave_label.text = text
 
 
+## Aviso no meio-baixo da tela: faixa terracota que entra saltando e some sozinha. Em fila
+## (no máximo 3), um embaixo do outro: nunca um por cima do outro.
 func show_toast(text: String, color: Color = Color.WHITE) -> void:
+	var ribbon := PanelContainer.new()
+	ribbon.add_theme_stylebox_override("panel", UiStyle.ribbon())
+	ribbon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	ribbon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var label := Label.new()
 	label.text = text
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.add_theme_color_override("font_color", color)
-	label.add_theme_color_override("font_outline_color", Color("1a1526"))
-	label.add_theme_constant_override("outline_size", 6)
-	label.add_theme_font_size_override("font_size", 22)
-	_toasts.add_child(label)
-	while _toasts.get_child_count() > 4:
+	# cor clareada: lê bem em cima da terracota
+	UiStyle.title_label(label, 24, color.lerp(Color("fff4dc"), 0.45) if color != Color.WHITE else UiStyle.TEXT)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ribbon.add_child(label)
+	_toasts.add_child(ribbon)
+	while _toasts.get_child_count() > 3:
 		_toasts.get_child(0).free()
-	var tween := label.create_tween()
-	tween.tween_interval(1.6)
-	tween.tween_property(label, "modulate:a", 0.0, 0.5)
-	tween.tween_callback(label.queue_free)
+	ribbon.modulate.a = 0.0
+	ribbon.scale = Vector2(0.6, 0.6)
+	ribbon.resized.connect(func() -> void: ribbon.pivot_offset = ribbon.size * 0.5)
+	var tween := ribbon.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(ribbon, "modulate:a", 1.0, 0.12)
+	tween.tween_property(ribbon, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.chain().tween_interval(1.5)
+	tween.chain().tween_property(ribbon, "modulate:a", 0.0, 0.4)
+	tween.chain().tween_callback(ribbon.queue_free)
 
 
 func show_panel(title: String, text: String, button_text: String = "Recomeçar") -> void:
@@ -196,16 +209,13 @@ func show_buff_choice(options: Array[BuffData], title: String) -> void:
 		card.custom_minimum_size = Vector2(220, 170)
 		card.text = "%s\n\n%s" % [buff.display_name, buff.description]
 		card.autowrap_mode = TextServer.AUTOWRAP_WORD
-		card.add_theme_font_size_override("font_size", 20)
-		var style := StyleBoxFlat.new()
-		style.bg_color = Color(0.17, 0.13, 0.25, 0.95)
-		style.border_color = GameEnums.rarity_color(buff.rarity)
+		card.add_theme_font_size_override("font_size", 19)
+		card.add_theme_font_override("font", UiStyle.body_font())
+		var style := UiStyle.card(GameEnums.rarity_color(buff.rarity))
 		style.set_border_width_all(3)
-		style.set_corner_radius_all(14)
-		style.set_content_margin_all(14)
 		card.add_theme_stylebox_override("normal", style)
 		var hover := style.duplicate()
-		hover.bg_color = Color(0.25, 0.2, 0.36, 0.98)
+		hover.bg_color = Color(0.3, 0.2, 0.1, 0.98)
 		card.add_theme_stylebox_override("hover", hover)
 		card.add_theme_stylebox_override("pressed", hover)
 		card.pressed.connect(func() -> void:
@@ -279,6 +289,7 @@ func _build_status() -> void:
 	add_child(box)
 
 	_hero_label = _make_label(24)
+	UiStyle.title_label(_hero_label, 24, UiStyle.TEXT)
 	box.add_child(_hero_label)
 	_health_bar = _make_bar(Color("e05555"))
 	box.add_child(_health_bar)
@@ -291,6 +302,7 @@ func _build_status() -> void:
 	box.add_child(_status_row)
 
 	_wave_label = _make_label(26)
+	UiStyle.title_label(_wave_label, 28, UiStyle.TEXT)
 	_wave_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	_wave_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_wave_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
@@ -318,6 +330,7 @@ func _build_controls() -> void:
 
 	attack_button = TouchButton.new()
 	attack_button.text = "ATACAR"
+	attack_button.font = UiStyle.button_font()
 	attack_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
 	attack_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	attack_button.grow_vertical = Control.GROW_DIRECTION_BEGIN
@@ -338,7 +351,8 @@ func _build_controls() -> void:
 	form_button.offset_right = -230
 	form_button.offset_bottom = -50
 	form_button.visible = false
-	form_button.font_size = 15
+	form_button.font_size = 16
+	form_button.font = UiStyle.button_font()
 	form_button.pressed_changed.connect(func(pressed: bool) -> void:
 		if pressed and _player:
 			_player.touch_form = true)
@@ -347,7 +361,8 @@ func _build_controls() -> void:
 	ultimate_button = TouchButton.new()
 	ultimate_button.text = "ULTIMATE"
 	ultimate_button.color = Color("e8c26a")
-	ultimate_button.font_size = 17
+	ultimate_button.font_size = 18
+	ultimate_button.font = UiStyle.button_font()
 	ultimate_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
 	ultimate_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	ultimate_button.grow_vertical = Control.GROW_DIRECTION_BEGIN
@@ -380,11 +395,7 @@ func _build_panel() -> void:
 	_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_panel.custom_minimum_size = Vector2(640, 220)
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.1, 0.08, 0.15, 0.92)
-	style.set_corner_radius_all(16)
-	style.set_content_margin_all(24)
-	_panel.add_theme_stylebox_override("panel", style)
+	_panel.add_theme_stylebox_override("panel", UiStyle.panel())
 	add_child(_panel)
 
 	var box := VBoxContainer.new()
@@ -392,6 +403,7 @@ func _build_panel() -> void:
 	box.add_theme_constant_override("separation", 14)
 	_panel.add_child(box)
 	_panel_title = _make_label(34)
+	UiStyle.title_label(_panel_title, 38)
 	_panel_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(_panel_title)
 	_panel_text = _make_label(18)
@@ -400,13 +412,13 @@ func _build_panel() -> void:
 	box.add_child(_panel_text)
 	_panel_button = Button.new()
 	_panel_button.text = "Recomeçar"
-	_panel_button.custom_minimum_size = Vector2(200, 56)
-	_panel_button.add_theme_font_size_override("font_size", 22)
+	_panel_button.custom_minimum_size = Vector2(220, 60)
+	UiStyle.style_button(_panel_button, "ouro", 24)
 	_panel_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_panel_button.pressed.connect(_on_panel_button.bind(true))
 	_panel_button2 = Button.new()
-	_panel_button2.custom_minimum_size = Vector2(200, 56)
-	_panel_button2.add_theme_font_size_override("font_size", 22)
+	_panel_button2.custom_minimum_size = Vector2(220, 60)
+	UiStyle.style_button(_panel_button2, "madeira", 24)
 	_panel_button2.pressed.connect(_on_panel_button.bind(false))
 	_panel_button2.visible = false
 	var buttons := HBoxContainer.new()
@@ -428,6 +440,7 @@ func _build_boss_bar() -> void:
 	_boss_box.offset_right = 260
 	add_child(_boss_box)
 	_boss_name = _make_label(22)
+	UiStyle.title_label(_boss_name, 26, Color("ffa53d"))
 	_boss_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_boss_name.add_theme_color_override("font_color", Color("ffa53d"))
 	_boss_box.add_child(_boss_name)
@@ -453,16 +466,13 @@ func _build_buff_panel() -> void:
 	_buff_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	_buff_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_buff_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.1, 0.08, 0.15, 0.9)
-	style.set_corner_radius_all(16)
-	style.set_content_margin_all(24)
-	_buff_panel.add_theme_stylebox_override("panel", style)
+	_buff_panel.add_theme_stylebox_override("panel", UiStyle.panel())
 	add_child(_buff_panel)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 16)
 	_buff_panel.add_child(box)
 	var title := _make_label(28)
+	UiStyle.title_label(title, 32)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
 	_buff_cards = HBoxContainer.new()
@@ -475,8 +485,8 @@ func _build_buff_panel() -> void:
 func _make_label(font_size: int) -> Label:
 	var label := Label.new()
 	label.add_theme_font_size_override("font_size", font_size)
-	label.add_theme_color_override("font_color", Color("f2ecff"))
-	label.add_theme_color_override("font_outline_color", Color("1a1526"))
+	label.add_theme_color_override("font_color", UiStyle.TEXT)
+	label.add_theme_color_override("font_outline_color", UiStyle.OUTLINE)
 	label.add_theme_constant_override("outline_size", 6)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label
@@ -488,11 +498,15 @@ func _make_bar(fill_color: Color) -> ProgressBar:
 	bar.show_percentage = false
 	bar.step = 1.0
 	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0, 0, 0, 0.45)
-	bg.set_corner_radius_all(6)
+	bg.bg_color = Color(0.08, 0.05, 0.03, 0.75)
+	bg.border_color = Color("1a0f08")
+	bg.set_border_width_all(2)
+	bg.set_corner_radius_all(5)
 	var fill := StyleBoxFlat.new()
 	fill.bg_color = fill_color
-	fill.set_corner_radius_all(6)
+	fill.border_color = fill_color.lightened(0.35)
+	fill.border_width_top = 2  # brilho em cima: barra com volume
+	fill.set_corner_radius_all(5)
 	bar.add_theme_stylebox_override("background", bg)
 	bar.add_theme_stylebox_override("fill", fill)
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
