@@ -45,6 +45,7 @@ func _process(_d: float) -> bool:
 		_gs = root.get_node("GameState")
 		_db = root.get_node("ItemDB")
 		_gs.selected_hero = &"encantado"
+		root.get_node("GameState").debug_clear_talents()  # sem talentos de outros testes
 		change_scene_to_file("res://game/scenes/main.tscn")
 	if _f == 6:
 		_main = current_scene
