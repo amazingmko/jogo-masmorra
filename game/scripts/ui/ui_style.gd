@@ -8,11 +8,10 @@ extends RefCounted
 ## (azul-marinho + linhas claras). Fontes: Lilita One (títulos/botões) + Nunito (texto).
 
 static var palette := "abissal"
-## Fonte dos títulos e botões (em teste): "aventura" (Lilita One), "classico" (Marcellus SC, no
-## espírito do WoW) ou "gotico" (Grenze Gotisch, fantasia medieval). Texto corrido: Nunito.
-static var variant := "aventura"
-## Fundo sutil das janelas (marca d'água): "emblema", "folhas", "constelacao" ou "" (nenhum).
-static var watermark := "emblema"
+## Fonte dos títulos e botões: Marcellus SC (escolhida). "aventura" volta para a Lilita One.
+static var variant := "classico"
+## Fundo sutil das janelas (marca d'água): "folhas" (escolhido), "emblema", "constelacao" ou "".
+static var watermark := "folhas"
 
 const OUTLINE := Color("07080b")
 const OK := Color("6fdc7b")
@@ -61,13 +60,11 @@ static func _font(file: String, weight := 0) -> Font:
 
 
 static func title_font() -> Font:
-	match variant:
-		"classico":
-			return _font("marcellus_sc.ttf")
-		"gotico":
-			return _font("grenze_gotisch.ttf", 700)
-		"epico":
-			return _font("cinzel.ttf", 800)
+	return _font("marcellus_sc.ttf") if variant == "classico" else _font("lilita_one.ttf")
+
+
+## Números de dano e textos que sobem na luta: Lilita One (lê melhor no meio da ação).
+static func number_font() -> Font:
 	return _font("lilita_one.ttf")
 
 

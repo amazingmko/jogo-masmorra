@@ -7,7 +7,7 @@ extends RefCounted
 static func damage_number(parent: Node, at: Vector3, amount: int, crit: bool, color: Color = Color.WHITE) -> void:
 	var label := Label3D.new()
 	label.text = ("%d!" % amount) if crit else str(amount)
-	label.font = UiStyle.title_font()
+	label.font = UiStyle.number_font()
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = true
 	label.font_size = 104 if crit else 70
@@ -32,7 +32,7 @@ static func damage_number(parent: Node, at: Vector3, amount: int, crit: bool, co
 static func float_text(parent: Node, at: Vector3, text: String, color: Color = Color.WHITE) -> void:
 	var label := Label3D.new()
 	label.text = text
-	label.font = UiStyle.title_font()
+	label.font = UiStyle.number_font()
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = true
 	label.font_size = 60
