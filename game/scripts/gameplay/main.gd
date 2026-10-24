@@ -333,11 +333,8 @@ func _next_floor() -> void:
 	_plan_rig_pool()
 	_show_loading()
 	_hud.minimap.show_layout(layout)
-	_hud.set_wave("Andar %d/%d · %s%s" % [floor_number, FLOORS, Difficulty.name_of(difficulty),
-		"" if full_rewards else " · sem energia"])
-	_hud.show_toast("Andar %d — encontre %s%s" % [floor_number,
-		"o chefe" if floor_number == FLOORS else ("a Onça Alfa" if floor_number == MINIBOSS_FLOOR else "o portal azul"),
-		"  (teste: tecla T cria bonecos de treino)" if OS.is_debug_build() else ""], Color("4db8ff"))
+	_hud.set_floor(floor_number, FLOORS, difficulty, full_rewards)
+	_hud.show_toast("Encontre %s" % ["o chefe" if floor_number == FLOORS else ("a Onça Alfa" if floor_number == MINIBOSS_FLOOR else "o portal azul")], Color("4db8ff"))
 	GameState.save()
 
 
@@ -849,13 +846,16 @@ func _finish(victory: bool, camp := false) -> void:
 				Difficulty.color_of(difficulty + 1))
 	GameState.save()
 	var seconds: int = (Time.get_ticks_msec() - int(_stats.started)) / 1000
+	var level_now := GameState.level_of(_player.hero_id)
+	var tags := [[Difficulty.name_of(difficulty), "chefe", Difficulty.color_of(difficulty)],
+		["Andar %d/%d" % [floor_number, FLOORS], "mapa"],
+		["%d derrotados" % _stats.kills, "espada", Color("ffcf6b")],
+		["%d:%02d" % [seconds / 60, seconds % 60], ""],
+		["+%d XP" % _stats.xp, "xp", Color("8fe38f")],
+		["Nível %d" % level_now, "nivel", Color("ffd25a") if level_now > int(_stats.level_start) else Color(0, 0, 0, 0)]]
 	var lines := PackedStringArray()
-	lines.append("%s%s" % [Difficulty.name_of(difficulty), "" if full_rewards else
-		" · sem energia: reagentes reduzidos e sem troféus do chefe"])
-	lines.append("Andar alcançado: %d/%d   ·   Inimigos derrotados: %d (furiosos: %d)   ·   Tempo: %d:%02d" % [
-		floor_number, FLOORS, _stats.kills, int(_stats.get("elites", 0)), seconds / 60, seconds % 60])
-	if not _stats.buffs.is_empty():
-		lines.append("Bênçãos: " + ", ".join(PackedStringArray(_stats.buffs)))
+	if not full_rewards:
+		lines.append("Sem energia: reagentes reduzidos e sem troféus do chefe.")
 	var loot_parts := PackedStringArray()
 	for name in _stats.loot:
 		loot_parts.append("%d× %s" % [_stats.loot[name], name])
@@ -863,11 +863,11 @@ func _finish(victory: bool, camp := false) -> void:
 	if not _stats.best.is_empty():
 		lines.append("Melhor peça: %s (%s)" % [ItemFactory.display_name(_stats.best, ItemDB.catalog),
 			GameEnums.rarity_name(int(_stats.best.rarity))])
-	var level_now := GameState.level_of(_player.hero_id)
-	var level_text := "nível %d" % level_now
+	if not _stats.buffs.is_empty():
+		lines.append("Bênçãos: " + ", ".join(PackedStringArray(_stats.buffs)))
 	if level_now > int(_stats.level_start):
-		level_text = "subiu do nível %d para o %d!" % [_stats.level_start, level_now]
-	lines.append("+%d XP · %s · tudo já está no inventário   (semente %d)" % [_stats.xp, level_text, run_seed])
+		lines.append("Subiu do nível %d para o %d!" % [_stats.level_start, level_now])
+	_hud.set_panel_chips(tags)
 	_hud.show_panel("Vitória!" if victory else ("De volta do acampamento" if camp else "Você caiu"), "\n".join(lines), "Voltar à base")
 
 

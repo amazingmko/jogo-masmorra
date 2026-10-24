@@ -18,6 +18,10 @@ var minimap: Minimap
 var _health_bar: ProgressBar
 var _armor_bar: ProgressBar
 var _health_label: Label
+var _hero_chips: HBoxContainer
+var _wave_chips: HBoxContainer
+var _panel_chips: HFlowContainer
+var _panel_chip_items: Array = []
 var _hero_label: Label
 var _wave_label: Label
 var _help_label: Label
@@ -81,7 +85,7 @@ func show_boss(boss: Node) -> void:
 		_boss_bar.max_value = max_hp
 		_boss_bar.value = hp
 		if boss.enraged:
-			_boss_name.text = "%s — ENFURECIDO" % boss.data.display_name)
+			_boss_name.text = "%s enfurecido!" % boss.data.display_name)
 	_boss_box.visible = true
 
 
@@ -135,6 +139,18 @@ func refresh_hero(hero: HeroData) -> void:
 
 func set_wave(text: String) -> void:
 	_wave_label.text = text
+	_wave_chips.visible = false
+
+
+## Topo da tela: "Andar 3/10" na placa e, ao lado, a dificuldade (e o aviso de sem energia).
+func set_floor(floor_number: int, total: int, difficulty: int, full_rewards: bool) -> void:
+	_wave_label.text = "Andar %d/%d" % [floor_number, total]
+	for ch in _wave_chips.get_children():
+		ch.queue_free()
+	_wave_chips.add_child(UiStyle.chip(Difficulty.name_of(difficulty), "chefe", Difficulty.color_of(difficulty)))
+	if not full_rewards:
+		_wave_chips.add_child(UiStyle.chip("Sem energia", "energia", UiStyle.TEXT_DIM))
+	_wave_chips.visible = true
 
 
 ## Aviso no meio-baixo da tela: faixa terracota que entra saltando e some sozinha. Em fila
@@ -166,8 +182,19 @@ func show_toast(text: String, color: Color = Color.WHITE) -> void:
 	tween.chain().tween_callback(ribbon.queue_free)
 
 
+## Selos em cima do texto do próximo painel (resumo da run). Vale só para o próximo show_panel.
+func set_panel_chips(items: Array) -> void:
+	_panel_chip_items = items
+
+
 func show_panel(title: String, text: String, button_text: String = "Recomeçar") -> void:
 	_ask_callback = Callable()
+	for ch in _panel_chips.get_children():
+		ch.queue_free()
+	for it in _panel_chip_items:
+		_panel_chips.add_child(UiStyle.chip(it[0], it[1], it[2] if it.size() > 2 else Color(0, 0, 0, 0)))
+	_panel_chips.visible = not _panel_chip_items.is_empty()
+	_panel_chip_items = []
 	_panel_title.text = title
 	_panel_text.text = text
 	_panel_button.text = button_text
@@ -211,11 +238,13 @@ func show_buff_choice(options: Array[BuffData], title: String) -> void:
 		card.autowrap_mode = TextServer.AUTOWRAP_WORD
 		card.add_theme_font_size_override("font_size", 19)
 		card.add_theme_font_override("font", UiStyle.body_font())
-		var style := UiStyle.card(GameEnums.rarity_color(buff.rarity))
+		var style := UiStyle.section()
+		style.border_color = GameEnums.rarity_color(buff.rarity)
 		style.set_border_width_all(3)
+		style.bg_color = Color(0.06, 0.07, 0.1, 0.95)
 		card.add_theme_stylebox_override("normal", style)
 		var hover := style.duplicate()
-		hover.bg_color = Color(0.3, 0.2, 0.1, 0.98)
+		hover.bg_color = Color(0.12, 0.13, 0.18, 0.98)
 		card.add_theme_stylebox_override("hover", hover)
 		card.add_theme_stylebox_override("pressed", hover)
 		card.pressed.connect(func() -> void:
@@ -262,7 +291,8 @@ func _on_health_changed(health: int, max_health: int, armor: int, max_armor: int
 	_health_bar.value = health
 	_armor_bar.max_value = maxi(max_armor, 1)
 	_armor_bar.value = armor
-	_health_label.text = "Vida %d/%d   Escudo %d/%d" % [health, max_health, armor, max_armor]
+	UiStyle.set_bar(_health_bar, health, max_health, "%d / %d" % [health, max_health])
+	UiStyle.set_bar(_armor_bar, armor, maxi(max_armor, 1), "%d / %d" % [armor, max_armor] if max_armor > 0 else "")
 
 
 func _on_hero_changed(hero: HeroData) -> void:
@@ -275,8 +305,13 @@ func _on_hero_changed(hero: HeroData) -> void:
 	var form_text := ""
 	if _player and _player.form_name() != "":
 		form_text = " · forma: %s" % _player.form_name()
-	_hero_label.text = "%s (%s) · nv %d%s" % [hero.display_name, class_names.get(hero.hero_class, "?"),
-		GameState.level_of(hero.id), form_text]
+	_hero_label.text = hero.display_name
+	for ch in _hero_chips.get_children():
+		ch.queue_free()
+	_hero_chips.add_child(UiStyle.chip("%d" % GameState.level_of(hero.id), "nivel", Color("ffd25a")))
+	_hero_chips.add_child(UiStyle.chip(class_names.get(hero.hero_class, "?"), UiStyle.primary_icon(hero.primary_stat)))
+	if form_text != "":
+		_hero_chips.add_child(UiStyle.chip(_player.form_name(), "", UiStyle.OK))
 	_update_kit_buttons()
 
 
@@ -288,29 +323,61 @@ func _build_status() -> void:
 	box.add_theme_constant_override("separation", 4)
 	add_child(box)
 
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 6)
+	box.add_child(head)
 	_hero_label = _make_label(24)
 	UiStyle.title_label(_hero_label, 24, UiStyle.TEXT)
-	box.add_child(_hero_label)
-	_health_bar = _make_bar(Color("e05555"))
-	box.add_child(_health_bar)
-	_armor_bar = _make_bar(Color("9aa7c7"))
-	box.add_child(_armor_bar)
+	head.add_child(_hero_label)
+	_hero_chips = HBoxContainer.new()
+	_hero_chips.add_theme_constant_override("separation", 4)
+	head.add_child(_hero_chips)
+	# vida e escudo: barras com o número dentro e o ícone ao lado
+	for spec in [["vida", Color("e05555"), 22], ["escudo", Color("7f9be0"), 16]]:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 4)
+		box.add_child(row)
+		var ic := TextureRect.new()
+		ic.texture = load("res://game/ui/icones/s_%s.png" % spec[0])
+		ic.custom_minimum_size = Vector2(spec[2] + 6, spec[2] + 6)
+		ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		row.add_child(ic)
+		var bar := UiStyle.bar(spec[1], 260, spec[2])
+		bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(bar)
+		if spec[0] == "vida":
+			_health_bar = bar
+		else:
+			_armor_bar = bar
 	_health_label = _make_label(16)
-	box.add_child(_health_label)
+	_health_label.visible = false
 	_status_row = HBoxContainer.new()
 	_status_row.add_theme_constant_override("separation", 12)
 	box.add_child(_status_row)
 
-	_wave_label = _make_label(26)
-	UiStyle.title_label(_wave_label, 28, UiStyle.TEXT)
-	_wave_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	# topo: placa com o andar e os selos ao lado
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 6)
+	top.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	top.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	top.offset_top = 10
+	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(top)
+	var plate := PanelContainer.new()
+	plate.add_theme_stylebox_override("panel", UiStyle.plate())
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top.add_child(plate)
+	_wave_label = _make_label(24)
+	UiStyle.title_label(_wave_label, 24, UiStyle.GOLD)
 	_wave_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_wave_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_wave_label.position.y = 16
-	add_child(_wave_label)
+	plate.add_child(_wave_label)
+	_wave_chips = HBoxContainer.new()
+	_wave_chips.add_theme_constant_override("separation", 4)
+	top.add_child(_wave_chips)
 
 	_help_label = _make_label(14)
-	_help_label.text = "PC: WASD anda · Espaço ataca · Q habilidade · F ultimate\nR nova run · G salva"
+	_help_label.text = "PC   WASD anda   Espaço ataca   Q habilidade   F ultimate\nR nova run   G salva"
 	_help_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_help_label.modulate.a = 0.7
 	_help_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
@@ -406,6 +473,13 @@ func _build_panel() -> void:
 	UiStyle.title_label(_panel_title, 38)
 	_panel_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(_panel_title)
+	_panel_chips = HFlowContainer.new()
+	_panel_chips.alignment = FlowContainer.ALIGNMENT_CENTER
+	_panel_chips.add_theme_constant_override("h_separation", 6)
+	_panel_chips.add_theme_constant_override("v_separation", 6)
+	_panel_chips.custom_minimum_size = Vector2(600, 0)
+	_panel_chips.visible = false
+	box.add_child(_panel_chips)
 	_panel_text = _make_label(18)
 	_panel_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_panel_text.autowrap_mode = TextServer.AUTOWRAP_WORD
@@ -418,7 +492,7 @@ func _build_panel() -> void:
 	_panel_button.pressed.connect(_on_panel_button.bind(true))
 	_panel_button2 = Button.new()
 	_panel_button2.custom_minimum_size = Vector2(220, 60)
-	UiStyle.style_button(_panel_button2, "madeira", 24)
+	UiStyle.style_button(_panel_button2, "normal", 24)
 	_panel_button2.pressed.connect(_on_panel_button.bind(false))
 	_panel_button2.visible = false
 	var buttons := HBoxContainer.new()
