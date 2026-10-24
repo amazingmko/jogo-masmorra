@@ -95,6 +95,12 @@ var _enemy_send_t := 0.0
 var _ready_peers := {}
 var _revive_t := {}
 var _down_check_t := 0.0
+## Provação do Folclore em andamento (GameState.run_trial): uma clareira fechada, sem andares.
+var trial: Trial
+var trial_tier := 0
+## Reforço extra dos bichos (Provações).
+var extra_hp := 1.0
+var extra_dmg := 1.0
 
 @onready var _player: Player = $Player
 @onready var _hud: Hud = $HUD
@@ -271,6 +277,9 @@ func new_run(seed: int = 0) -> void:
 	_run_over = false
 	difficulty = clampi(int(Net.run.get("difficulty", GameState.run_difficulty)) if Net.active else GameState.run_difficulty, 0, 3)
 	full_rewards = GameState.run_full_rewards
+	trial_tier = 0 if Net.active or GameState.run_trial.is_empty() else int(GameState.run_trial.get("tier", 0))
+	if trial_tier > 0:
+		difficulty = 0
 	_apply_power_sync()
 	_rng.seed = seed if seed > 0 else randi()
 	run_seed = _rng.seed
@@ -280,6 +289,9 @@ func new_run(seed: int = 0) -> void:
 	_player.start_run()
 	_player.revive(Vector3(0, 0.1, 0))
 	floor_number = 0
+	if trial_tier > 0:
+		_start_trial()
+		return
 	_next_floor()
 
 
@@ -354,6 +366,81 @@ func _next_floor() -> void:
 	_hud.set_floor(floor_number, FLOORS, difficulty, full_rewards)
 	_hud.show_toast("Encontre %s" % ["o chefe" if floor_number == FLOORS else ("a Onça Alfa" if floor_number == MINIBOSS_FLOOR else "o portal azul")], Color("4db8ff"))
 	GameState.save()
+
+
+## Provação: uma clareira só, sem portas, e a prova do herói (Trial) dentro dela.
+func _start_trial() -> void:
+	if is_instance_valid(trial):
+		trial.queue_free()
+	floor_number = int(Trial.TIER_FLOOR.get(trial_tier, 3))
+	extra_hp = float(Trial.TIER_HP.get(trial_tier, 1.0))
+	extra_dmg = float(Trial.TIER_DMG.get(trial_tier, 1.0))
+	_clear_floor()
+	layout = DungeonLayout.new()
+	layout.rooms = [{"cell": Vector2i.ZERO, "type": DungeonLayout.RoomType.START, "links": [], "depth": 0}]
+	layout.start_index = 0
+	layout.goal_index = 0
+	builder = DungeonBuilder.new()
+	builder.build(layout, _dungeon, _rng)
+	Lighting.no_shadow_receive(_dungeon)
+	night.set_night(false)
+	_current_room = builder.rooms[0]
+	_alive = 0
+	var room := builder.rooms[0]
+	_player.global_position = room.center() + Vector3(0, 0.1, 0)
+	_player.velocity = Vector3.ZERO
+	_player.reset_physics_interpolation()
+	_player.start_floor()
+	_plan_rig_pool()
+	_show_loading()
+	_loading_label.text = Trial.info(_player.hero_id).name
+	_hud.minimap.visible = false
+	trial = Trial.new()
+	trial.setup(self, room, _player, trial_tier)
+	_dungeon.add_child(trial)
+	trial.finished.connect(_on_trial_finished)
+	_camera.snap()
+	_hud.show_toast("Provação do nível %d: %s" % [trial_tier, Trial.info(_player.hero_id).goal], Color("ffd84a"))
+
+
+func _on_trial_finished(victory: bool, stars: int, reason: String) -> void:
+	if _run_over:
+		return
+	_run_over = true
+	var hero := _player.hero_id
+	var cost := GameState.trial_cost(trial_tier)
+	var first := not GameState.trial_passed(hero, trial_tier)
+	var info := Trial.info(hero)
+	if victory:
+		var was := GameState.level_of(hero)
+		GameState.complete_trial(hero, trial_tier, stars)
+		_hud.refresh_hero(_player.hero)
+		var tags := [["Nível %d" % trial_tier, "nivel", Color("ffd25a")]]
+		for i in 3:
+			tags.append(["", "coroa", Color("ffd84a") if i < stars else Color(0.35, 0.35, 0.4)])
+		if first:
+			tags.append(["-%d ouro" % cost, "ouro", Color("ffd84a")])
+		_hud.set_panel_chips(tags)
+		var lines := PackedStringArray()
+		if first:
+			lines.append("O caminho até o nível %d está aberto." % (trial_tier + 10 if trial_tier < 30 else Progression.MAX_LEVEL))
+		if GameState.level_of(hero) > was:
+			lines.append("A XP guardada já contou: nível %d!" % GameState.level_of(hero))
+		if stars < 3:
+			lines.append("Dá para tentar de novo por mais estrelas (sem pagar outra vez).")
+		lines.insert(0, "%s: vencida." % info.name)
+		_hud.ask("Provação vencida!", "\n".join(lines), "Voltar à base", "Tentar de novo", _after_trial)
+	else:
+		_hud.set_panel_chips([["Nível %d" % trial_tier, "nivel", Color("ffd25a")], ["Nada foi cobrado", "ouro", UiStyle.TEXT_DIM]])
+		_hud.ask("Provação falhou", reason if reason != "" else "Você caiu.", "Tentar de novo", "Voltar à base",
+			func(again: bool) -> void: _after_trial(not again))
+
+
+func _after_trial(back: bool) -> void:
+	if back:
+		_back_to_hub()
+	else:
+		new_run()
 
 
 func _clear_floor() -> void:
@@ -648,8 +735,8 @@ func _spawn(enemy_id: StringName, room: DungeonRoom, at: Vector3 = Vector3.INF, 
 	var level := 0 if data.is_boss else floor_number - 1
 	var n := mini(Net.count(), 4)
 	var mp_hp: float = (1.0 + MP_BOSS_PER_EXTRA * (n - 1)) if data.is_boss else MP_HEALTH[n]
-	var enemy := Enemy.create(data, (1.0 + HEALTH_PER_FLOOR * level) * Difficulty.HEALTH_MULT[difficulty] * mp_hp,
-		(1.0 + DAMAGE_PER_FLOOR * level) * Difficulty.DAMAGE_MULT[difficulty] * MP_DAMAGE[n])
+	var enemy := Enemy.create(data, (1.0 + HEALTH_PER_FLOOR * level) * Difficulty.HEALTH_MULT[difficulty] * mp_hp * extra_hp,
+		(1.0 + DAMAGE_PER_FLOOR * level) * Difficulty.DAMAGE_MULT[difficulty] * MP_DAMAGE[n] * extra_dmg)
 	enemy.is_summon = summoned
 	enemy.threat = room_threat(room, data.is_boss)
 	if elite and not data.is_boss:
@@ -821,6 +908,8 @@ func _loot_context(profile: String) -> Dictionary:
 
 ## Ouro de cada bicho (cada jogador ganha o seu). Mentor: +25% em grupo com alguém bem mais fraco.
 func _give_gold(enemy: Enemy) -> void:
+	if trial_tier > 0:
+		return
 	var g := Economy.enemy_gold(enemy.data.xp_reward, enemy.elite, difficulty)
 	if _is_mentor():
 		g = int(round(g * (1.0 + Economy.MENTOR_BONUS)))
@@ -869,7 +958,7 @@ func _track_boss_participation(delta: float) -> void:
 
 
 func _give_xp(amount: int) -> void:
-	if amount <= 0:
+	if amount <= 0 or trial_tier > 0:
 		return
 	amount = int(round(amount * Difficulty.XP_MULT[difficulty]))
 	_stats.xp += amount
@@ -884,6 +973,7 @@ func _on_leveled_up(hero_id: StringName, new_level: int) -> void:
 
 func _back_to_hub() -> void:
 	get_tree().paused = false
+	GameState.run_trial = {}
 	HeroStats.rarity_cap = 3
 	if Net.active:
 		Net.leave()
@@ -902,6 +992,10 @@ func _on_player_died() -> void:
 
 ## camp: saiu pelo acampamento (andar 5) levando o que coletou; não conta como vitória.
 func _finish(victory: bool, camp := false) -> void:
+	if trial_tier > 0:
+		if is_instance_valid(trial) and not trial.over:
+			trial._end(false, 0, "Você caiu.")
+		return
 	if _run_over:
 		return
 	_run_over = true

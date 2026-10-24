@@ -8,6 +8,8 @@ extends HBoxContainer
 
 signal open_talents(hero_id: StringName)
 signal hero_chosen(hero: HeroData)
+## Enfrentar a Provação do Folclore deste herói (nível 10, 20 ou 30).
+signal trial_requested(hero_id: StringName, tier: int)
 
 ## Herói que está sendo olhado (não precisa ser o escolhido).
 static var viewing: StringName = &""
@@ -139,12 +141,30 @@ func _info(hero: HeroData) -> Control:
 		["%d" % p.level, "nivel", Color("ffd25a")]]))
 	var xp := UiStyle.bar(Color("4fbf7a"), 100, 22)
 	xp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	UiStyle.set_bar(xp, p.xp, Progression.xp_to_next(p.level), "XP %d / %d" % [p.xp, Progression.xp_to_next(p.level)])
+	var pending := GameState.trial_pending(hero.id)
+	UiStyle.set_bar(xp, p.xp, Progression.xp_to_next(p.level), "Provação para passar do %d" % pending if pending > 0
+		else "XP %d / %d" % [p.xp, Progression.xp_to_next(p.level)])
 	v.add_child(xp)
+	var done := []
+	for t in GameState.TRIAL_LEVELS:
+		var st := GameState.trial_stars(hero.id, t)
+		if st > 0:
+			done.append(t)
+	if not done.is_empty():
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		for t in done:
+			var cell := HBoxContainer.new()
+			cell.add_theme_constant_override("separation", 2)
+			cell.add_child(UiStyle.chip("Nv %d" % t, "coroa", Color("ffd84a"), 12))
+			cell.add_child(UiStyle.pips(GameState.trial_stars(hero.id, t), 3, Color("ffd84a"), 12))
+			row.add_child(cell)
+		v.add_child(row)
 	var d := UiStyle.label(hero.description, 15, UiStyle.TEXT_DIM)
 	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	d.custom_minimum_size = Vector2(340, 0)
-	v.add_child(d)
+	if pending == 0:  # com a Provação na tela, a caixa dela ocupa o lugar (sem rolagem)
+		v.add_child(d)
 	# as 3 especializações e a função de cada uma
 	var specs := VBoxContainer.new()
 	specs.add_theme_constant_override("separation", 5)
@@ -171,6 +191,8 @@ func _info(hero: HeroData) -> Control:
 	var fill := Control.new()
 	fill.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(fill)
+	if pending > 0:
+		v.add_child(_trial_box(hero, pending))
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 8)
 	v.add_child(buttons)
@@ -202,3 +224,39 @@ func _info(hero: HeroData) -> Control:
 			_refresh())
 	buttons.add_child(pick)
 	return col
+
+
+## Provação pendente: o nome da prova, o objetivo e o botão (com o preço, cobrado só ao vencer).
+func _trial_box(hero: HeroData, tier: int) -> Control:
+	var info := Trial.info(hero.id)
+	var cost := GameState.trial_cost(tier)
+	var box := PanelContainer.new()
+	box.add_theme_stylebox_override("panel", UiStyle.section(true))
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 6)
+	box.add_child(v)
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 6)
+	v.add_child(top)
+	var t := Label.new()
+	t.text = info.name
+	UiStyle.title_label(t, 19, UiStyle.GOLD)
+	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(t)
+	top.add_child(UiStyle.chip("Provação", "coroa", Color("ffd84a"), 12))
+	v.add_child(UiStyle.chips([[info.goal, info.icon, UiStyle.TEXT]]))
+	var b := Button.new()
+	b.custom_minimum_size = Vector2(0, 50)
+	b.focus_mode = Control.FOCUS_NONE
+	var can := GameState.coins >= cost and not Net.active
+	b.text = "Enfrentar  %d ouro" % cost
+	UiStyle.style_button(b, "ouro" if can else "normal", 18)
+	b.disabled = not can
+	v.add_child(b)
+	if not can:
+		v.add_child(UiStyle.chips([["Só sozinho" if Net.active else "Faltam %d de ouro" % (cost - GameState.coins), "cadeado", UiStyle.TEXT_DIM]]))
+	else:
+		v.add_child(UiStyle.label("O ouro só sai se vencer.", 13, UiStyle.TEXT_DIM))
+	var hid := hero.id
+	b.pressed.connect(func() -> void: trial_requested.emit(hid, tier))
+	return box

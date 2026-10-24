@@ -16,12 +16,16 @@ static func xp_to_next(level: int) -> int:
 	return int(round(BASE_XP * pow(XP_GROWTH, maxi(level - 1, 0))))
 
 
-## Aplica XP a {"level", "xp"} e devolve quantos níveis subiu.
-static func add_xp(progress: Dictionary, amount: int) -> int:
+## Aplica XP a {"level", "xp"} e devolve quantos níveis subiu. cap: teto atual (Provação ainda
+## não vencida); no teto a barra enche e para, até vencer a Provação.
+static func add_xp(progress: Dictionary, amount: int, cap: int = MAX_LEVEL) -> int:
 	var gained := 0
 	var level: int = progress.get("level", 1)
 	var xp: int = progress.get("xp", 0) + maxi(amount, 0)
 	while level < MAX_LEVEL and xp >= xp_to_next(level):
+		if level >= cap:
+			xp = xp_to_next(level)  # barra cheia, esperando a Provação
+			break
 		xp -= xp_to_next(level)
 		level += 1
 		gained += 1

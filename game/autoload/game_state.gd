@@ -123,11 +123,62 @@ func level_of(hero_id: StringName) -> int:
 ## Dá XP ao herói. Devolve quantos níveis ele subiu.
 func add_xp(hero_id: StringName, amount: int) -> int:
 	var p := progress(hero_id)
-	var gained := Progression.add_xp(p, amount)
+	var gained := Progression.add_xp(p, amount, level_cap(hero_id))
 	if gained > 0:
 		leveled_up.emit(hero_id, p.level)
 	hero_progress_changed.emit(hero_id)
 	return gained
+
+
+# ---------- Provações do Folclore ----------
+## Nos níveis 10, 20 e 30 o herói para (a barra enche) até vencer a Provação dele. Entrar é grátis;
+## o ouro só é cobrado ao vencer. Vencer libera o nível seguinte (e a fileira de talentos dele).
+const TRIAL_LEVELS := [10, 20, 30]
+const TRIAL_GOLD := [500, 2000, 6000]
+## Provação em andamento (na cena da masmorra): {"hero": id, "tier": 10}.
+var run_trial := {}
+
+
+func trial_passed(hero_id: StringName, tier: int) -> bool:
+	var p := progress(hero_id)
+	return int(p.level) > tier or (p.get("trials", {}) as Dictionary).has(str(tier))
+
+
+## Teto atual: o primeiro nível de Provação ainda não vencida.
+func level_cap(hero_id: StringName) -> int:
+	for t in TRIAL_LEVELS:
+		if not trial_passed(hero_id, t):
+			return t
+	return Progression.MAX_LEVEL
+
+
+## Nível da Provação disponível agora (o herói chegou ao teto), ou 0.
+func trial_pending(hero_id: StringName) -> int:
+	var cap := level_cap(hero_id)
+	return cap if cap < Progression.MAX_LEVEL and level_of(hero_id) >= cap else 0
+
+
+func trial_cost(tier: int) -> int:
+	var i := TRIAL_LEVELS.find(tier)
+	return TRIAL_GOLD[i] if i >= 0 else 0
+
+
+## Estrelas da melhor vitória (0 = ainda não venceu).
+func trial_stars(hero_id: StringName, tier: int) -> int:
+	return int((progress(hero_id).get("trials", {}) as Dictionary).get(str(tier), 0))
+
+
+## Venceu: paga o ouro, guarda as estrelas e deixa o herói subir (a XP que sobrou já conta).
+func complete_trial(hero_id: StringName, tier: int, stars: int) -> void:
+	var p := progress(hero_id)
+	if not p.has("trials"):
+		p["trials"] = {}
+	var first := not (p.trials as Dictionary).has(str(tier))
+	if first:
+		add_coins(-trial_cost(tier))
+	p.trials[str(tier)] = maxi(int(p.trials.get(str(tier), 0)), stars)
+	add_xp(hero_id, 0)
+	save()
 
 
 ## Peças vestidas pelo herói: {slot(int): instance}.
@@ -444,6 +495,8 @@ func from_dict(data: Dictionary) -> void:
 		heroes[String(key)] = {"level": level, "xp": int(p.get("xp", 0)), "equipped": eq, "talents": talents}
 		if p.has("spec"):
 			heroes[String(key)]["spec"] = String(p.spec)
+		if p.has("trials"):
+			heroes[String(key)]["trials"] = (p.trials as Dictionary).duplicate()
 	energy = clampi(int(data.get("energy", MAX_ENERGY)), 0, MAX_ENERGY)
 	energy_at = int(data.get("energy_at", 0))
 	highest_cleared = int(data.get("highest_cleared", -1))

@@ -420,6 +420,7 @@ func _fill_expedition() -> void:
 	enter.pressed.connect(func() -> void:
 		GameState.selected_difficulty = _difficulty
 		GameState.run_difficulty = _difficulty
+		GameState.run_trial = {}
 		GameState.run_full_rewards = _use_energy and GameState.spend_energy()
 		enter_dungeon_requested.emit())
 	_modal_body.add_child(enter)
@@ -585,6 +586,7 @@ func _fill_heroes() -> void:
 		_talent_hero = hid
 		_open_station = &"talentos"
 		_refresh_open_panel())
+	panel.trial_requested.connect(_on_trial_requested)
 	panel.hero_chosen.connect(func(hero: HeroData) -> void:
 		GameState.selected_hero = hero.id
 		if Net.active:
@@ -593,6 +595,22 @@ func _fill_heroes() -> void:
 		GameState.save()
 		_refresh_top_bar()
 		_refresh_open_panel())
+
+
+## Provação do Folclore: o herói vira o escolhido e vai sozinho para a clareira da prova.
+## (Entrar é grátis; o ouro só é cobrado ao vencer, mas precisa ter o ouro para entrar.)
+func _on_trial_requested(hero_id: StringName, tier: int) -> void:
+	if Net.active:
+		return
+	var hero := ItemDB.get_hero(hero_id)
+	if hero == null or GameState.coins < GameState.trial_cost(tier):
+		return
+	GameState.selected_hero = hero_id
+	_player.set_hero(hero)
+	GameState.run_trial = {"hero": String(hero_id), "tier": tier}
+	GameState.run_difficulty = 0
+	GameState.run_full_rewards = false
+	enter_dungeon_requested.emit()
 
 
 ## Talentos (como no WoW): especializações, mini árvore e o detalhe do talento.

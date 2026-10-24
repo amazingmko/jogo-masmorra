@@ -134,7 +134,9 @@ var _mouth_material: StandardMaterial3D
 var _recent_timer := 0.0
 var _own_telegraphs: Array[Telegraph] = []
 
-var _player: Player
+## Alvo: um herói (Player) ou um protegido das Provações (Ward). Os dois têm health,
+## receive_attack e velocity.
+var _player: Node3D
 var _body: Node3D
 var _material: StandardMaterial3D
 ## Modelo 3D do bicho (quando existe em game/art/inimigos/<id>.glb); senão, a cápsula provisória.
@@ -249,7 +251,10 @@ func _nearest_hero() -> Node3D:
 	for h in get_tree().get_nodes_in_group("heroes"):
 		if h.health.is_dead:
 			continue
-		var d: float = h.global_position.distance_squared_to(global_position)
+		# protegidos das Provações (totem, mudas) atraem os bichos: contam como mais perto
+		var d: float = h.global_position.distance_to(global_position)
+		if "target_priority" in h:
+			d -= float(h.target_priority)
 		if d < best_d:
 			best_d = d
 			best = h
@@ -321,7 +326,7 @@ func _physics_process(delta: float) -> void:
 	if _recent_timer <= 0.0:
 		_recent_damage = 0
 
-	var player_alive := _player != null and is_instance_valid(_player) and not _player.health.is_dead
+	var player_alive := _player != null and is_instance_valid(_player) and not (_player.get("health") as Health).is_dead
 	var to_player := Vector3.ZERO
 	if player_alive:
 		to_player = _player.global_position - global_position
@@ -388,7 +393,7 @@ func _physics_process(delta: float) -> void:
 			if player_alive and not _charge_hit and dist <= 1.0 + 0.5 * data.body_scale + _attack.radius * 0.3 \
 					and Layers.clear_path(get_world_3d(), global_position, _player.global_position):
 				_charge_hit = true
-				_player.receive_attack(int(round(_attack.damage * damage_multiplier)), _attack.effect,
+				_player.call("receive_attack", int(round(_attack.damage * damage_multiplier)), _attack.effect,
 					_attack.effect_duration, _attack.effect_power, global_position)
 			# a investida termina encostada no herói (não atravessa o corpo dele)
 			if player_alive and dist <= _personal_space and to_player.dot(_aim_dir) > 0.0:
@@ -881,7 +886,8 @@ func _start(a: EnemyAttack, from_rally: bool = false) -> void:
 	# Mira: onde o herói está, com uma leve antecipação para disparos.
 	var target := _player.global_position
 	if a.kind in [EnemyAttack.Kind.PROJECTILE, EnemyAttack.Kind.FAN, EnemyAttack.Kind.GROUND_AOE]:
-		target += Vector3(_player.velocity.x, 0, _player.velocity.z) * _rng.randf_range(0.0, 0.35)
+		var tv: Vector3 = _player.get("velocity")
+		target += Vector3(tv.x, 0, tv.z) * _rng.randf_range(0.0, 0.35)
 	_aim_dir = target - global_position
 	_aim_dir.y = 0.0
 	_aim_dir = _aim_dir.normalized() if _aim_dir.length() > 0.01 else Vector3.FORWARD

@@ -13,6 +13,9 @@ signal hit_blocked(amount: int)
 signal shield_broken
 ## Um golpe fatal foi evitado (Muiraquitã).
 signal death_saved
+## Uma cura chegou (o valor pedido, mesmo se a vida já estava cheia). Provação do Druida: a cura
+## dele se espalha para as mudas por perto.
+signal healed(amount: int)
 
 @export var max_health: int = 6
 @export var max_armor: int = 0
@@ -158,6 +161,7 @@ func set_maximums(new_max_health: int, new_max_armor: int) -> void:
 func heal(amount: int) -> void:
 	if is_dead or amount <= 0:
 		return
+	healed.emit(amount)
 	health = mini(health + amount, max_health)
 	_emit_changed()
 

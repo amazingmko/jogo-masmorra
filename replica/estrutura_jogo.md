@@ -50,6 +50,11 @@ Ver também: replica/mundo_amazonia.md (zonas da Amazônia) e replica/multiplaye
   podem); Sincronia de Poder (dentro da masmorra, peça acima da raridade da dificuldade vale como
   ela); reagentes do chefe só para quem participou da luta; Mentor: +25% de ouro em grupo com
   alguém 5+ níveis abaixo. Itens e reagentes ficam com quem pegou (não há troca).
-- Próximo: Provações do Folclore nos níveis 10/20/30 (pagas com ouro; abrem as fileiras de
-  talentos), sem arte nova do Tripo. Propor cada uma antes de construir.
+- Provações do Folclore (feito): nos níveis 10/20/30 o herói para (barra cheia) até vencer a
+  prova dele, sozinho, numa clareira fechada de 60 s. Entrar é grátis, mas precisa ter o ouro
+  (500/2000/6000), cobrado só na 1ª vitória; 1 a 3 estrelas, dá para repetir. Bichos da prova não
+  dão XP nem ouro. Icamiaba: A Muralha da Aldeia (defender o totem). Mateira: A Caçada (10
+  acertos no macaco-prego que foge e pula). Encantado: A Cheia (só as ilhas são seguras e mudam a
+  cada 12 s). Druida: O Viveiro (3 de 5 mudas vivas; a cura dele cura as mudas por perto).
+  Save antigo: herói já acima do teto conta como vencida.
 - Bônus semanal do chefe: não feito (depende do relógio do celular, que dá para burlar).

@@ -40,6 +40,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _on_net_start() -> void:
 	Net.stop_search()
 	GameState.run_difficulty = int(Net.run.get("difficulty", 0))
+	GameState.run_trial = {}
 	GameState.run_full_rewards = _ui._use_energy and GameState.spend_energy()
 	_enter_dungeon()
 

@@ -28,6 +28,8 @@ var _panel_loot_items: Array = []
 var _hero_label: Label
 var _wave_label: Label
 var _help_label: Label
+## Provação: o objetivo, numa linha centralizada embaixo do medidor.
+var _goal_row: HBoxContainer
 var _toasts: VBoxContainer
 var _panel: PanelContainer
 var _panel_title: Label
@@ -154,6 +156,42 @@ func set_floor(floor_number: int, total: int, difficulty: int, full_rewards: boo
 	if not full_rewards:
 		_wave_chips.add_child(UiStyle.chip("Sem energia", "energia", UiStyle.TEXT_DIM))
 	_wave_chips.visible = true
+
+
+## Provação: o nome na placa do topo e, ao lado, o relógio e o objetivo (selos).
+## chips[0] (o relógio) fica ao lado da placa; o resto (o objetivo) vai na linha de baixo.
+func set_trial(title: String, chips: Array) -> void:
+	_wave_label.text = title
+	_help_label.visible = false
+	for ch in _wave_chips.get_children():
+		ch.queue_free()
+	for ch in _goal_row.get_children():
+		ch.queue_free()
+	for i in chips.size():
+		var it: Array = chips[i]
+		(_wave_chips if i == 0 else _goal_row).add_child(UiStyle.chip(it[0], it[1], it[2] if it.size() > 2 else Color(0, 0, 0, 0)))
+	_wave_chips.visible = true
+	_goal_row.visible = true
+	_goal_row.offset_top = 128 if _boss_box.visible else 62
+
+
+## Barra grande do topo (a do chefe) usada como medidor da Provação (vida do totem, acertos...).
+func show_meter(title: String, value: int, max_value: int, color: Color) -> void:
+	_boss = null
+	_boss_name.text = title
+	_boss_name.add_theme_color_override("font_color", color)
+	_boss_bar.max_value = max_value
+	_boss_bar.value = value
+	_boss_box.visible = true
+
+
+func set_meter(value: int, max_value: int) -> void:
+	_boss_bar.max_value = max_value
+	_boss_bar.value = value
+
+
+func hide_meter() -> void:
+	_boss_box.visible = false
 
 
 ## Aviso no meio-baixo da tela: faixa terracota que entra saltando e some sozinha. Em fila
@@ -390,6 +428,14 @@ func _build_status() -> void:
 	_wave_chips = HBoxContainer.new()
 	_wave_chips.add_theme_constant_override("separation", 4)
 	top.add_child(_wave_chips)
+
+	_goal_row = HBoxContainer.new()
+	_goal_row.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	_goal_row.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_goal_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_goal_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_goal_row.visible = false
+	add_child(_goal_row)
 
 	_help_label = _make_label(14)
 	_help_label.text = "PC   WASD anda   Espaço ataca   Q habilidade   F ultimate\nR nova run   G salva"
