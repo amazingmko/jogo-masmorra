@@ -7,18 +7,24 @@ extends RefCounted
 static func damage_number(parent: Node, at: Vector3, amount: int, crit: bool, color: Color = Color.WHITE) -> void:
 	var label := Label3D.new()
 	label.text = ("%d!" % amount) if crit else str(amount)
+	label.font = UiStyle.title_font()
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = true
-	label.font_size = 96 if crit else 64
-	label.outline_size = 16
+	label.font_size = 104 if crit else 70
+	label.outline_size = 20 if crit else 16
+	label.outline_modulate = Color("2a0d02") if crit else Color("140a04")
 	label.modulate = Color("ffd34d") if crit else color
 	label.pixel_size = 0.006
 	parent.add_child(label)
-	label.global_position = at + Vector3(randf_range(-0.2, 0.2), 0.0, 0.0)
+	label.global_position = at + Vector3(randf_range(-0.25, 0.25), 0.0, 0.0)
+	# salta (cresce passando do ponto e assenta), sobe de lado e some
+	label.scale = Vector3.ONE * 0.4
+	var side := randf_range(-0.35, 0.35)
 	var tween := label.create_tween()
-	tween.set_parallel(true)
-	tween.tween_property(label, "global_position", label.global_position + Vector3(0, 1.0, 0), 0.6)
-	tween.tween_property(label, "modulate:a", 0.0, 0.6).set_delay(0.2)
+	tween.tween_property(label, "scale", Vector3.ONE * (1.35 if crit else 1.15), 0.08).set_ease(Tween.EASE_OUT)
+	tween.tween_property(label, "scale", Vector3.ONE, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(label, "global_position", label.global_position + Vector3(side, 1.1, 0), 0.65).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(label, "modulate:a", 0.0, 0.3).set_delay(0.35)
 	tween.chain().tween_callback(label.queue_free)
 
 
@@ -26,10 +32,12 @@ static func damage_number(parent: Node, at: Vector3, amount: int, crit: bool, co
 static func float_text(parent: Node, at: Vector3, text: String, color: Color = Color.WHITE) -> void:
 	var label := Label3D.new()
 	label.text = text
+	label.font = UiStyle.title_font()
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = true
-	label.font_size = 56
-	label.outline_size = 14
+	label.font_size = 60
+	label.outline_size = 16
+	label.outline_modulate = Color("140a04")
 	label.modulate = color
 	label.pixel_size = 0.006
 	parent.add_child(label)

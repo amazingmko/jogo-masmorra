@@ -6,10 +6,9 @@ extends CanvasLayer
 
 signal enter_dungeon_requested
 
-const PANEL_BG := Color(0.1, 0.08, 0.15, 0.95)
-const TEXT := Color("f2ecff")
-const MUTED := Color("a9a2bf")
-const GOLD := Color("e8c26a")
+const TEXT := UiStyle.TEXT
+const MUTED := UiStyle.TEXT_DIM
+const GOLD := UiStyle.GOLD
 const OK_COLOR := Color("6fdc7b")
 const BAD_COLOR := Color("ff6b6b")
 const PROFESSIONS := [&"ferreiro", &"curtidor", &"tecela", &"erveira"]
@@ -41,6 +40,7 @@ var _talent_msg := ""
 
 
 func _ready() -> void:
+	UiStyle.apply(get_tree().root)
 	_build_top_bar()
 	_build_controls()
 	_build_modal()
@@ -203,7 +203,8 @@ func _fill_portal_content() -> void:
 	_modal_body.add_child(toggle)
 
 	if not Net.active:
-		var enter := _button("Entrar na masmorra (%s)" % Difficulty.name_of(_difficulty), 22, Difficulty.color_of(_difficulty))
+		var enter := _button("Entrar na masmorra (%s)" % Difficulty.name_of(_difficulty), 24, TEXT, false, "ouro")
+		enter.custom_minimum_size.y = 60
 		enter.pressed.connect(func() -> void:
 			GameState.selected_difficulty = _difficulty
 			GameState.run_difficulty = _difficulty
@@ -294,7 +295,7 @@ func _fill_multiplayer() -> void:
 	if Net.is_host():
 		var ips := Net.local_ips()
 		_modal_body.add_child(_label("Seu IP: %s" % (", ".join(ips) if not ips.is_empty() else "?"), 15, MUTED, true))
-		var start := _button("Começar com %d jogador(es) (%s)" % [Net.players.size(), Difficulty.name_of(_difficulty)], 22, Difficulty.color_of(_difficulty))
+		var start := _button("Começar com %d jogador(es) (%s)" % [Net.players.size(), Difficulty.name_of(_difficulty)], 22, TEXT, false, "ouro")
 		start.pressed.connect(func() -> void:
 			GameState.selected_difficulty = _difficulty
 			Net.start_run(_difficulty))
@@ -580,7 +581,7 @@ func _recipe_card(recipe: RecipeData) -> Control:
 		recipe.xp_reward, int(round(recipe.xp_reward * Crafting.FAIL_XP_FRACTION))], 14, MUTED, true))
 
 	var reason := Crafting.check(recipe, GameState.inventory, GameState.professions, GameState.worn_uids())
-	var make := _button("Fabricar" if reason == "" else reason, 18, color if reason == "" else MUTED)
+	var make := _button("Fabricar" if reason == "" else reason, 18, TEXT if reason == "" else MUTED, false, "ouro" if reason == "" else "madeira")
 	make.disabled = reason != ""
 	var rid: StringName = recipe.id
 	make.pressed.connect(func() -> void: _do_craft(rid))
@@ -634,13 +635,19 @@ func _num(v: float) -> String:
 	return ("%d" % int(v)) if is_equal_approx(v, round(v)) else ("%.1f" % v).replace(".", ",")
 
 
+## Botão escolhido (dificuldade, aba, talento): madeira mais clara com a borda na cor dele.
 func _selected_style(color: Color) -> StyleBoxFlat:
 	var st := StyleBoxFlat.new()
-	st.bg_color = Color(color, 0.18)
+	st.bg_color = Color("6e4626").lerp(color, 0.18)
 	st.border_color = color
-	st.set_border_width_all(2)
-	st.set_corner_radius_all(10)
-	st.set_content_margin_all(10)
+	st.set_border_width_all(3)
+	st.set_corner_radius_all(7)
+	st.content_margin_left = 16
+	st.content_margin_right = 16
+	st.content_margin_top = 8
+	st.content_margin_bottom = 11
+	st.shadow_color = Color(color, 0.35)
+	st.shadow_size = 6
 	return st
 
 
@@ -831,15 +838,18 @@ func _build_top_bar() -> void:
 	box.add_theme_constant_override("separation", 4)
 	add_child(box)
 	_hero_label = _label("", 24)
+	UiStyle.title_label(_hero_label, 26, TEXT)
 	box.add_child(_hero_label)
 	_xp_bar = ProgressBar.new()
 	_xp_bar.custom_minimum_size = Vector2(300, 14)
 	_xp_bar.show_percentage = false
 	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0, 0, 0, 0.45)
+	bg.bg_color = Color(0.08, 0.05, 0.03, 0.75)
+	bg.border_color = Color("8a5e36")
+	bg.set_border_width_all(2)
 	bg.set_corner_radius_all(6)
 	var fill := StyleBoxFlat.new()
-	fill.bg_color = Color("8b5cf6")
+	fill.bg_color = Color("e0a83c")
 	fill.set_corner_radius_all(6)
 	_xp_bar.add_theme_stylebox_override("background", bg)
 	_xp_bar.add_theme_stylebox_override("fill", fill)
@@ -882,17 +892,11 @@ func _build_controls() -> void:
 func _build_modal() -> void:
 	_modal = PanelContainer.new()
 	_modal.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_modal.offset_left = 60
-	_modal.offset_right = -60
-	_modal.offset_top = 40
-	_modal.offset_bottom = -40
-	var style := StyleBoxFlat.new()
-	style.bg_color = PANEL_BG
-	style.border_color = GOLD
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(16)
-	style.set_content_margin_all(22)
-	_modal.add_theme_stylebox_override("panel", style)
+	_modal.offset_left = 50
+	_modal.offset_right = -50
+	_modal.offset_top = 92   # abaixo da barra do herói (nome e XP continuam à vista)
+	_modal.offset_bottom = -14
+	_modal.add_theme_stylebox_override("panel", UiStyle.panel())
 	add_child(_modal)
 
 	var outer := VBoxContainer.new()
@@ -900,7 +904,8 @@ func _build_modal() -> void:
 	_modal.add_child(outer)
 	var header := HBoxContainer.new()
 	outer.add_child(header)
-	_modal_title = _label("", 28, GOLD)
+	_modal_title = _label("", 30, GOLD)
+	UiStyle.title_label(_modal_title, 34)
 	_modal_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(_modal_title)
 	var close := _button("Fechar", 18)
@@ -923,43 +928,30 @@ func _label(text: String, font_size: int, color: Color = TEXT, wrap: bool = fals
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	l.add_theme_font_size_override("font_size", font_size)
 	l.add_theme_color_override("font_color", color)
-	l.add_theme_color_override("font_outline_color", Color("1a1526"))
+	l.add_theme_color_override("font_outline_color", UiStyle.OUTLINE)
 	l.add_theme_constant_override("outline_size", 4)
+	if font_size >= 20:
+		UiStyle.title_label(l, font_size + 2, color)  # títulos e nomes: fonte de título
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return l
 
 
-func _button(text: String, font_size: int, color: Color = TEXT, wrap: bool = false) -> Button:
+## kind: "madeira" (comum) ou "ouro" (ação principal da janela).
+func _button(text: String, font_size: int, color: Color = TEXT, wrap: bool = false, kind := "madeira") -> Button:
 	var b := Button.new()
 	b.text = text
-	b.add_theme_font_size_override("font_size", font_size)
-	b.add_theme_color_override("font_color", color)
-	b.add_theme_color_override("font_disabled_color", color.darkened(0.15))
+	UiStyle.style_button(b, kind, font_size)
+	if kind != "ouro" and color != TEXT:
+		b.add_theme_color_override("font_color", color)
+		b.add_theme_color_override("font_hover_color", color.lightened(0.25))
+	b.add_theme_color_override("font_disabled_color", color.darkened(0.15) if kind != "ouro" else Color("9a9a9a"))
 	if wrap:
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var normal := StyleBoxFlat.new()
-	normal.bg_color = Color(1, 1, 1, 0.06)
-	normal.set_corner_radius_all(10)
-	normal.set_content_margin_all(10)
-	var hover := normal.duplicate()
-	hover.bg_color = Color(1, 1, 1, 0.14)
-	var disabled := normal.duplicate()
-	disabled.bg_color = Color(1, 1, 1, 0.03)
-	b.add_theme_stylebox_override("normal", normal)
-	b.add_theme_stylebox_override("hover", hover)
-	b.add_theme_stylebox_override("pressed", hover)
-	b.add_theme_stylebox_override("disabled", disabled)
 	return b
 
 
 func _card_panel(border: Color) -> PanelContainer:
 	var p := PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(1, 1, 1, 0.05)
-	style.border_color = border
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(12)
-	style.set_content_margin_all(14)
-	p.add_theme_stylebox_override("panel", style)
+	p.add_theme_stylebox_override("panel", UiStyle.card(Color("6b4a2c") if border.a < 0.5 else border, border == GOLD))
 	return p

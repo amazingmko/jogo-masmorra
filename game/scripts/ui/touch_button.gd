@@ -12,6 +12,8 @@ var progress := -1.0
 ## Apagado (ainda não dá para usar).
 var dimmed := false
 @export var font_size := 22
+## Fonte do texto (vazio = a do tema).
+var font: Font
 
 var is_pressed := false
 var _touch_index := -1
@@ -54,9 +56,9 @@ func _draw() -> void:
 	draw_arc(center, r, 0.0, TAU, 48, Color(1, 1, 1, 0.35 if dimmed else 0.7), 3.0, true)
 	if progress >= 0.0:
 		draw_arc(center, r - 5.0, -PI * 0.5, -PI * 0.5 + TAU * clampf(progress, 0.0, 1.0), 48, color.lightened(0.3), 7.0, true)
-	var font := get_theme_default_font()
-	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
-	draw_string(font, center - Vector2(text_size.x * 0.5, -font_size * 0.35), text,
+	var f: Font = font if font else get_theme_default_font()
+	var text_size := f.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
+	draw_string(f, center - Vector2(text_size.x * 0.5, -font_size * 0.35), text,
 		HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, Color(1, 1, 1, 0.55 if dimmed else 1.0))
 
 

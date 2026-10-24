@@ -22,8 +22,6 @@ var _traveled := 0.0
 var _hit := {}
 var _wave: MeshInstance3D
 var _wave_mat: ShaderMaterial
-var _wake: MeshInstance3D
-var _wake_mat: ShaderMaterial
 const HEIGHT := 2.3
 
 
@@ -46,17 +44,6 @@ func _ready() -> void:
 	var up := create_tween()
 	up.tween_method(func(v: float) -> void: _wave_mat.set_shader_parameter("rise", v), 0.0, 1.0, 0.22) \
 			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	# rastro de espuma molhando o chão por onde passou
-	_wake = MeshInstance3D.new()
-	var plane := PlaneMesh.new()
-	plane.size = Vector2.ONE
-	_wake.mesh = plane
-	_wake_mat = WaveMesh.wake_material(width)
-	_wake.material_override = _wake_mat
-	_wake.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_wake.position = Vector3(0, 0.05, 0)
-	_wake.scale = Vector3(width * 0.95, 1.0, 0.01)
-	add_child(_wake)
 	# respingos saindo da crista e espuma na frente
 	var crest := Vector3(0, h * 0.8, -0.5)
 	var spray := Vfx.particles(self, crest, "respingo", 14, 0.5, Color(1, 1, 1, 0.85), 0.8, Vector2(1.5, 3.5), 50.0, -9.0, true, false)
@@ -81,10 +68,6 @@ func _physics_process(delta: float) -> void:
 	var step := SPEED * delta
 	global_position += direction * step
 	_traveled += step
-	# o rastro vai de onde ela nasceu até as costas da onda (fica parado no chão)
-	_wake.scale.z = maxf(_traveled, 0.01)
-	_wake.position.z = _traveled * 0.5 + 0.9
-	_wake_mat.set_shader_parameter("length_m", _traveled)
 	var right := direction.cross(Vector3.UP)
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		if _hit.has(enemy.get_instance_id()):
@@ -113,7 +96,7 @@ func _physics_process(delta: float) -> void:
 		_crash()
 
 
-## A onda arrebenta: a crista some primeiro, a água espalha e o rastro seca.
+## A onda arrebenta: a crista some e a água espalha (sem rastro no chão: só a onda indo e voltando).
 func _crash() -> void:
 	var front := global_position + direction * 0.8 + Vector3(0, 0.6, 0)
 	var burst := Vfx.particles(get_parent(), front, "respingo", 22, 0.7, Color(1, 1, 1, 0.9), 0.9, Vector2(2.0, 5.0), 70.0, -10.0)
@@ -123,7 +106,6 @@ func _crash() -> void:
 	var t := create_tween().set_parallel()
 	t.tween_method(func(v: float) -> void: _wave_mat.set_shader_parameter("fade", v), 1.0, 0.0, 0.35)
 	t.tween_method(func(v: float) -> void: _wave_mat.set_shader_parameter("rise", v), 1.0, 0.55, 0.35)
-	t.tween_method(func(v: float) -> void: _wake_mat.set_shader_parameter("fade", v), 1.0, 0.0, 0.6)
 	t.chain().tween_callback(queue_free)
 
 
