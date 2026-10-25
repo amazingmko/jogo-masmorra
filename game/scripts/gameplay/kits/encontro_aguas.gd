@@ -12,7 +12,8 @@ const WAVE_WIDTH := 3.2
 const WAVE_DAMAGE := 0.7     # cada onda: 70% do dano do cajado (Solimões: +50%)
 const PULL_RADIUS := 4.5
 const BURST_DAMAGE := 2.0    # o redemoinho: 200% (400% encharcado)
-const SWIRL_TIME := 1.1
+const SWIRL_TIME := 2.2
+const WAVE_SPEED := 6.0      # mais devagar que a Pororoca (11 m/s): ~1,4 s até o choque
 
 var owner_player: Node3D
 var kit: Node
@@ -44,6 +45,7 @@ func _ready() -> void:
 		wave.slam_damage = wave.damage
 		wave.throw = 1.5  # leva junto, sem arremessar longe (o redemoinho é que puxa)
 		wave.max_length = maxf(to_meet.length() - 0.6, 1.0)
+		wave.speed = WAVE_SPEED
 		wave.on_arrive = _on_wave_arrived
 		if side < 0.0 and kit and kit.has_method("soak_enemy"):
 			wave.on_hit = kit.soak_enemy
@@ -78,7 +80,7 @@ func _burst() -> void:
 		caught.append(e)
 		if not e.is_boss and to.length() > 0.6:
 			e._knockback = to.normalized() * sqrt(60.0 * (to.length() - 0.5))
-	await get_tree().create_timer(0.3, false).timeout
+	await get_tree().create_timer(0.5, false).timeout
 	if not is_inside_tree():
 		return
 	var dmg := maxi(int(round(weapon_damage * BURST_DAMAGE)), 1)
@@ -108,7 +110,7 @@ void fragment() {
 	vec2 p = UV * 2.0 - 1.0;
 	float r = length(p);
 	if (r > 1.0) { discard; }
-	float a = atan(p.y, p.x) + r * 5.0 - age * 7.0;
+	float a = atan(p.y, p.x) + r * 5.0 - age * 9.0;
 	float seam = sin(a) + 0.25 * sin(a * 3.0 + age * 4.0);
 	vec3 c = mix(negro, solimoes, smoothstep(-0.06, 0.06, seam));
 	float foam = 1.0 - smoothstep(0.0, 0.1, abs(seam));
@@ -149,6 +151,6 @@ func _swirl_visual(parent: Node) -> void:
 	disk.global_position = _meet + Vector3(0, 0.07, 0)
 	disk.scale = Vector3.ONE * 0.2
 	var t := disk.create_tween().set_parallel()
-	t.tween_property(disk, "scale", Vector3.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.tween_property(disk, "scale", Vector3.ONE, 0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	t.tween_method(func(v: float) -> void: m.set_shader_parameter("age", v), 0.0, 1.0, SWIRL_TIME + 0.4)
 	t.chain().tween_callback(disk.queue_free)
