@@ -258,7 +258,7 @@ func _test_encantado() -> void:
 	var two := get_nodes_in_group("floor_effects").filter(func(n): return n.get_script() == POR)
 	var tints := two.map(func(n): return n.tint)
 	check(two.size() == 2 and tints.has("negro") and tints.has("solimoes"), "saem duas ondas: Rio Negro e Solimões (%s)" % str(tints))
-	await _frames(100)
+	await _frames(150)
 	var near_d1: float = Vector2(near.global_position.x - meet.x, near.global_position.z - meet.z).length()
 	check(near_d1 < near_d0 - 1.0, "redemoinho puxa para o meio (%.1f m -> %.1f m)" % [near_d0, near_d1])
 	check(near.health.health < near_hp and near._stun_left > 0.0, "redemoinho: dano e atordoa (%d -> %d)" % [near_hp, near.health.health])

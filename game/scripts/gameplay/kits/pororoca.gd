@@ -10,6 +10,8 @@ const WIDTH := 7.0
 const THROW := 8.0
 
 var direction := Vector3.FORWARD
+## Velocidade (m/s): o Encontro das Águas usa ondas mais lentas, para ver as duas chegando.
+var speed := SPEED
 var damage := 60
 var slam_damage := 80
 var width := WIDTH
@@ -80,7 +82,7 @@ var _splashes_this_frame := 0
 
 func _physics_process(delta: float) -> void:
 	_splashes_this_frame = 0
-	var step := SPEED * delta
+	var step := speed * delta
 	global_position += direction * step
 	_traveled += step
 	var right := direction.cross(Vector3.UP)
