@@ -1,6 +1,7 @@
 """Prepara as artes do Gemini (arte/bruto/) para o jogo.
 
 - especializacoes/<ramo>.jpg -> game/ui/icones/s_spec_<ramo>.png (igual às funções)
+- itens/<id do item>.jpg -> game/ui/icones/item_<id>.png (ícone na bolsa, oficina e loot)
 - funcoes/<nome>.jpg  -> game/ui/icones/s_funcao_<nome>.png (128 px, fundo preto recortado:
   a forma fica opaca e o brilho em volta fica semitransparente)
 - retratos/<heroi>.jpg -> game/ui/retratos/<heroi>.png (384 px, com a moldura, fora do círculo
@@ -72,6 +73,14 @@ def main() -> None:
         out = recorta_preto(Image.open(os.path.join(pasta, f))).resize((128, 128), Image.LANCZOS)
         out.save(os.path.join(RAIZ, "game", "ui", "icones", "s_spec_%s.png" % nome.lower()))
         print("especialização", nome)
+    pasta = os.path.join(BRUTO, "itens")
+    for f in sorted(os.listdir(pasta)) if os.path.isdir(pasta) else []:
+        nome, ext = os.path.splitext(f)
+        if ext.lower() not in (".jpg", ".jpeg", ".png"):
+            continue
+        out = recorta_preto(Image.open(os.path.join(pasta, f))).resize((128, 128), Image.LANCZOS)
+        out.save(os.path.join(RAIZ, "game", "ui", "icones", "item_%s.png" % nome.lower()))
+        print("item", nome)
     pasta = os.path.join(BRUTO, "retratos")
     destino = os.path.join(RAIZ, "game", "ui", "retratos")
     os.makedirs(destino, exist_ok=True)

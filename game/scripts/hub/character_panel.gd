@@ -29,6 +29,9 @@ static var selected := {}
 static func icon_name(template: ItemData) -> String:
 	if template == null:
 		return ""
+	# arte própria do item (Gemini), quando já existe
+	if ResourceLoader.exists("res://game/ui/icones/item_%s.png" % template.id):
+		return "item_" + String(template.id)
 	match template.kind:
 		ItemData.Kind.WEAPON:
 			return WEAPON_ICON.get(String(template.weapon_type), "lanca")
