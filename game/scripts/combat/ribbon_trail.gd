@@ -23,6 +23,8 @@ static func follow(node: Node3D, w: float, c: Color, seconds := 0.25) -> RibbonT
 	t.life = seconds
 	# fica na cena (não no objeto): o rastro continua no lugar quando o objeto some
 	var root: Node = node.get_tree().current_scene if node.is_inside_tree() else node.get_parent()
+	if root == null:
+		root = node.get_parent()
 	root.add_child(t)
 	return t
 

@@ -101,6 +101,22 @@ var trial_tier := 0
 ## Reforço extra dos bichos (Provações).
 var extra_hp := 1.0
 var extra_dmg := 1.0
+## Só para o simulador de balanceamento (tests/sim_run.gd): heróis aliados controlados por robô
+## no mesmo aparelho, para medir o grupo de 2 a 4 sem rede. Contam no reforço dos bichos.
+var sim_allies: Array = []
+
+
+## Quantos heróis estão na run (reforço dos bichos por número de jogadores).
+func party_size() -> int:
+	if Net.active:
+		return mini(Net.count(), 4)
+	return clampi(1 + sim_allies.size(), 1, 4)
+
+
+func _party() -> Array:
+	var out: Array = [_player]
+	out.append_array(sim_allies.filter(func(a): return is_instance_valid(a)))
+	return out
 
 @onready var _player: Player = $Player
 @onready var _hud: Hud = $HUD
@@ -355,7 +371,18 @@ func _next_floor() -> void:
 	_player.velocity = Vector3.ZERO
 	_player.reset_physics_interpolation()
 	_camera.snap()
-	if Net.active and _player.health.is_dead and not _run_over:
+	for i in sim_allies.size():
+		var a = sim_allies[i]
+		if not is_instance_valid(a):
+			continue
+		a.global_position = start.center() + Vector3((i + 1) * 1.3 - 2.0, 0.1, 1.2)
+		a.velocity = Vector3.ZERO
+		a.reset_physics_interpolation()
+		if a.health.is_dead and not _run_over:
+			a.revive(a.global_position)
+			a.health.set_current(a.health.max_health / 2, a.health.max_health)
+		a.start_floor()
+	if (Net.active or not sim_allies.is_empty()) and _player.health.is_dead and not _run_over:
 		# no grupo, quem caiu volta de pé no andar novo (com metade da vida)
 		_player.revive(_player.global_position)
 		_player.health.set_current(_player.health.max_health / 2, _player.health.max_health)
@@ -483,6 +510,7 @@ func _on_room_entered(room: DungeonRoom) -> void:
 	room.close_doors()
 	if Net.is_host():
 		Net.send("net_room", [room.index, "close"])
+	if Net.is_host() or not sim_allies.is_empty():
 		_pull_heroes_into(room)
 	if room.is_den:
 		# Covil Furioso: tudo furioso, duas ondas, baú grande no fim.
@@ -609,7 +637,7 @@ func _roll_extra_waves() -> int:
 
 ## Vagas da 1ª onda de uma sala: 3 no 1º andar, chegando a 7-8 no 10º.
 func wave_budget() -> int:
-	return int(round((3 + (floor_number - 1) / 2 + _rng.randi_range(0, 1)) * MP_WAVE[mini(Net.count(), 4)]))
+	return int(round((3 + (floor_number - 1) / 2 + _rng.randi_range(0, 1)) * MP_WAVE[party_size()]))
 
 
 ## Andar com sala de chefe (o mini-chefe no 5º, o chefe no 10º).
@@ -619,7 +647,7 @@ func _is_boss_floor() -> bool:
 
 ## Chance de um inimigo da onda vir furioso.
 func _elite_chance(wave: int) -> float:
-	return clampf(0.04 + 0.035 * (floor_number - 1) + 0.08 * difficulty + 0.05 * (wave - 1) + MP_ELITE[mini(Net.count(), 4)], 0.0, 0.8)
+	return clampf(0.04 + 0.035 * (floor_number - 1) + 0.08 * difficulty + 0.05 * (wave - 1) + MP_ELITE[party_size()], 0.0, 0.8)
 
 
 ## Põe uma onda na sala. budget = "vagas": um grupo ocupa vagas conforme a vida somada
@@ -733,7 +761,7 @@ func _spawn(enemy_id: StringName, room: DungeonRoom, at: Vector3 = Vector3.INF, 
 		return null
 	# O chefe já é desenhado para o último andar: não recebe o reforço por andar.
 	var level := 0 if data.is_boss else floor_number - 1
-	var n := mini(Net.count(), 4)
+	var n := party_size()
 	var mp_hp: float = (1.0 + MP_BOSS_PER_EXTRA * (n - 1)) if data.is_boss else MP_HEALTH[n]
 	var enemy := Enemy.create(data, (1.0 + HEALTH_PER_FLOOR * level) * Difficulty.HEALTH_MULT[difficulty] * mp_hp * extra_hp,
 		(1.0 + DAMAGE_PER_FLOOR * level) * Difficulty.DAMAGE_MULT[difficulty] * MP_DAMAGE[n] * extra_dmg)
@@ -814,6 +842,9 @@ func _on_enemy_died(enemy: Enemy) -> void:
 		_stats.kills += 1
 		_player.set_meta("last_killed", enemy)
 		_player.on_enemy_killed(enemy.elite)
+		for a in sim_allies:  # no grupo, cada herói recebe o abate (carga da ultimate, passivas)
+			if is_instance_valid(a):
+				a.on_enemy_killed(enemy.elite)
 		_give_xp(enemy.data.xp_reward * (ELITE_XP if enemy.elite else 1))
 		_give_gold(enemy)
 		if enemy.elite:
@@ -982,6 +1013,9 @@ func _back_to_hub() -> void:
 
 
 func _on_player_died() -> void:
+	if not sim_allies.is_empty():
+		_check_party_down()
+		return
 	if Net.active and not _replicas.is_empty():
 		# no grupo: cai e espera um parceiro levantar (a run só acaba se todos caírem)
 		_hud.show_toast("Você caiu! Um parceiro pode te levantar (ficar perto de você por %d s)." % int(REVIVE_TIME), Color("ff6b6b"))
@@ -991,6 +1025,16 @@ func _on_player_died() -> void:
 
 
 ## camp: saiu pelo acampamento (andar 5) levando o que coletou; não conta como vitória.
+## Simulador: a run só acaba quando o grupo inteiro cai (quem cai volta no andar seguinte).
+func _check_party_down() -> void:
+	if _run_over:
+		return
+	for h in _party():
+		if not h.health.is_dead:
+			return
+	_finish(false)
+
+
 func _finish(victory: bool, camp := false) -> void:
 	if trial_tier > 0:
 		if is_instance_valid(trial) and not trial.over:
@@ -1093,6 +1137,12 @@ func _pull_heroes_into(room: DungeonRoom) -> void:
 		_player.velocity = Vector3.ZERO
 		_player.reset_physics_interpolation()
 		slot += 1
+	for a in sim_allies:
+		if is_instance_valid(a) and not room.contains(a.global_position):
+			a.global_position = room.entry_point(a.global_position, slot)
+			a.velocity = Vector3.ZERO
+			a.reset_physics_interpolation()
+			slot += 1
 	for peer in _replicas:
 		var at: Vector3 = _replicas[peer].global_position
 		if not room.contains(at):
