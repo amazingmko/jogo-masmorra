@@ -75,6 +75,10 @@ func _rules() -> void:
 	q.level = 14
 	q.erase("trials")
 	check(gs.trial_passed(&"druida", 10) and gs.level_cap(&"druida") == 20, "save antigo no 14: Provação do 10 já conta")
+	gs.coins = 0
+	var cap: int = gs.debug_jump_to_trial(&"druida")
+	check(cap == 20 and int(q.level) == 20 and gs.trial_pending(&"druida") == 20 and gs.coins >= 2000,
+		"atalho de teste: do 14 vai para a Provação do 20 com o ouro (%d, nível %d, ouro %d)" % [cap, q.level, gs.coins])
 
 
 ## Abre a prova do herói (nível 10) e força vitória ou derrota pelo caminho de cada uma.

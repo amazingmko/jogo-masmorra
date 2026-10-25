@@ -181,6 +181,22 @@ func complete_trial(hero_id: StringName, tier: int, stars: int) -> void:
 	save()
 
 
+## Só na versão de desenvolvimento: leva o herói ao próximo teto (barra cheia) e garante o ouro
+## da Provação, para testar as provas sem precisar subir de nível jogando.
+func debug_jump_to_trial(hero_id: StringName) -> int:
+	var cap := level_cap(hero_id)
+	if cap >= Progression.MAX_LEVEL:
+		return 0
+	var p := progress(hero_id)
+	p.level = maxi(int(p.level), cap)
+	p.xp = Progression.xp_to_next(cap)
+	if coins < trial_cost(cap):
+		add_coins(trial_cost(cap) - coins)
+	hero_progress_changed.emit(hero_id)
+	save()
+	return cap
+
+
 ## Peças vestidas pelo herói: {slot(int): instance}.
 func equipped_items(hero_id: StringName) -> Dictionary:
 	var out := {}
