@@ -929,12 +929,17 @@ func _fill_bag() -> void:
 
 # ---------- montagem ----------
 
+var _top_portrait: Control
+
+
 func _refresh_top_bar() -> void:
 	if _player == null or _player.hero == null:
 		return
 	var hero := _player.hero
 	var p := GameState.progress(hero.id)
 	_hero_label.text = hero.display_name
+	if _top_portrait:
+		UiStyle.set_portrait(_top_portrait, String(hero.id))
 	for ch in _top_chips.get_children():
 		ch.queue_free()
 	_top_chips.add_child(UiStyle.chip("%d" % p.level, "nivel", Color("ffd25a")))
@@ -952,11 +957,17 @@ func _refresh_top_bar() -> void:
 
 
 func _build_top_bar() -> void:
+	var outer := HBoxContainer.new()
+	outer.position = Vector2(14, 10)
+	outer.add_theme_constant_override("separation", 10)
+	add_child(outer)
+	_top_bar = outer
+	_top_portrait = UiStyle.portrait(String(_player.hero_id) if _player else "icamiaba", 84)
+	outer.add_child(_top_portrait)
 	var box := VBoxContainer.new()
-	box.position = Vector2(20, 14)
 	box.add_theme_constant_override("separation", 6)
-	add_child(box)
-	_top_bar = box
+	box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	outer.add_child(box)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	box.add_child(row)

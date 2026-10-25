@@ -4,12 +4,12 @@ extends RefCounted
 ## a função (Dano, Tank, Healer, Suporte, Controle, Mobilidade) com ícone e cor, e o ícone do ramo.
 
 const ROLE := {
-	"Dano": ["espada", Color("ff9a6a")],
-	"Tank": ["escudo", Color("8fb0ff")],
-	"Healer": ["vida", Color("7fe39a")],
-	"Suporte": ["suporte", Color("ffd98a")],
-	"Controle": ["controle", Color("c89bff")],
-	"Mobilidade": ["mobilidade", Color("8fe8e8")],
+	"Dano": ["funcao_dano", Color("ff9a6a")],
+	"Tank": ["funcao_tank", Color("ffb86a")],
+	"Healer": ["funcao_healer", Color("7fe39a")],
+	"Suporte": ["funcao_suporte", Color("ffd98a")],
+	"Controle": ["funcao_controle", Color("c89bff")],
+	"Mobilidade": ["funcao_mobilidade", Color("8fe8e8")],
 }
 
 ## ramo -> [funções, ícone do ramo]

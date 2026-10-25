@@ -335,6 +335,46 @@ static func chip(text: String, icon := "", color: Color = Color(0, 0, 0, 0), siz
 
 
 ## Fileira de selos.
+## Retrato do herói (arte do Gemini): o rosto recortado em círculo com um aro dourado em volta.
+## full = true usa o retrato inteiro, com a moldura original (tamanhos grandes).
+static func portrait(hero_id: String, size: float, full := false) -> Control:
+	var root := Control.new()
+	root.custom_minimum_size = Vector2(size, size)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var face := TextureRect.new()
+	face.name = "Rosto"
+	face.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	face.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	face.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.add_child(face)
+	if not full:
+		var pad := size * 0.06
+		face.offset_left = pad
+		face.offset_top = pad
+		face.offset_right = -pad
+		face.offset_bottom = -pad
+		var ring := TextureRect.new()
+		ring.name = "Aro"
+		ring.texture = load("res://game/ui/abissal/anel.png")
+		ring.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		ring.stretch_mode = TextureRect.STRETCH_SCALE
+		ring.modulate = Color("e8c27a")
+		ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		ring.set_anchors_preset(Control.PRESET_FULL_RECT)
+		root.add_child(ring)
+	root.set_meta("full", full)
+	set_portrait(root, hero_id)
+	return root
+
+
+static func set_portrait(p: Control, hero_id: String) -> void:
+	var full: bool = p.get_meta("full", false)
+	var path := "res://game/ui/retratos/%s%s.png" % [hero_id, "" if full else "_rosto"]
+	(p.get_node("Rosto") as TextureRect).texture = load(path) if ResourceLoader.exists(path) else null
+	p.visible = ResourceLoader.exists(path)
+
+
 static func chips(items: Array, sep := 6) -> HBoxContainer:
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", sep)

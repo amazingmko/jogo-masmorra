@@ -26,6 +26,7 @@ var _panel_loot: GridContainer
 var _panel_loot_box: PanelContainer
 var _panel_loot_items: Array = []
 var _hero_label: Label
+var _portrait: Control
 var _wave_label: Label
 var _help_label: Label
 ## Provação: o objetivo, numa linha centralizada embaixo do medidor.
@@ -359,6 +360,7 @@ func _on_hero_changed(hero: HeroData) -> void:
 	if _player and _player.form_name() != "":
 		form_text = " · forma: %s" % _player.form_name()
 	_hero_label.text = hero.display_name
+	UiStyle.set_portrait(_portrait, String(hero.id))
 	for ch in _hero_chips.get_children():
 		ch.queue_free()
 	_hero_chips.add_child(UiStyle.chip("%d" % GameState.level_of(hero.id), "nivel", Color("ffd25a")))
@@ -371,10 +373,17 @@ func _on_hero_changed(hero: HeroData) -> void:
 # ---------- montagem ----------
 
 func _build_status() -> void:
+	var outer := HBoxContainer.new()
+	outer.position = Vector2(14, 10)
+	outer.add_theme_constant_override("separation", 8)
+	outer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(outer)
+	_portrait = UiStyle.portrait("icamiaba", 92)
+	outer.add_child(_portrait)
 	var box := VBoxContainer.new()
-	box.position = Vector2(20, 16)
 	box.add_theme_constant_override("separation", 4)
-	add_child(box)
+	box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	outer.add_child(box)
 
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 6)

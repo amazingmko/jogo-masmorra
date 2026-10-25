@@ -50,7 +50,7 @@ func _refresh() -> void:
 
 func _list() -> Control:
 	var col := VBoxContainer.new()
-	col.custom_minimum_size = Vector2(330, 0)
+	col.custom_minimum_size = Vector2(392, 0)
 	col.add_theme_constant_override("separation", 0)
 	var h := HBoxContainer.new()
 	h.custom_minimum_size = Vector2(0, 46)
@@ -86,11 +86,21 @@ func _hero_card(hero: HeroData) -> Control:
 		m.add_theme_constant_override("margin_" + side, 10)
 	m.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	b.add_child(m)
+	var hrow := HBoxContainer.new()
+	hrow.add_theme_constant_override("separation", 10)
+	hrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	m.add_child(hrow)
+	var face := UiStyle.portrait(String(hero.id), 66)
+	face.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	if not looking:
+		face.modulate = Color(0.8, 0.8, 0.85)
+	hrow.add_child(face)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 6)
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	m.add_child(v)
+	hrow.add_child(v)
 	var top := HBoxContainer.new()
 	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.add_child(top)
@@ -108,7 +118,7 @@ func _hero_card(hero: HeroData) -> Control:
 	roles.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for r in SpecInfo.hero_roles(hero.id).slice(0, 3):
 		var spec: Array = SpecInfo.ROLE[r]
-		roles.add_child(UiStyle.chip(r, spec[0], spec[1], 12))
+		roles.add_child(UiStyle.chip(r, spec[0], spec[1], 11))
 	v.add_child(roles)
 	var hid := hero.id
 	b.pressed.connect(func() -> void:
