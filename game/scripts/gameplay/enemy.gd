@@ -1528,22 +1528,30 @@ func _face(dir: Vector3, delta: float) -> void:
 	_body.rotation.y = lerp_angle(_body.rotation.y, atan2(dir.x, dir.z), 10.0 * delta)
 
 
+## Cor do aviso de ataque no corpo: a cor do ataque bem saturada. Ataques de cor clara (pedra,
+## teia, poeira) acendiam o corpo inteiro de branco; esses usam laranja de perigo.
+static func warn_color(c: Color) -> Color:
+	if c.s < 0.35:
+		return Color("ff6a2a")
+	return Color.from_hsv(c.h, maxf(c.s, 0.8), 1.0)
+
+
 func _glow(on: bool) -> void:
+	var c: Color = warn_color(_attack.color) if (on and _attack) else Color.BLACK
 	if _anim:
 		for m in _rig_mats:
 			m.emission_enabled = on
 			if on and _attack:
-				m.emission = _attack.color
-				m.emission_energy_multiplier = 0.35
+				m.emission = c
+				m.emission_energy_multiplier = 0.22
 		return
 	if _model:
-		var c: Color = _attack.color if (on and _attack) else Color.BLACK
-		_model.set_instance_shader_parameter("brilho", Color(c.r, c.g, c.b, 0.55 if on else 0.0))
+		_model.set_instance_shader_parameter("brilho", Color(c.r, c.g, c.b, 0.5 if on else 0.0))
 		return
 	_material.emission_enabled = on
 	if on and _attack:
-		_material.emission = _attack.color
-		_material.emission_energy_multiplier = 0.8
+		_material.emission = c
+		_material.emission_energy_multiplier = 0.6
 
 
 # ---------- modelo 3D ----------
