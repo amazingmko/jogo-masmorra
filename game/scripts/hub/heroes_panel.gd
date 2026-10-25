@@ -193,6 +193,18 @@ func _info(hero: HeroData) -> Control:
 	v.add_child(fill)
 	if pending > 0:
 		v.add_child(_trial_box(hero, pending))
+	elif OS.is_debug_build() and GameState.level_cap(hero.id) < Progression.MAX_LEVEL:
+		# atalho de teste (não aparece no jogo final)
+		var dev := Button.new()
+		dev.text = "Teste: ir para a Provação do %d" % GameState.level_cap(hero.id)
+		dev.focus_mode = Control.FOCUS_NONE
+		dev.custom_minimum_size = Vector2(0, 42)
+		UiStyle.style_button(dev, "normal", 15)
+		var did := hero.id
+		dev.pressed.connect(func() -> void:
+			GameState.debug_jump_to_trial(did)
+			_refresh())
+		v.add_child(dev)
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 8)
 	v.add_child(buttons)
