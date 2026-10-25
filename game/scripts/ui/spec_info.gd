@@ -42,6 +42,8 @@ static func roles(branch_id: String) -> Array:
 
 
 static func icon(branch_id: String) -> String:
+	if ResourceLoader.exists("res://game/ui/icones/s_spec_%s.png" % branch_id):
+		return "spec_" + branch_id
 	return SPECS.get(branch_id, [["Dano"], "espada"])[1]
 
 
