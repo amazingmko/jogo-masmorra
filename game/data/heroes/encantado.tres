@@ -10,7 +10,6 @@ display_name = "Encantado do Rio"
 description = "Magia das águas encantadas. Frágil, mas poderoso. Inteligência, tecido."
 hero_class = 2
 element = 2
-styles = Array[int]([2])
 primary_stat = 2
 weapon_type = &"cajado"
 max_health = 92

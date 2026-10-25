@@ -37,7 +37,7 @@ const TREES := {
 			{"id": "furia_icamiaba", "name": "Fúria Icamiaba", "row": 3, "max": 1, "per": 15, "desc": "Ao bloquear, {v}% de chance de um contragolpe giratório em todos em volta"},
 		]},
 		{"id": "guardia", "name": "Guardiã", "role": "controlar os inimigos", "talents": [
-			{"id": "grito_forte", "name": "Grito Forte", "row": 0, "max": 3, "per": 1, "desc": "Raio do Provocar +{v} m"},
+			{"id": "grito_forte", "name": "Grito Forte", "row": 0, "max": 3, "per": 0.5, "desc": "Raio do Provocar +{v} m"},
 			{"id": "voz_tribo", "name": "Voz da Tribo", "row": 0, "max": 2, "per": 5, "desc": "Provocados batem mais {v}% mais fraco"},
 			{"id": "chao_tremido", "name": "Chão Tremido", "row": 1, "max": 2, "per": 20, "desc": "O Provocar deixa os inimigos {v}% mais lentos por 3 s"},
 			{"id": "folego_curto", "name": "Fôlego Curto", "row": 1, "max": 1, "per": 3, "desc": "O Provocar recarrega {v} s mais rápido"},

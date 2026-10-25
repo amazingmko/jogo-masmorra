@@ -11,8 +11,8 @@ const TIERS := [2, 3, 4]
 ## stat: atributo das bênçãos (multiplica) ou "reduction" (corta o dano recebido).
 const INFO := {
 	GameEnums.Element.WATER: {"element": "Água", "icon": "spec_rio", "name": "Correnteza", "color": "4db8ff",
-		"stats": [&"move_speed", &"attack_speed"], "values": [0.08, 0.12, 0.16],
-		"text": "+%d%% de velocidade de movimento e de ataque"},
+		"stats": [&"move_speed"], "values": [0.05, 0.08, 0.10],
+		"text": "+%d%% de velocidade de movimento"},
 	GameEnums.Element.NATURE: {"element": "Natureza", "icon": "spec_mata", "name": "Raízes", "color": "8be06b",
 		"stats": [&"max_health"], "values": [0.10, 0.15, 0.20],
 		"text": "+%d%% de vida máxima"},
@@ -20,7 +20,7 @@ const INFO := {
 		"stats": [&"reduction"], "values": [0.08, 0.12, 0.16],
 		"text": "-%d%% de dano recebido"},
 	GameEnums.Element.FIRE: {"element": "Fogo", "icon": "poder", "name": "Brasa", "color": "ff8a3d",
-		"stats": [&"damage"], "values": [0.08, 0.12, 0.16],
+		"stats": [&"damage"], "values": [0.06, 0.09, 0.12],
 		"text": "+%d%% de dano"},
 }
 

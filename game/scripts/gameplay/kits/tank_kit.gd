@@ -8,7 +8,7 @@ extends HeroKit
 ##              Revide: depois de bloquear, o próximo golpe causa +50% de dano.
 ## Talentos (ver Talents): Proteção, Fúria e Guardiã mexem nos números e somam efeitos aqui.
 
-const PROVOKE_RADIUS := 9.0
+const PROVOKE_RADIUS := 5.0  # só a região perto dela: precisa ir até os bichos para provocar bem
 const PROVOKE_TIME := 6.0
 const PROVOKE_COOLDOWN := 12.0
 const WALL_TIME := 6.0
@@ -82,7 +82,7 @@ func _use_skill() -> bool:
 	var provoked: Array = []
 	for enemy in player.get_tree().get_nodes_in_group("enemies"):
 		var d := origin.distance_to(enemy.global_position)
-		if enemy.has_method("provoke") and d <= radius:
+		if enemy.has_method("provoke") and d <= radius and Layers.clear_path(player.get_world_3d(), origin, enemy.global_position):
 			enemy.provoke(PROVOKE_TIME, _provoke_factor(), player)
 			enemy.provoked_vulnerability = tv("grito_amazonas") / 100.0
 			if t("chao_tremido") > 0:

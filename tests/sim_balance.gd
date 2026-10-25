@@ -226,8 +226,14 @@ func _tick_revive(delta: float) -> void:
 				healer = a
 		var need: float = _main.REVIVE_TIME_HEALER if healer else _main.REVIVE_TIME
 		var frac: float = _main.REVIVE_HP_HEALER if healer else _main.REVIVE_HP
+		if not healer and _main.lifts_left() <= 0:
+			_revive_t.erase(d)
+			continue
 		if _revive_t[d] >= need:
 			_revive_t.erase(d)
+			if not healer:
+				_main.lifts_used += 1
+				_lifts += 1
 			d.revive(d.global_position)
 			d.health.set_current(maxi(int(d.health.max_health * frac), 1), d.health.max_health)
 
@@ -272,7 +278,7 @@ func _choose(p, i: int) -> Vector3:
 	# parceiro caído e nenhum bicho perto: vai levantar
 	if enemy == null or pos.distance_to(enemy.global_position) > 6.0:
 		for d in _heroes:
-			if d != p and d.health.is_dead:
+			if d != p and d.health.is_dead and _main.can_lift(p):
 				return d.global_position
 	if enemy:
 		var reach: float = p.weapon_stats.attack_range * (0.8 if p.weapon_stats.is_ranged() else 0.7)
@@ -333,6 +339,7 @@ func _nearest(pos: Vector3, nodes: Array) -> Node3D:
 	return best
 
 
+var _lifts := 0  # levantadas gastas (sem contar as da Druida)
 var _taken := {}  # herói -> dano recebido (escudo + vida)
 var _healed := {}  # herói -> vida curada de verdade (sem contar o que passou do máximo)
 
@@ -365,7 +372,7 @@ func _report() -> void:
 		"elites": int(_main._stats.get("elites", 0)), "gold": int(_main._stats.get("gold", 0)),
 		"xp": int(_main._stats.get("xp", 0)), "deaths": _deaths, "lowest_hp": _lowest_hp,
 		"skills": _skills, "ults": _ults, "floor_times": _floor_times, "loot": loot,
-		"healed": _healed, "taken": _taken, "synergy": Synergy.active(_main.party_heroes()).map(func(x): return "%s x%d" % [x.name, int(x.heroes)]), "dodge": _dodge_rate,
+		"healed": _healed, "taken": _taken, "lifts": _lifts, "synergy": Synergy.active(_main.party_heroes()).map(func(x): return "%s x%d" % [x.name, int(x.heroes)]), "dodge": _dodge_rate,
 	}
 	print("RESULTADO_JSON ", JSON.stringify(out))
 	quit(0)

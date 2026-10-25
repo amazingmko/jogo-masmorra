@@ -62,20 +62,20 @@ func _process(_d: float) -> bool:
 		for e in get_nodes_in_group("enemies"):
 			e.queue_free()
 		_player.start_floor()
-		check(is_equal_approx(_kit._provoke_radius(), 12.0), "Grito Forte: Provocar alcança 12 m")
+		check(is_equal_approx(_kit._provoke_radius(), 6.5), "Grito Forte: Provocar alcança 6,5 m")
 		check(is_equal_approx(_kit.skill_cooldown(), 9.0), "Fôlego Curto: Provocar recarrega em 9 s")
 		check(is_equal_approx(_kit.melee_multiplier(2), 1.5) and is_equal_approx(_kit.melee_multiplier(0), 1.0), "Terceiro Golpe: só o 3º golpe bate +50%")
 		check(is_equal_approx(_kit.melee_cone_bonus(), 15.0), "Golpe Largo: +30° no golpe (15° para cada lado)")
 		var start_room = _main.builder.rooms[_main.layout.start_index]
 		_player.global_position = start_room.center() + Vector3(-5.5, 0.1, 0)  # o alvo distante fica dentro da clareira
-		_far = _enemy_at(Vector3(10.5, 0.1, 0))
+		_far = _enemy_at(Vector3(6.0, 0.1, 0))
 		_near = _enemy_at(Vector3(0, 0.1, 2.0))
 	if _f == 10:
 		_far_d0 = _far.global_position.distance_to(_player.global_position)
 		_far_hp0 = _far.health.health
 		check(_kit.try_skill(), "Provocar com os talentos")
 		check(_far.is_provoked() and _far._slow_left > 0.0 and is_equal_approx(_far.provoked_vulnerability, 0.2),
-			"provocado a 10,5 m: lento (Chão Tremido) e leva +20% de dano (Grito das Amazonas)")
+			"provocado a 6 m: lento (Chão Tremido) e leva +20% de dano (Grito das Amazonas)")
 		check(is_equal_approx(_far._provoke_factor, 0.65), "Voz da Tribo: provocado bate 35% mais fraco")
 		check(_kit.charge >= 10.0, "Grito das Amazonas: Provocar carrega a ultimate")
 		check(_player.health.extra_reduction > 0.0, "Guarda Vingativa: armadura extra com inimigos provocados")
