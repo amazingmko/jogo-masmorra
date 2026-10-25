@@ -9,6 +9,10 @@ var station_id: StringName
 var title := ""
 ## Texto do botão de ação (ex.: "ABRIR", "ENTRAR").
 var action_text := "ABRIR"
+## Portais: a região que este portal abre (o painel do portal já vem com ela escolhida).
+var region := ""
+var label_color := Color("ffd98a")
+var label_height := 3.2
 
 
 static func create(id: StringName, station_title: String, action: String) -> HubStation:
@@ -35,11 +39,14 @@ func _ready() -> void:
 	var label := Label3D.new()
 	label.text = title
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.font = UiStyle.title_font()
 	label.font_size = 56
 	label.outline_size = 14
-	label.pixel_size = 0.008
-	label.modulate = Color("f2ecff")
-	label.position = Vector3(0, 3.2, 0)
+	label.outline_modulate = Color(0.03, 0.05, 0.1, 0.9)
+	label.pixel_size = 0.009
+	label.modulate = label_color
+	label.no_depth_test = true
+	label.position = Vector3(0, label_height, 0)
 	add_child(label)
 
 	body_entered.connect(func(body: Node3D) -> void:

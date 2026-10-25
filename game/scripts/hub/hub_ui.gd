@@ -76,6 +76,8 @@ func move_vector() -> Vector2:
 func on_station_presence(station: HubStation, inside: bool) -> void:
 	if inside:
 		_station = station
+		if station.region != "":
+			_region = station.region
 		action_button.text = station.action_text
 		action_button.visible = not _modal.visible
 		action_button.queue_redraw()
