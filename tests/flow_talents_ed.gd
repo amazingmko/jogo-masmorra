@@ -249,6 +249,8 @@ func _test_encantado() -> void:
 	var meet: Vector3 = _player.global_position + Vector3(0, 0, -7.0)
 	var near = _dummy(Vector3(2.8, 0, -7.0))
 	var far = _dummy(Vector3(0, 0, 4.0))
+	near.stun(30.0)  # parado (o boneco andaria até o herói): só o redemoinho o move
+	far.stun(30.0)
 	var near_d0: float = Vector2(near.global_position.x - meet.x, near.global_position.z - meet.z).length()
 	var near_hp: int = near.health.health
 	var far_hp: int = far.health.health

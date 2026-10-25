@@ -25,6 +25,8 @@ var _spirit: Node3D
 var _spirit_hero: StringName = &""
 var _hero_gems := {}
 var _t := 0.0
+## Tela de título: só o salão e os portais (sem a Pedra do Encontro na frente do logotipo).
+var title_mode := false
 
 
 func _ready() -> void:
@@ -41,6 +43,8 @@ func _ready() -> void:
 		var open: bool = int(r.world) >= 0 and not r.get("soon", false)
 		var title: String = r.name if r.name != "Em breve" else String(r.biome)
 		_portal(Vector3(-8.4 + i * (16.8 / maxf(n - 1, 1)), 0, PORTAL_Z), String(r.id), title, open)
+	if title_mode:
+		return
 	_meeting_stone(Vector3(0, 0, -1.5))
 	_chest_station(Vector3(-7.5, 0, 3.5))
 	_altar_station(Vector3(7.5, 0, 3.5))
@@ -52,7 +56,7 @@ func _process(delta: float) -> void:
 	if _crystal:
 		_crystal.rotation.y += delta * 0.8
 		_crystal.position.y = 2.1 + sin(_t * 1.6) * 0.12
-	if GameState.selected_hero != _spirit_hero:
+	if not title_mode and GameState.selected_hero != _spirit_hero:
 		_make_spirit(GameState.selected_hero)
 	if _spirit:
 		_spirit.rotation.y += delta * 0.6
