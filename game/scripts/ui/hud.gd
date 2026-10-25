@@ -27,6 +27,7 @@ var _panel_loot_box: PanelContainer
 var _panel_loot_items: Array = []
 var _hero_label: Label
 var _portrait: Control
+var _synergy_row: HBoxContainer
 var _wave_label: Label
 var _help_label: Label
 ## Provação: o objetivo, numa linha centralizada embaixo do medidor.
@@ -157,6 +158,15 @@ func set_floor(floor_number: int, total: int, difficulty: int, full_rewards: boo
 	if not full_rewards:
 		_wave_chips.add_child(UiStyle.chip("Sem energia", "energia", UiStyle.TEXT_DIM))
 	_wave_chips.visible = true
+
+
+## Sinergias elementais ligadas do grupo (Synergy.active): um selo por elemento, abaixo da vida.
+func set_synergies(list: Array) -> void:
+	for ch in _synergy_row.get_children():
+		ch.queue_free()
+	for sy in list:
+		_synergy_row.add_child(UiStyle.chip("%s ×%d" % [sy.name, int(sy.heroes)], sy.icon, Color(sy.color), 13))
+	_synergy_row.visible = not list.is_empty()
 
 
 ## Provação: o nome na placa do topo e, ao lado, o relógio e o objetivo (selos).
@@ -417,6 +427,11 @@ func _build_status() -> void:
 	_status_row = HBoxContainer.new()
 	_status_row.add_theme_constant_override("separation", 12)
 	box.add_child(_status_row)
+	_synergy_row = HBoxContainer.new()
+	_synergy_row.add_theme_constant_override("separation", 6)
+	_synergy_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_synergy_row.visible = false
+	box.add_child(_synergy_row)
 
 	# topo: placa com o andar e os selos ao lado
 	var top := HBoxContainer.new()

@@ -12,7 +12,6 @@ extends SceneTree
 ## levanta parceiro caído (3 s perto) e desce pelo portal. Não escolhe talento nem se cura de propósito.
 
 const MAX_SECONDS := 2400
-const REVIVE_TIME := 3.0
 const WEAPONS := {"icamiaba": ["lanca_ipe", "escudo_casco"], "mateira": ["arco_simples"],
 	"encantado": ["cajado_aprendiz"], "druida": ["cajado_raiz"]}
 const ARMOR := {
@@ -219,10 +218,18 @@ func _tick_revive(delta: float) -> void:
 			_revive_t.erase(d)
 			continue
 		_revive_t[d] = float(_revive_t.get(d, 0.0)) + delta
-		if _revive_t[d] >= REVIVE_TIME:
+		# mesma regra do jogo: 5 s e 25% da vida; com a Druida levantando, 2 s e 60%
+		var healer = null
+		for a in _heroes:
+			if a != d and not a.health.is_dead and a.global_position.distance_to(d.global_position) < 1.8 \
+					and a.hero.hero_class == GameEnums.HeroClass.DRUID:
+				healer = a
+		var need: float = _main.REVIVE_TIME_HEALER if healer else _main.REVIVE_TIME
+		var frac: float = _main.REVIVE_HP_HEALER if healer else _main.REVIVE_HP
+		if _revive_t[d] >= need:
 			_revive_t.erase(d)
 			d.revive(d.global_position)
-			d.health.set_current(d.health.max_health / 2, d.health.max_health)
+			d.health.set_current(maxi(int(d.health.max_health * frac), 1), d.health.max_health)
 
 
 func _steer(p, i: int) -> Vector2:
@@ -358,7 +365,7 @@ func _report() -> void:
 		"elites": int(_main._stats.get("elites", 0)), "gold": int(_main._stats.get("gold", 0)),
 		"xp": int(_main._stats.get("xp", 0)), "deaths": _deaths, "lowest_hp": _lowest_hp,
 		"skills": _skills, "ults": _ults, "floor_times": _floor_times, "loot": loot,
-		"healed": _healed, "taken": _taken, "dodge": _dodge_rate,
+		"healed": _healed, "taken": _taken, "synergy": Synergy.active(_main.party_heroes()).map(func(x): return "%s x%d" % [x.name, int(x.heroes)]), "dodge": _dodge_rate,
 	}
 	print("RESULTADO_JSON ", JSON.stringify(out))
 	quit(0)

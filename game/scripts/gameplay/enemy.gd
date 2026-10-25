@@ -255,6 +255,10 @@ func _nearest_hero() -> Node3D:
 		var d: float = h.global_position.distance_to(global_position)
 		if "target_priority" in h:
 			d -= float(h.target_priority)
+		# Provocação natural do tanque: a até 6 m dela, os bichos a preferem (contam ela 6 m
+		# mais perto); o totem/mudas das Provações continuam atraindo mais
+		if "threat_radius" in h and d <= float(h.threat_radius):
+			d -= float(h.threat_radius)
 		if d < best_d:
 			best_d = d
 			best = h

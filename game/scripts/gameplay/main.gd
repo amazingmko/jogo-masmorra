@@ -54,13 +54,19 @@ const DEN_WAVES := 2
 ## Multijogador: quanto os inimigos crescem por número de jogadores (índice = jogadores).
 const MP_HEALTH := [1.0, 1.0, 2.3, 3.6, 4.8]
 ## Em grupo os bichos batem bem mais forte: sem quem cure ou proteja, a equipe não aguenta.
-const MP_DAMAGE := [1.0, 1.0, 3.2, 4.6, 5.4]
+const MP_DAMAGE := [1.0, 1.0, 3.6, 5.5, 6.5]
 const MP_WAVE := [1.0, 1.0, 1.4, 1.75, 2.1]
 const MP_ELITE := [0.0, 0.0, 0.12, 0.18, 0.24]
 const MP_BOSS_PER_EXTRA := 0.9
 const NET_HERO_HZ := 20.0
 const NET_ENEMY_HZ := 15.0
-const REVIVE_TIME := 3.0
+## Levantar parceiro: 5 s e volta com 25% da vida; a Druida (healer) levanta em 2 s com 60%.
+const REVIVE_TIME := 5.0
+const REVIVE_HP := 0.25
+const REVIVE_TIME_HEALER := 2.0
+const REVIVE_HP_HEALER := 0.6
+## Quem caiu volta sozinho no andar novo, mas fraco.
+const FLOOR_REVIVE_HP := 0.25
 const REVIVE_RANGE := 1.8
 
 var run_seed := 0
@@ -301,6 +307,7 @@ func new_run(seed: int = 0) -> void:
 	if trial_tier > 0:
 		difficulty = 0
 	_apply_power_sync()
+	_apply_synergy()
 	_rng.seed = seed if seed > 0 else randi()
 	run_seed = _rng.seed
 	_stats = {"kills": 0, "loot": {}, "started": Time.get_ticks_msec(), "buffs": [], "xp": 0,
@@ -384,12 +391,12 @@ func _next_floor() -> void:
 		a.reset_physics_interpolation()
 		if a.health.is_dead and not _run_over:
 			a.revive(a.global_position)
-			a.health.set_current(a.health.max_health / 2, a.health.max_health)
+			a.health.set_current(maxi(int(a.health.max_health * FLOOR_REVIVE_HP), 1), a.health.max_health)
 		a.start_floor()
 	if (Net.active or not sim_allies.is_empty()) and _player.health.is_dead and not _run_over:
-		# no grupo, quem caiu volta de pé no andar novo (com metade da vida)
+		# no grupo, quem caiu volta de pé no andar novo (com 25% da vida)
 		_player.revive(_player.global_position)
-		_player.health.set_current(_player.health.max_health / 2, _player.health.max_health)
+		_player.health.set_current(maxi(int(_player.health.max_health * FLOOR_REVIVE_HP), 1), _player.health.max_health)
 	_player.start_floor()
 	_plan_rig_pool()
 	_show_loading()
@@ -1025,7 +1032,7 @@ func _on_player_died() -> void:
 		return
 	if Net.active and not _replicas.is_empty():
 		# no grupo: cai e espera um parceiro levantar (a run só acaba se todos caírem)
-		_hud.show_toast("Você caiu! Um parceiro pode te levantar (ficar perto de você por %d s)." % int(REVIVE_TIME), Color("ff6b6b"))
+		_hud.show_toast("Você caiu! Um parceiro pode te levantar (ficar perto de você por %d s; a Druida, %d s)." % [int(REVIVE_TIME), int(REVIVE_TIME_HEALER)], Color("ff6b6b"))
 		_send_hero_state()
 		return
 	_finish(false)
@@ -1096,6 +1103,46 @@ func _finish(victory: bool, camp := false) -> void:
 		lines.append("Subiu do nível %d para o %d!" % [_stats.level_start, level_now])
 	_hud.set_panel_chips(tags)
 	_hud.show_panel("Vitória!" if victory else ("De volta do acampamento" if camp else "Você caiu"), "\n".join(lines), "Voltar à base")
+
+
+## Heróis do grupo (HeroData): o meu, os dos outros jogadores e os aliados do simulador.
+func party_heroes() -> Array:
+	var out: Array = [_player.hero]
+	if Net.active:
+		for peer in Net.players:
+			if int(peer) != Net.my_id():
+				out.append(ItemDB.get_hero(StringName(Net.players[peer].get("hero_id", ""))))
+	for a in sim_allies:
+		if is_instance_valid(a):
+			out.append(a.hero)
+	return out.filter(func(h): return h != null)
+
+
+## Em grupo o escudo volta mais devagar (quem segura a vida do grupo é o healer).
+const SHIELD_REGEN_SOLO := 10
+const SHIELD_REGEN_GROUP := 4
+const SHIELD_DELAY_SOLO := 4.0
+const SHIELD_DELAY_GROUP := 6.0
+
+
+## Sinergia elemental: o bônus vale para todos do grupo (sozinho não liga nada).
+func _apply_synergy() -> void:
+	var heroes := party_heroes()
+	var group := heroes.size() > 1
+	for h in [_player] + _replicas.values() + sim_allies:
+		if is_instance_valid(h):
+			h.health.armor_regen_amount = SHIELD_REGEN_GROUP if group else SHIELD_REGEN_SOLO
+			h.health.armor_regen_delay = SHIELD_DELAY_GROUP if group else SHIELD_DELAY_SOLO
+	_player.set_synergy(heroes)
+	for peer in _replicas:
+		_replicas[peer].set_synergy(heroes)
+	for a in sim_allies:
+		if is_instance_valid(a):
+			a.set_synergy(heroes)
+	var list := Synergy.active(heroes)
+	_hud.set_synergies(list)
+	if not list.is_empty() and _hud.has_method("show_toast"):
+		_hud.show_toast("Sinergia: " + ", ".join(list.map(func(sy): return "%s ×%d" % [sy.name, int(sy.heroes)])), Color(list[0].color))
 
 
 # ---------- multijogador ----------
@@ -1198,6 +1245,15 @@ func _send_enemy_state() -> void:
 		Net.stream("net_enemies", [data])
 
 
+## Quanto tempo quem está levantando leva, e com quanto da vida o parceiro volta.
+static func revive_time(reviver: Player) -> float:
+	return REVIVE_TIME_HEALER if reviver.hero and reviver.hero.hero_class == GameEnums.HeroClass.DRUID else REVIVE_TIME
+
+
+static func revive_hp(reviver: Player) -> float:
+	return REVIVE_HP_HEALER if reviver.hero and reviver.hero.hero_class == GameEnums.HeroClass.DRUID else REVIVE_HP
+
+
 ## Levantar parceiro: ficar perto de quem caiu por alguns segundos.
 func _tick_revive(delta: float) -> void:
 	if _player.health.is_dead:
@@ -1211,11 +1267,12 @@ func _tick_revive(delta: float) -> void:
 		var before: float = _revive_t.get(peer, 0.0)
 		var now := before + delta
 		_revive_t[peer] = now
+		var need := revive_time(_player)
 		if int(before * 2.0) != int(now * 2.0):
-			Fx.float_text(self, r.global_position + Vector3(0, 1.6, 0), "levantando %d%%" % int(minf(now / REVIVE_TIME, 1.0) * 100), Color("6fdc7b"))
-		if now >= REVIVE_TIME:
+			Fx.float_text(self, r.global_position + Vector3(0, 1.6, 0), "levantando %d%%" % int(minf(now / need, 1.0) * 100), Color("6fdc7b"))
+		if now >= need:
 			_revive_t.erase(peer)
-			Net.send_to(peer, "net_revive", [])
+			Net.send_to(peer, "net_revive", [revive_hp(_player)])
 
 
 func _on_net_disconnected(reason: String) -> void:
@@ -1278,11 +1335,11 @@ func net_heal(_sender: int, amount: int) -> void:
 	_player.receive_heal(amount)
 
 
-func net_revive(_sender: int) -> void:
+func net_revive(_sender: int, frac: float = REVIVE_HP) -> void:
 	if not _player.health.is_dead:
 		return
 	_player.revive(_player.global_position)
-	_player.health.set_current(_player.health.max_health / 2, _player.health.max_health)
+	_player.health.set_current(maxi(int(_player.health.max_health * clampf(frac, 0.05, 1.0)), 1), _player.health.max_health)
 	Vfx.heal(_player, true)
 	_hud.show_toast("Um parceiro te levantou!", Color("6fdc7b"))
 	_send_hero_state()

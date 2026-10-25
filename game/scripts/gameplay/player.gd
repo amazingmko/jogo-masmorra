@@ -157,6 +157,7 @@ func set_hero(new_hero: HeroData) -> void:
 		return
 	hero = new_hero
 	hero_id = new_hero.id
+	threat_radius = TANK_THREAT_RADIUS if new_hero.hero_class == GameEnums.HeroClass.TANK else 0.0
 	form = Form.ONCA if is_shapeshifter() else Form.NONE
 	refresh_stats(true)
 	_base_color = CLASS_COLORS.get(new_hero.hero_class, Color.WHITE)
@@ -179,6 +180,20 @@ func apply_buff(buff: BuffData) -> void:
 	refresh_stats()
 
 
+## Sinergia elemental do grupo (Synergy): fica fora das bênçãos da run (não some com elas).
+var synergy_buffs: Array = []
+var synergy_reduction := 0.0
+## Provocação natural do tanque: bichos a até esta distância preferem atacar este herói.
+var threat_radius := 0.0
+const TANK_THREAT_RADIUS := 6.0
+
+
+func set_synergy(heroes: Array) -> void:
+	synergy_buffs = Synergy.buffs(heroes)
+	synergy_reduction = Synergy.reduction(heroes)
+	refresh_stats()
+
+
 func clear_buffs() -> void:
 	buffs.clear()
 	refresh_stats()
@@ -189,17 +204,17 @@ func refresh_stats(full_heal: bool = false) -> void:
 	if hero == null:
 		return
 	if profile.is_empty():
-		stats = GameState.stats_for(hero_id, buffs)
+		stats = GameState.stats_for(hero_id, buffs + synergy_buffs)
 	else:
 		var eq := {}
 		var src: Dictionary = profile.get("equipped", {})
 		for k in src:
 			eq[int(k)] = src[k]
-		stats = HeroStats.compute(hero, int(profile.get("level", 1)), eq, ItemDB.catalog, buffs, profile.get("talents", {}))
+		stats = HeroStats.compute(hero, int(profile.get("level", 1)), eq, ItemDB.catalog, buffs + synergy_buffs, profile.get("talents", {}))
 	weapon_stats = kit.modify_weapon(stats.weapon) if kit else stats.weapon
 	move_speed = stats.move_speed
 	crit_chance = stats.crit_chance
-	health.damage_reduction = stats.damage_reduction
+	health.damage_reduction = clampf(stats.damage_reduction + synergy_reduction, 0.0, 0.8)
 	health.block_chance = stats.block_chance
 	if form != Form.NONE:
 		_apply_form_stats()

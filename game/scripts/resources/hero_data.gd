@@ -7,6 +7,8 @@ extends Resource
 @export_multiline var description: String = ""
 @export var hero_class: GameEnums.HeroClass = GameEnums.HeroClass.TANK
 @export var element: GameEnums.Element = GameEnums.Element.NEUTRAL
+## Estilos elementais do herói para as sinergias de grupo (Synergy). Vazio = só o `element`.
+@export var styles: Array[int] = []
 ## Atributo principal; define o tipo de armadura (força = placa, agilidade = couro, inteligência = tecido).
 @export var primary_stat: GameEnums.PrimaryStat = GameEnums.PrimaryStat.STRENGTH
 ## Tipo de arma que a classe usa (igual ao weapon_type das armas).
@@ -31,6 +33,15 @@ extends Resource
 
 @export_group("Equipamento inicial")
 @export var starting_weapon_id: StringName
+
+
+## Estilos elementais que contam na sinergia (sem o Neutro).
+func elemental_styles() -> Array[int]:
+	var out: Array[int] = []
+	for e in (styles if not styles.is_empty() else [int(element)]):
+		if int(e) != GameEnums.Element.NEUTRAL and not out.has(int(e)):
+			out.append(int(e))
+	return out
 
 
 func armor_type() -> GameEnums.ArmorType:

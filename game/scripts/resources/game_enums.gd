@@ -3,7 +3,8 @@ class_name GameEnums
 
 enum HeroClass { TANK, RANGER, MAGE, DRUID }
 
-enum Element { NEUTRAL, FIRE, WATER, NATURE }
+## TERRA entra no fim (não muda os números já salvos); por enquanto só conta para as sinergias.
+enum Element { NEUTRAL, FIRE, WATER, NATURE, EARTH }
 
 enum Rarity { COMMON, RARE, EPIC, LEGENDARY }
 
