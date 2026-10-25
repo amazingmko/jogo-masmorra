@@ -8,8 +8,8 @@ id = &"calca_tecido_comum"
 display_name = "Calça de Tecido (Comum)"
 result_item_id = &"calca_tecido"
 ingredients = {
-"fibra_tucum": 13,
-"latex_seringueira": 7
+"fibra_tucum": 8,
+"latex_seringueira": 4
 }
 profession_id = &"tecela"
 required_level = 1

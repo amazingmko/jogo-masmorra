@@ -42,6 +42,12 @@ var _dodges := 0
 var _stuck := {}
 var _last := {}
 var _detour := {}
+## Robô "humano": vê o aviso com atraso (REACT_FRAMES) e só desvia de uma parte deles (_dodge_rate);
+## nos outros fica batendo. dodge=1 volta ao robô perfeito.
+const REACT_FRAMES := 18
+var _dodge_rate := 0.7
+var _seen := {}  # "id_robô:id_aviso" -> [frame em que viu, vai desviar?]
+var _drng := RandomNumberGenerator.new()
 
 
 func _initialize() -> void:
@@ -55,6 +61,8 @@ func _initialize() -> void:
 			"diff": _diff = int(kv[1])
 			"level": _level = int(kv[1])
 			"seed": _seed = int(kv[1])
+			"dodge": _dodge_rate = float(kv[1])
+	_drng.seed = _seed * 7919
 
 
 func _profile(hero_id: String) -> Dictionary:
@@ -65,9 +73,11 @@ func _profile(hero_id: String) -> Dictionary:
 	if _gear != "sem":
 		var rng := RandomNumberGenerator.new()
 		rng.seed = hash(hero_id) + _seed
-		var names: Array = ARMOR[int(hero.armor_type())].duplicate()
-		names.append_array(WEAPONS[hero_id])
-		var rarity: int = {"comum": 0, "rara": 1, "epica": 2}.get(_gear, 0)
+		var names: Array = WEAPONS[hero_id].duplicate()
+		names.append_array(ARMOR[int(hero.armor_type())])
+		if _gear.begins_with("comum") and _gear.length() > 5:  # comum2 = só as 2 primeiras peças
+			names = names.slice(0, int(_gear.substr(5)))
+		var rarity: int = {"rara": 1, "epica": 2}.get(_gear, 0)
 		for n in names:
 			var tpl = db.get_item(StringName(n))
 			if tpl == null:
@@ -137,6 +147,7 @@ func _process(_delta: float) -> bool:
 			p.touch_move = mv
 		_use_powers(p)
 	if _main._run_over or _frames > MAX_SECONDS * 60:
+		_heal_report()
 		_report()
 	return false
 
@@ -156,6 +167,9 @@ func _setup() -> void:
 		_heroes.append(a)
 		a.health.died.connect(_on_ally_died.bind(a))
 	_main.sim_allies = _heroes.slice(1)
+	for h in _heroes:
+		h.health.healed.connect(_on_healed.bind(h))
+		h.health.damaged.connect(func(a: int) -> void: _taken[String(h.hero_id)] = int(_taken.get(String(h.hero_id), 0)) + a)
 	main_p.health.died.connect(func() -> void: _deaths[String(main_p.hero_id)] = int(_deaths.get(String(main_p.hero_id), 0)) + 1)
 	_main.new_run(_seed)
 	Input.action_press("attack")
@@ -237,6 +251,11 @@ func _choose(p, i: int) -> Vector3:
 	var danger: Node = null
 	for t in get_nodes_in_group("telegraphs"):
 		if t.is_pending() and t.contains(pos):
+			var key := "%d:%d" % [p.get_instance_id(), t.get_instance_id()]
+			if not _seen.has(key):
+				_seen[key] = [_frames, _drng.randf() < _dodge_rate]
+			if not _seen[key][1] or _frames - int(_seen[key][0]) < REACT_FRAMES:
+				continue
 			if danger == null or t.shape == 3 or t.time_left() < danger.time_left():
 				danger = t
 	if danger:
@@ -307,6 +326,19 @@ func _nearest(pos: Vector3, nodes: Array) -> Node3D:
 	return best
 
 
+var _taken := {}  # herói -> dano recebido (escudo + vida)
+var _healed := {}  # herói -> vida curada de verdade (sem contar o que passou do máximo)
+
+
+func _on_healed(amount: int, h) -> void:
+	var id := String(h.hero_id)
+	_healed[id] = int(_healed.get(id, 0)) + mini(amount, h.health.max_health - h.health.health)
+
+
+func _heal_report() -> void:
+	pass
+
+
 func _report() -> void:
 	Input.action_release("attack")
 	var hud = _main.get_node("HUD")
@@ -326,6 +358,7 @@ func _report() -> void:
 		"elites": int(_main._stats.get("elites", 0)), "gold": int(_main._stats.get("gold", 0)),
 		"xp": int(_main._stats.get("xp", 0)), "deaths": _deaths, "lowest_hp": _lowest_hp,
 		"skills": _skills, "ults": _ults, "floor_times": _floor_times, "loot": loot,
+		"healed": _healed, "taken": _taken, "dodge": _dodge_rate,
 	}
 	print("RESULTADO_JSON ", JSON.stringify(out))
 	quit(0)

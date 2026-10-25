@@ -8,8 +8,8 @@ id = &"grevas_placa_comum"
 display_name = "Grevas de Placa (Comum)"
 result_item_id = &"grevas_placa"
 ingredients = {
-"madeira_lei": 7,
-"minerio_ferro": 13
+"madeira_lei": 4,
+"minerio_ferro": 8
 }
 profession_id = &"ferreiro"
 required_level = 1

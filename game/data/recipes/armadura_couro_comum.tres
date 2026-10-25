@@ -8,8 +8,8 @@ id = &"armadura_couro_comum"
 display_name = "Gibão de Couro (Comum)"
 result_item_id = &"armadura_couro"
 ingredients = {
-"couro_jacare": 14,
-"latex_seringueira": 8
+"couro_jacare": 8,
+"latex_seringueira": 5
 }
 profession_id = &"curtidor"
 required_level = 1

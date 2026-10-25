@@ -216,6 +216,17 @@ func _on_progress_changed(changed_hero: StringName) -> void:
 		refresh_stats()
 
 
+## Cura vinda de um aliado (Druida). No multijogador, a vida de cada herói é do aparelho dele:
+## a cópia manda a cura pela rede.
+func receive_heal(amount: int) -> void:
+	if health.is_dead or amount <= 0:
+		return
+	if remote_peer != 0:
+		NetState.send_to(remote_peer, "net_heal", [amount])
+		return
+	health.heal(amount)
+
+
 func revive(at: Vector3) -> void:
 	global_position = at
 	reset_physics_interpolation()

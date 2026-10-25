@@ -11,11 +11,14 @@ extends Node3D
 ## PC: WASD anda · Espaço ataca · R nova run · G salva
 
 const FLOORS := 10
-const ROOMS_PER_FLOOR := [5, 6, 6, 7, 6, 7, 7, 8, 8, 8]
+const ROOMS_PER_FLOOR := [4, 4, 5, 5, 5, 5, 6, 6, 6, 6]
 const BOSS_ID := &"mapinguari"
 ## Mini-chefe no meio do mundo, e o acampamento depois dele.
 const MINIBOSS_FLOOR := 5
 const MINIBOSS_ID := &"onca_alfa"
+const MINIBOSS_NORMAL := 0.75
+## Até a 1ª vitória no Normal, as runs rendem o dobro de reagentes (o jogador novo fabrica logo).
+const FIRST_CLEAR_REWARD := 2.0
 ## A noite cai no Acampamento: a 2ª metade do mundo é de noite (mais perigosa, rende mais).
 const NIGHTFALL_SECONDS := 4.0
 const NIGHT_REWARD := 1.3
@@ -49,10 +52,11 @@ const DEN_CHANCE_PER_DIFFICULTY := 0.02
 const DEN_WAVES := 2
 
 ## Multijogador: quanto os inimigos crescem por número de jogadores (índice = jogadores).
-const MP_HEALTH := [1.0, 1.0, 1.7, 2.4, 3.1]
-const MP_DAMAGE := [1.0, 1.0, 1.15, 1.25, 1.35]
+const MP_HEALTH := [1.0, 1.0, 2.3, 3.6, 4.8]
+## Em grupo os bichos batem bem mais forte: sem quem cure ou proteja, a equipe não aguenta.
+const MP_DAMAGE := [1.0, 1.0, 3.2, 4.6, 5.4]
 const MP_WAVE := [1.0, 1.0, 1.4, 1.75, 2.1]
-const MP_ELITE := [0.0, 0.0, 0.10, 0.15, 0.20]
+const MP_ELITE := [0.0, 0.0, 0.12, 0.18, 0.24]
 const MP_BOSS_PER_EXTRA := 0.9
 const NET_HERO_HZ := 20.0
 const NET_ENEMY_HZ := 15.0
@@ -763,6 +767,8 @@ func _spawn(enemy_id: StringName, room: DungeonRoom, at: Vector3 = Vector3.INF, 
 	var level := 0 if data.is_boss else floor_number - 1
 	var n := party_size()
 	var mp_hp: float = (1.0 + MP_BOSS_PER_EXTRA * (n - 1)) if data.is_boss else MP_HEALTH[n]
+	if data.id == MINIBOSS_ID and difficulty == 0:
+		mp_hp *= MINIBOSS_NORMAL  # Onça Alfa mais branda no Normal (o 1º muro do jogador novo)
 	var enemy := Enemy.create(data, (1.0 + HEALTH_PER_FLOOR * level) * Difficulty.HEALTH_MULT[difficulty] * mp_hp * extra_hp,
 		(1.0 + DAMAGE_PER_FLOOR * level) * Difficulty.DAMAGE_MULT[difficulty] * MP_DAMAGE[n] * extra_dmg)
 	enemy.is_summon = summoned
@@ -933,7 +939,8 @@ func on_loot_collected(item: ItemData, qty: int, instance: Dictionary = {}) -> v
 func _loot_context(profile: String) -> Dictionary:
 	var ilvl := clampi(floor_number - _rng.randi_range(0, 1), 1, 10)
 	return {"ilvl": ilvl, "profile": profile, "hero": _player.hero, "difficulty": difficulty,
-		"reward_mult": Difficulty.REWARD_MULT[difficulty] * (NIGHT_REWARD if night and night.is_night else 1.0),
+		"reward_mult": Difficulty.REWARD_MULT[difficulty] * (NIGHT_REWARD if night and night.is_night else 1.0)
+			* (FIRST_CLEAR_REWARD if difficulty == 0 and GameState.highest_cleared < 0 else 1.0),
 		"full_rewards": full_rewards, "night": night != null and night.is_night}
 
 
@@ -1265,6 +1272,10 @@ func net_teleport(_sender: int, at: Vector3) -> void:
 	_player.global_position = at
 	_player.velocity = Vector3.ZERO
 	_player.reset_physics_interpolation()
+
+
+func net_heal(_sender: int, amount: int) -> void:
+	_player.receive_heal(amount)
 
 
 func net_revive(_sender: int) -> void:

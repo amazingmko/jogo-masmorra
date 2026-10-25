@@ -8,8 +8,8 @@ id = &"botas_placa_comum"
 display_name = "Botas de Placa (Comum)"
 result_item_id = &"botas_placa"
 ingredients = {
-"madeira_lei": 5,
-"minerio_ferro": 8
+"madeira_lei": 3,
+"minerio_ferro": 5
 }
 profession_id = &"ferreiro"
 required_level = 1

@@ -8,8 +8,8 @@ id = &"elmo_placa_comum"
 display_name = "Elmo de Placa (Comum)"
 result_item_id = &"elmo_placa"
 ingredients = {
-"madeira_lei": 6,
-"minerio_ferro": 11
+"madeira_lei": 4,
+"minerio_ferro": 7
 }
 profession_id = &"ferreiro"
 required_level = 1

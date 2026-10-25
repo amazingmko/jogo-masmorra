@@ -16,7 +16,7 @@ const COLOR := Color("6fdc7b")
 const SEED_LIFE := 8.0
 const MAX_SEEDS := 6
 const BLOOM_COOLDOWN := 8.0
-const FLOWER_HEAL := 0.03          # cada flor perto da Druida cura 3% da vida máxima
+const FLOWER_HEAL := 0.04          # cada flor cura 4% da vida máxima de cada herói perto dela
 const FLOWER_HEAL_RANGE := 4.0
 const FLOWER_RADIUS := 2.2         # inimigos a até 2,2 m da flor levam o golpe dela
 const FLOWER_DAMAGE := 0.5         # 50% do dano da arma
@@ -34,6 +34,12 @@ const ECO_TIME := 4.0
 const WEAKEN_TIME := 4.0
 const DROWSY_WINDOW := 4.0
 const CARNIVORE_RADIUS := 1.3
+## Cuidado da Mata (passiva de healer): a cada 2 s em luta, o herói mais ferido a até 10 m
+## (ela mesma ou um aliado) recebe 5% da vida máxima dele.
+const CARE_EVERY := 2.0
+const CARE_HEAL := 0.05
+const CARE_RANGE := 10.0
+const PARTY_RANGE := 8.0           # curas "em volta da Druida" alcançam aliados até aqui
 
 var _seeds: Array = []
 var _walked := 0.0
@@ -44,6 +50,35 @@ var _boto: BotoForm
 var _drowsy := {}      # id do inimigo -> [sementes, tempo desde a primeira]
 var _heal_acc := 0.0
 var _heal_fx_at := 0
+var _care_t := 0.0
+var _seed_heal := {}
+
+
+## Heróis de pé (ela e os aliados; protegidos das Provações não) a até `radius` de `center`.
+func party_near(center: Vector3, radius: float) -> Array:
+	var out: Array = []
+	if player.remote_peer != 0:
+		return out  # cópia de outro jogador: quem cura é o aparelho dela (manda pela rede)
+	for h in player.get_tree().get_nodes_in_group("heroes"):
+		if h.is_in_group("wards") or h.health.is_dead:
+			continue
+		if (h as Node3D).global_position.distance_to(center) <= radius:
+			out.append(h)
+	return out
+
+
+## Cura a fração da vida máxima de cada herói perto (aliados mostram o número da cura).
+func heal_party(frac: float, center: Vector3, radius: float) -> int:
+	var total := 0
+	for h in party_near(center, radius):
+		var amount := maxi(int(round(h.health.max_health * frac)), 1)
+		if h == player:
+			player.health.heal(amount)
+		else:
+			h.receive_heal(amount)
+			Fx.float_text(player.get_parent(), (h as Node3D).global_position + Vector3(0, 2.4, 0), "+%d" % amount, Color("6fdc7b"))
+		total += amount
+	return total
 
 
 func skill_name() -> String:
@@ -65,9 +100,10 @@ func ultimate_name() -> String:
 func describe() -> PackedStringArray:
 	return PackedStringArray([
 		"Semente (ataque): onde a semente cai, nasce uma muda (dura %d s, no máximo %d)." % [SEED_LIFE, max_seeds()],
-		"Florescer (habilidade, %d s): todas as mudas abrem em flor: cada flor perto de você cura %d%% da vida e machuca os inimigos em volta dela." % [BLOOM_COOLDOWN, int(FLOWER_HEAL * 100)],
+		"Florescer (habilidade, %d s): todas as mudas abrem em flor: cada flor cura %d%% da vida de quem estiver perto dela (você e o grupo) e machuca os inimigos em volta." % [BLOOM_COOLDOWN, int(FLOWER_HEAL * 100)],
+		"Cuidado da Mata (passiva): em luta, a cada %d s o herói mais ferido a até %d m (você ou um aliado) recupera %d%% da vida." % [int(CARE_EVERY), int(CARE_RANGE), int(CARE_HEAL * 100)],
 		"Rastro de Seiva (passiva): andando em luta, planta uma muda atrás de você a cada %d m." % int(trail_step()),
-		"Despertar do Boto (ultimate, %d s): vira o Boto numa bolha de água, mais rápida e imune a lentidão e raízes; o Canto atravessa os inimigos e cura a cada acerto. No fim, toda muda floresce." % BOTO_TIME,
+		"Despertar do Boto (ultimate, %d s): vira o Boto numa bolha de água, mais rápida e imune a lentidão e raízes; o Canto atravessa os inimigos e cura o grupo a cada acerto. No fim, toda muda floresce." % BOTO_TIME,
 	])
 
 
@@ -138,12 +174,16 @@ func _plant(at: Vector3) -> void:
 
 ## A cada quadro, por muda: Muda Viva (cura por perto) e Muda Carnívora (morde quem passa).
 func on_seed_tick(s: DruidSeed, delta: float) -> void:
-	var d := s.global_position.distance_to(player.global_position)
-	if t("muda_viva") > 0 and d <= FLOWER_HEAL_RANGE:
-		_heal_acc += player.health.max_health * tv("muda_viva") / 100.0 * delta
-		if _heal_acc >= 1.0:
-			player.health.heal(int(_heal_acc))
-			_heal_acc -= int(_heal_acc)
+	if t("muda_viva") > 0:
+		for h in party_near(s.global_position, FLOWER_HEAL_RANGE):
+			var acc: float = float(_seed_heal.get(h, 0.0)) + h.health.max_health * tv("muda_viva") / 100.0 * delta
+			if acc >= 1.0:
+				if h == player:
+					player.health.heal(int(acc))
+				else:
+					h.receive_heal(int(acc))
+				acc -= int(acc)
+			_seed_heal[h] = acc
 	if t("muda_carnivora") > 0:
 		s._bite_acc += delta
 		if s._bite_acc >= 1.0:
@@ -186,8 +226,11 @@ func bloom_all(from_skill: bool) -> int:
 		if not is_instance_valid(s):
 			continue
 		var at: Vector3 = s.global_position
-		if at.distance_to(player.global_position) <= FLOWER_HEAL_RANGE:
-			healed += int(round(player.health.max_health * heal_each))
+		for h in party_near(at, FLOWER_HEAL_RANGE):
+			if h == player:
+				healed += int(round(player.health.max_health * heal_each))
+			else:
+				h.receive_heal(int(round(h.health.max_health * heal_each)))
 		for enemy in player.get_tree().get_nodes_in_group("enemies"):
 			if enemy.health.is_dead or enemy.global_position.distance_to(at) > FLOWER_RADIUS:
 				continue
@@ -222,10 +265,35 @@ func _process(delta: float) -> void:
 		if _drowsy[id][1] > DROWSY_WINDOW:
 			_drowsy.erase(id)
 	_trail()
+	_care(delta)
 	if _boto_left > 0.0:
 		_boto_left -= delta
 		if _boto_left <= 0.0:
 			_end_boto()
+
+
+## Cuidado da Mata: em luta, cura o herói mais ferido por perto a cada 2 s.
+func _care(delta: float) -> void:
+	_care_t -= delta
+	if _care_t > 0.0 or not _in_combat():
+		return
+	_care_t = CARE_EVERY
+	var worst: Node = null
+	var worst_f := 0.999
+	for h in party_near(player.global_position, CARE_RANGE):
+		var f := float(h.health.health) / float(maxi(h.health.max_health, 1))
+		if f < worst_f:
+			worst_f = f
+			worst = h
+	if worst == null:
+		return
+	var amount := maxi(int(round(worst.health.max_health * CARE_HEAL)), 1)
+	if worst == player:
+		player.health.heal(amount)
+	else:
+		worst.receive_heal(amount)
+	Fx.float_text(player.get_parent(), (worst as Node3D).global_position + Vector3(0, 2.4, 0), "+%d" % amount, Color("6fdc7b"))
+	Vfx.heal(worst)
 
 
 ## Rastro de Seiva: conta os metros andados (fora do Boto) e planta uma muda atrás dela.
@@ -264,7 +332,7 @@ func _use_ultimate() -> void:
 	player.refresh_stats()
 	Fx.float_text(player.get_parent(), player.global_position + Vector3(0, 3.0, 0), "DESPERTAR DO BOTO!", Color("f29ccb"))
 	if t("orvalho") > 0:
-		player.health.heal(int(round(player.health.max_health * tv("orvalho") / 100.0)))
+		heal_party(tv("orvalho") / 100.0, player.global_position, PARTY_RANGE)
 	if t("festa_boto") > 0:
 		var any := false
 		for enemy in player.get_tree().get_nodes_in_group("enemies"):
@@ -328,7 +396,7 @@ func _make_canto(p: Projectile) -> void:
 
 
 func _on_canto_hit(enemy: Node3D, _p: Projectile) -> void:
-	player.health.heal(maxi(int(round(player.health.max_health * CANTO_HEAL * (1.0 + tv("canto_doce") / 100.0))), 1))
+	heal_party(CANTO_HEAL * (1.0 + tv("canto_doce") / 100.0), player.global_position, PARTY_RANGE)
 	var now := Time.get_ticks_msec()
 	if now - _heal_fx_at > 400:  # um brilho de cura por vez (o Canto pega vários de uma vez)
 		_heal_fx_at = now
@@ -373,7 +441,7 @@ func on_kill(elite: bool) -> void:
 	if last == null or not is_instance_valid(last):
 		return
 	if last.get("_marks") is Dictionary and last._marks.has("eco"):
-		player.health.heal(int(round(player.health.max_health * tv("coracao_rio") / 100.0)))
+		heal_party(tv("coracao_rio") / 100.0, player.global_position, PARTY_RANGE)
 		add_charge(10.0)
 		Fx.float_text(player.get_parent(), player.global_position + Vector3(0, 2.6, 0), "CORAÇÃO DO RIO", Color("f29ccb"))
 

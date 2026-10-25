@@ -8,8 +8,8 @@ id = &"peitoral_placa_comum"
 display_name = "Peitoral de Placa (Comum)"
 result_item_id = &"peitoral_placa"
 ingredients = {
-"madeira_lei": 8,
-"minerio_ferro": 14
+"madeira_lei": 5,
+"minerio_ferro": 8
 }
 profession_id = &"ferreiro"
 required_level = 1

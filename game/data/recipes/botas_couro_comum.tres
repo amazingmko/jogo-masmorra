@@ -8,8 +8,8 @@ id = &"botas_couro_comum"
 display_name = "Botas de Couro (Comum)"
 result_item_id = &"botas_couro"
 ingredients = {
-"couro_jacare": 8,
-"latex_seringueira": 5
+"couro_jacare": 5,
+"latex_seringueira": 3
 }
 profession_id = &"curtidor"
 required_level = 1

@@ -299,7 +299,7 @@ func _test_druida() -> void:
 	var hp: int = e.health.health
 	_kit.bloom_all(false)
 	var heal: int = _player.health.health - 100
-	check(heal == int(round(_player.health.max_health * 0.03 * 1.45)), "Seiva Forte: a flor cura 4,35%% (%d)" % heal)
+	check(heal == int(round(_player.health.max_health * 0.04 * 1.45)), "Seiva Forte: a flor cura 5,8%% (%d)" % heal)
 	var expect := int(round(int(round(_player.weapon_stats.damage * 0.5 * 1.5)) * 1.3))
 	check(hp - e.health.health >= expect, "Raiz Afiada + Espinho: a flor bateu %d (>= %d)" % [hp - e.health.health, expect])
 	check(e.is_weakened() and is_equal_approx(e.damage_multiplier, 0.7), "Espinho de Tucumã: inimigo bate 30% mais fraco")

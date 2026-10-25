@@ -8,8 +8,8 @@ id = &"cajado_aprendiz_comum"
 display_name = "Cajado de Aprendiz (Comum)"
 result_item_id = &"cajado_aprendiz"
 ingredients = {
-"fibra_tucum": 10,
-"madeira_lei": 17
+"fibra_tucum": 6,
+"madeira_lei": 10
 }
 profession_id = &"tecela"
 required_level = 1

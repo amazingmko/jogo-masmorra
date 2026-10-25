@@ -36,6 +36,10 @@ static func sync_factor(rarity: int) -> float:
 	return float(GameEnums.RARITY_POWER[rarity_cap]) / float(GameEnums.RARITY_POWER[clampi(rarity, 0, 3)])
 
 
+const LEVEL_BONUS := 0.06
+const LEVEL_BONUS_LATE := 0.03
+
+
 static func compute(hero: HeroData, level: int, equipped: Dictionary, catalog: ItemCatalog, buffs: Array = [], talents: Dictionary = {}) -> HeroStats:
 	var s := HeroStats.new()
 	var primary_key: String = GameEnums.PRIMARY_KEYS[hero.primary_stat]
@@ -59,8 +63,10 @@ static func compute(hero: HeroData, level: int, equipped: Dictionary, catalog: I
 	if not weapon_inst.is_empty():
 		s.weapon.damage = int(round(int(weapon_inst.stats.get("damage", s.weapon.damage)) * sync_factor(int(weapon_inst.get("rarity", 0)))))
 
-	var base_health := float(hero.max_health + s.vigor * 10)
-	var base_damage := float(s.weapon.damage) * (1.0 + s.primary / 100.0)
+	# nível que se sente: +6% de vida e dano por nível até o 10, +3% depois
+	var lvl_mult := 1.0 + LEVEL_BONUS * mini(lvl_bonus, 9) + LEVEL_BONUS_LATE * maxi(lvl_bonus - 9, 0)
+	var base_health := float(hero.max_health + s.vigor * 10) * lvl_mult
+	var base_damage := float(s.weapon.damage) * (1.0 + s.primary / 100.0) * lvl_mult
 	var base_crit := hero.crit_chance + float(sum.get("crit", 0)) / 100.0
 	s.haste = float(sum.get("haste", 0))
 	s.luck = float(sum.get("luck", 0))

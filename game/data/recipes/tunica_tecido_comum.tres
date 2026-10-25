@@ -8,8 +8,8 @@ id = &"tunica_tecido_comum"
 display_name = "Túnica de Tecido (Comum)"
 result_item_id = &"tunica_tecido"
 ingredients = {
-"fibra_tucum": 14,
-"latex_seringueira": 8
+"fibra_tucum": 8,
+"latex_seringueira": 5
 }
 profession_id = &"tecela"
 required_level = 1

@@ -8,8 +8,8 @@ id = &"escudo_casco_comum"
 display_name = "Escudo de Casco (Comum)"
 result_item_id = &"escudo_casco"
 ingredients = {
-"couro_jacare": 8,
-"madeira_lei": 14
+"couro_jacare": 5,
+"madeira_lei": 8
 }
 profession_id = &"ferreiro"
 required_level = 1

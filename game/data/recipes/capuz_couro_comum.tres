@@ -8,8 +8,8 @@ id = &"capuz_couro_comum"
 display_name = "Capuz de Couro (Comum)"
 result_item_id = &"capuz_couro"
 ingredients = {
-"couro_jacare": 11,
-"latex_seringueira": 6
+"couro_jacare": 7,
+"latex_seringueira": 4
 }
 profession_id = &"curtidor"
 required_level = 1

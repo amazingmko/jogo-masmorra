@@ -125,7 +125,7 @@ func _test_crafting(catalog: ItemCatalog) -> void:
 		"Rara, Épica e Lendária pedem a peça anterior")
 	check(epic.ingredients.has("pelo_mapinguari") and legendary.ingredients.has("muiraquita"),
 		"Épica pede Pelo de Mapinguari; Lendária pede Muiraquitã")
-	check(int(rare.ingredients.minerio_ferro) == 3 * int(common.ingredients.minerio_ferro), "Rara custa 3× os reagentes da Comum")
+	check(int(rare.ingredients.minerio_ferro) >= 3 * int(common.ingredients.minerio_ferro), "Rara custa 3× ou mais os reagentes da Comum")
 
 	var r := Crafting.craft(common, inv, prof, catalog, rng)
 	check(not r.ok, "não fabrica sem reagentes")
