@@ -101,7 +101,7 @@ const TREES := {
 			{"id": "encharcar_profundo", "name": "Encharcar Profundo", "row": 1, "max": 2, "per": 2, "desc": "Encharcado dura +{v} s"},
 			{"id": "chao_escorregadio", "name": "Chão Escorregadio", "row": 2, "max": 2, "per": 8, "desc": "Encharcados erram {v}% dos ataques"},
 			{"id": "mare_cheia", "name": "Maré Cheia", "row": 2, "max": 1, "per": 15, "desc": "Cada inimigo que a Pororoca joga na parede devolve {v}% da carga da ultimate"},
-			{"id": "boiuna", "name": "Boiuna", "row": 3, "max": 1, "per": 6, "desc": "A Pororoca vira a Cobra-Grande: circula em volta de você por {v} s acertando quem chega perto e no fim avança como onda"},
+			{"id": "encontro_aguas", "name": "Encontro das Águas", "row": 3, "max": 1, "per": 1.5, "desc": "A Pororoca vira duas ondas, Rio Negro e Solimões, que se chocam à sua frente: o redemoinho puxa os inimigos para o meio, atordoa por {v} s e causa dano alto (o dobro em encharcados)"},
 		]},
 	],
 	&"druida": [
@@ -229,13 +229,18 @@ static func describe(t: Dictionary, current_rank: int) -> String:
 
 ## Tira pontos de talentos que não existem mais e os que passaram do máximo; a especialização que
 ## gastou mais pontos do que o nível dá começa de novo (as outras ficam).
+## Talentos trocados (save antigo: o ponto vai para o novo).
+const RENAMED := {"boiuna": "encontro_aguas"}
+
+
 static func sanitize(talents: Dictionary, hero_id: StringName, level: int) -> Dictionary:
 	var out := {}
-	for k in talents:
-		var t := find(hero_id, String(k))
+	for k0 in talents:
+		var k: String = RENAMED.get(String(k0), String(k0))
+		var t := find(hero_id, k)
 		if t.is_empty():
 			continue
-		var r := clampi(int(talents[k]), 0, int(t.max))
+		var r := clampi(int(talents[k0]), 0, int(t.max))
 		if r > 0:
 			out[String(k)] = r
 	for b in branches(hero_id):

@@ -12,7 +12,7 @@ var T = load("res://game/scripts/systems/talents.gd")
 var PROJ
 var WC
 var POR
-var BOI
+var ENC
 const ROOT := 2  # ROOT
 
 
@@ -86,7 +86,7 @@ func _run() -> void:
 	PROJ = load("res://game/scripts/gameplay/projectile.gd")
 	WC = load("res://game/scripts/gameplay/kits/water_clone.gd")
 	POR = load("res://game/scripts/gameplay/kits/pororoca.gd")
-	BOI = load("res://game/scripts/gameplay/kits/boiuna.gd")
+	ENC = load("res://game/scripts/gameplay/kits/encontro_aguas.gd")
 	_gs = root.get_node("GameState")
 	_gs.debug_all_specs = true  # testa efeitos de ramos diferentes juntos
 	_gs.debug_talent_points = 0
@@ -104,7 +104,7 @@ func _test_encantado() -> void:
 	await _start(&"encantado")
 	var base_dmg: int = _player.weapon_stats.damage
 	var base_speed: float = _player.weapon_stats.attack_speed
-	_set_talents(&"encantado", _all(&"encantado", ["boiuna"]))
+	_set_talents(&"encantado", _all(&"encantado", ["encontro_aguas"]))
 	check(_player.weapon_stats.damage == int(round(base_dmg * 1.12)), "Água Funda: +12%% de dano (%d -> %d)" % [base_dmg, _player.weapon_stats.damage])
 	check(is_equal_approx(_player.weapon_stats.attack_speed, base_speed * 1.12), "Gota Ligeira: dispara 12% mais rápido")
 
@@ -211,7 +211,7 @@ func _test_encantado() -> void:
 		await _frames(2)
 		check(foe.health.health < foe_hp and foe.miss_chance() >= 0.3, "Iara faz a cópia explodir; Espuma: quem pegou erra 30%")
 
-	# Pororoca com talentos (sem Boiuna).
+	# Pororoca com talentos (sem o Encontro das Águas).
 	_clear()
 	await _frames(2)
 	var room = _main.builder.rooms[_main.layout.start_index]
@@ -237,21 +237,33 @@ func _test_encantado() -> void:
 		await _frames(30)
 	check(came_back or get_nodes_in_group("floor_effects").any(func(n): return n.get_script() == POR and n.returning), "Ressaca: a onda voltou")
 
-	# Boiuna.
+	# Encontro das Águas: duas ondas (Rio Negro e Solimões) que se chocam e viram redemoinho.
 	_clear()
 	await _frames(2)
 	_set_talents(&"encantado", _all(&"encantado"))
-	check(_kit.ultimate_name() == "Boiuna", "Boiuna troca o nome da ultimate")
-	var bitten = _dummy(Vector3(3.0, 0, 0))
-	_hold(bitten)
-	var bhp: int = bitten.health.health
+	check(_kit.ultimate_name() == "Encontro", "Encontro das Águas troca o nome da ultimate")
+	var center: Vector3 = room.center()
+	_player.global_position = center - Vector3(0, 0, -3.0) + Vector3(0, 0.1, 0)
+	_player._facing = Vector3(0, 0, -1)
+	await _frames(2)
+	var meet: Vector3 = _player.global_position + Vector3(0, 0, -7.0)
+	var near = _dummy(Vector3(2.8, 0, -7.0))
+	var far = _dummy(Vector3(0, 0, 4.0))
+	var near_d0: float = Vector2(near.global_position.x - meet.x, near.global_position.z - meet.z).length()
+	var near_hp: int = near.health.health
+	var far_hp: int = far.health.health
 	_kit.charge = 100.0
-	check(_kit.try_ultimate(), "Boiuna funciona")
-	await _frames(40)
-	check(bitten.health.health < bhp and bitten.is_soaked(), "Boiuna: morde e encharca quem está no círculo (3 m)")
-	check(get_nodes_in_group("floor_effects").any(func(n): return n.get_script() == BOI), "Boiuna ainda circulando")
-	await _frames(340)
-	check(get_nodes_in_group("floor_effects").any(func(n): return n.get_script() == POR), "Boiuna: no fim avança como Pororoca")
+	check(_kit.try_ultimate(), "Encontro das Águas funciona")
+	await _frames(2)
+	var two := get_nodes_in_group("floor_effects").filter(func(n): return n.get_script() == POR)
+	var tints := two.map(func(n): return n.tint)
+	check(two.size() == 2 and tints.has("negro") and tints.has("solimoes"), "saem duas ondas: Rio Negro e Solimões (%s)" % str(tints))
+	await _frames(100)
+	var near_d1: float = Vector2(near.global_position.x - meet.x, near.global_position.z - meet.z).length()
+	check(near_d1 < near_d0 - 1.0, "redemoinho puxa para o meio (%.1f m -> %.1f m)" % [near_d0, near_d1])
+	check(near.health.health < near_hp and near._stun_left > 0.0, "redemoinho: dano e atordoa (%d -> %d)" % [near_hp, near.health.health])
+	check(far.health.health == far_hp, "quem está atrás não é pego")
+	check(T.sanitize({"boiuna": 1}, &"encantado", 40).get("encontro_aguas", 0) == 1, "save antigo: o ponto da Boiuna vai para o Encontro das Águas")
 
 
 # ---------------------------------------------------------------- Druida

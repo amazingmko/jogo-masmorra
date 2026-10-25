@@ -17,6 +17,17 @@ var throw := THROW
 ## Ressaca: fração do dano da onda que volta depois (0 = não volta).
 var backwash := 0.0
 var on_slam := Callable()
+## Quem a onda pega (o Encontro das Águas encharca com o Rio Negro).
+var on_hit := Callable()
+## Até onde vai (o Encontro das Águas para no ponto do choque) e o que fazer ao chegar.
+var max_length := LENGTH
+var on_arrive := Callable()
+## Cor da água: "" (azul), "negro" (Rio Negro, cor de chá escuro) ou "solimoes" (barrenta).
+var tint := ""
+const TINTS := {
+	"negro": [Color(0.03, 0.02, 0.01), Color(0.1, 0.055, 0.025), Color(0.2, 0.12, 0.055), Color(0.4, 0.29, 0.18)],
+	"solimoes": [Color(0.42, 0.25, 0.1), Color(0.66, 0.44, 0.2), Color(0.8, 0.58, 0.3), Color(0.96, 0.86, 0.66)],
+}
 var returning := false
 var _traveled := 0.0
 var _hit := {}
@@ -37,6 +48,10 @@ func _ready() -> void:
 	_wave.rotation.y = PI
 	_wave_mat = WaveMesh.material(width * 1.05)
 	_wave_mat.set_shader_parameter("rise", 0.0)
+	if TINTS.has(tint):
+		var c: Array = TINTS[tint]
+		for i in 4:
+			_wave_mat.set_shader_parameter(["deep", "body", "light", "foam"][i], Vector3(c[i].r, c[i].g, c[i].b))
 	_wave.material_override = _wave_mat
 	_wave.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_wave)
@@ -77,10 +92,14 @@ func _physics_process(delta: float) -> void:
 		if absf(to.dot(direction)) <= 0.9 and absf(to.dot(right)) <= width * 0.5:
 			_hit[enemy.get_instance_id()] = true
 			enemy.take_hit(damage, false, direction)
+			if on_hit.is_valid():
+				on_hit.call(enemy)
 			if enemy.has_method("hurl"):
 				enemy.hurl(direction, throw, slam_damage, on_slam)
-	if _traveled >= LENGTH:
+	if _traveled >= max_length:
 		set_physics_process(false)
+		if on_arrive.is_valid():
+			on_arrive.call(self)
 		if backwash > 0.0 and not returning:
 			# Ressaca: a água volta, menor, e acerta de novo.
 			var back := Pororoca.new()

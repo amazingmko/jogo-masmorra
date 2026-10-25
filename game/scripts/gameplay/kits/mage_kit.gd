@@ -6,6 +6,8 @@ extends HeroKit
 ##              que explode quando um inimigo encosta (e encharca quem pega).
 ##  Ultimate    Pororoca: uma onda atravessa a sala, arrasta os inimigos e joga contra a parede;
 ##              quem bate na parede leva dano extra (o dobro se estiver encharcado).
+##              Encontro das Águas (talento final): duas ondas, Rio Negro e Solimões, se chocam à
+##              frente e viram um redemoinho que puxa, atordoa e causa dano alto.
 ##  Passiva     Ricochete: a cada 4 disparos, o seguinte quica em mais 2 inimigos.
 ## Talentos (Correnteza, Espelho, Pororoca): ver Talents.TREES[&"encantado"].
 
@@ -45,7 +47,7 @@ func skill_color() -> Color:
 
 
 func ultimate_name() -> String:
-	return "Boiuna" if t("boiuna") > 0 else "Pororoca"
+	return "Encontro" if t("encontro_aguas") > 0 else "Pororoca"
 
 
 func soak_time() -> float:
@@ -184,25 +186,32 @@ func _pop_bubble() -> void:
 		Vfx.particles(player.get_parent(), player.global_position + Vector3(0, 1.0, 0), "respingo", 12, 0.5, Color(0.8, 0.95, 1.0, 0.9), 0.4, Vector2(2.0, 4.0), 180.0, -8.0, false)
 
 
-# ---------- Pororoca / Boiuna ----------
+# ---------- Pororoca / Encontro das Águas ----------
 
 func _use_ultimate() -> void:
 	player.play_kit_animation("pororoca", 1.0, "")
-	if t("boiuna") > 0:
-		var snake := Boiuna.new()
-		snake.owner_player = player
-		snake.duration = tv("boiuna")
-		snake.damage = maxi(int(round(player.weapon_stats.damage * 0.6)), 1)
-		snake.kit = self
-		player.get_parent().add_child(snake)
-		snake.global_position = player.global_position
-		Fx.float_text(player.get_parent(), player.global_position + Vector3(0, 3.0, 0), "BOIUNA!", COLOR)
+	if t("encontro_aguas") > 0:
+		var meet := EncontroAguas.new()
+		meet.owner_player = player
+		meet.kit = self
+		meet.direction = player.facing()
+		meet.weapon_damage = player.weapon_stats.damage
+		meet.stun_time = tv("encontro_aguas")
+		meet.width_mult = 1.0 + tv("onda_larga") / 100.0
+		meet.position = player.global_position
+		player.get_parent().add_child(meet)
 		return
 	launch_wave(player.facing(), player.global_position)
 	Fx.float_text(player.get_parent(), player.global_position + Vector3(0, 3.0, 0), "POROROCA!", COLOR)
 
 
-## Solta a onda (também usada no fim da Boiuna).
+## Encontro das Águas: Maré Cheia também devolve carga por inimigo pego no redemoinho (metade).
+func on_encontro_hit(_enemy: Node3D) -> void:
+	if t("mare_cheia") > 0:
+		add_charge(tv("mare_cheia") * 0.5)
+
+
+## Solta a onda da Pororoca.
 func launch_wave(direction: Vector3, from: Vector3) -> Pororoca:
 	var wave := Pororoca.new()
 	wave.direction = direction

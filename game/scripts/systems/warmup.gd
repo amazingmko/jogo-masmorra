@@ -58,6 +58,7 @@ func _spawn_all() -> void:
 	Vfx.provoke(parent, at, 2.0)
 	MobFx.warm(parent, at)
 	FxKit.warm(parent, at)
+	EncontroAguas.warm(parent, at)
 	var wave := MeshInstance3D.new()
 	wave.mesh = WaveMesh.build(2.0, 1.0, 0.5, 4, 3)
 	wave.material_override = WaveMesh.material(2.0)
@@ -130,7 +131,7 @@ func _spawn_all() -> void:
 		shot.global_position = at + Vector3(0, 1.2, 0)
 		shot.set_physics_process(false)
 	# objetos que os poderes deixam no chão (só o visual; somem junto)
-	for cls in [VineTrap, WaterClone, Pororoca, Harpy, Boiuna]:
+	for cls in [VineTrap, WaterClone, Pororoca, Harpy]:
 		var n: Node3D = cls.new()
 		if "owner_player" in n:
 			n.set("owner_player", _player)
