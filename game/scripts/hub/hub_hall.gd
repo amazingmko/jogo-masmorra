@@ -25,6 +25,8 @@ var _spirit: Node3D
 var _spirit_hero: StringName = &""
 var _hero_gems := {}
 var _t := 0.0
+## Tela de título: só o salão e os portais (sem a Pedra do Encontro na frente do logotipo).
+var title_mode := false
 
 
 func _ready() -> void:
@@ -41,6 +43,8 @@ func _ready() -> void:
 		var open: bool = int(r.world) >= 0 and not r.get("soon", false)
 		var title: String = r.name if r.name != "Em breve" else String(r.biome)
 		_portal(Vector3(-8.4 + i * (16.8 / maxf(n - 1, 1)), 0, PORTAL_Z), String(r.id), title, open)
+	if title_mode:
+		return
 	_meeting_stone(Vector3(0, 0, -1.5))
 	_chest_station(Vector3(-7.5, 0, 3.5))
 	_altar_station(Vector3(7.5, 0, 3.5))
@@ -52,7 +56,7 @@ func _process(delta: float) -> void:
 	if _crystal:
 		_crystal.rotation.y += delta * 0.8
 		_crystal.position.y = 2.1 + sin(_t * 1.6) * 0.12
-	if GameState.selected_hero != _spirit_hero:
+	if not title_mode and GameState.selected_hero != _spirit_hero:
 		_make_spirit(GameState.selected_hero)
 	if _spirit:
 		_spirit.rotation.y += delta * 0.6
@@ -132,6 +136,7 @@ func _station(id: StringName, title: String, action: String, at: Vector3, color:
 	s.region = region
 	s.label_height = height
 	s.label_color = color
+	s.show_label = false  # o nome vai numa placa fixa (ver _plaque)
 	s.position = at
 	add_child(s)
 	station_created.emit(s)
@@ -162,7 +167,11 @@ func _portal(at: Vector3, region: String, title: String, open: bool) -> void:
 	var gem := SphereMesh.new()
 	gem.radius = 0.22
 	gem.height = 0.44
-	_sub(p, gem, Vector3(0, 3.75, 0.1), _mat(color, 0.2, 0.0, 2.5 if open else 0.4))
+	_sub(p, gem, Vector3(0, 4.95, 0.1), _mat(color, 0.2, 0.0, 2.5 if open else 0.4))
+	# placa com o nome presa no alto do arco
+	_sub(p, _boxm(Vector3(0.14, 0.6, 0.14)), Vector3(0, 3.95, 0), _gold)
+	_plaque(p, Vector3(0, 4.35, 0.12), title, "" if open else "em breve",
+		color.lerp(Color.WHITE, 0.25) if open else Color(0.7, 0.76, 0.86), -0.35, 0.87)
 	var sm := ShaderMaterial.new()
 	sm.shader = _shader("swirl", SWIRL)
 	sm.set_shader_parameter("cor", color)
@@ -208,7 +217,7 @@ func _meeting_stone(at: Vector3) -> void:
 	light.position = at + Vector3(0, 2.2, 0)
 	add_child(light)
 	_box(at + Vector3(0, 0.5, 0), Vector3(1.4, 1.0, 1.4), null, true)  # não atravessa o cristal
-	_world_label("Pedra do Encontro", at + Vector3(0, 3.9, 0), Color("cfe9ff"))
+	_post_sign(at + Vector3(0, 0, -2.9), "Pedra do Encontro", Color("cfe9ff"))
 
 
 func _chest_station(at: Vector3) -> void:
@@ -233,6 +242,7 @@ func _chest_station(at: Vector3) -> void:
 		_sub(chest, band, Vector3(x, 1.1, 0), _gold, Vector3(0, 0, PI * 0.5))
 	_sub(chest, _boxm(Vector3(0.3, 0.34, 0.06)), Vector3(0, 0.95, 0.57), _glow)
 	_box(at + Vector3(0, 0.6, -0.6), Vector3(1.9, 1.2, 1.2), null, true)
+	_post_sign(at + Vector3(0, 0, -1.7), "Baú e Equipamento", Color("ffd98a"))
 	_station(&"bau", "Baú e Equipamento", "ABRIR", at + Vector3(0, 0, 0.5), Color("ffd98a"))
 
 
@@ -262,6 +272,7 @@ func _altar_station(at: Vector3) -> void:
 	light.position = at + Vector3(0, 2.4, 0.6)
 	add_child(light)
 	_box(at + Vector3(0, 0.6, 0), Vector3(2.2, 1.2, 2.2), null, true)
+	_post_sign(at + Vector3(0, 0, -2.4), "Altar dos Heróis", Color("ffd98a"))
 	_station(&"herois", "Altar dos Heróis", "ABRIR", at + Vector3(0, 0, 1.4), Color("ffd98a"), "", 3.9)
 
 
@@ -320,6 +331,7 @@ func _craft_station(at: Vector3) -> void:
 	vial.height = 0.3
 	_mesh(vial, at + Vector3(1.4, 0.82, -0.3), _mat(Color("e8a050"), 0.2, 0.0, 1.5))
 	_box(at + Vector3(0, 0.5, -0.2), Vector3(3.6, 1.0, 1.2), null, true)
+	_post_sign(at + Vector3(0, 0, -1.4), "Oficina", Color("ffd98a"))
 	_station(&"artesao", "Oficina", "FALAR", at + Vector3(0, 0, 1.0), Color("ffd98a"))
 
 
@@ -408,6 +420,55 @@ func _column(at: Vector3, h: float) -> void:
 	lamp.omni_range = 5.0
 	lamp.position = at + Vector3(0, 2.5, 0)
 	add_child(lamp)
+
+
+## Placa fixa com o nome: moldura dourada, face de pedra e o nome gravado (não flutua nem gira).
+## tilt: inclinada para trás, para ler bem com a câmera de cima.
+func _plaque(parent: Node3D, at: Vector3, text: String, sub: String, color: Color, tilt := -0.45, scale_k := 1.0) -> void:
+	var n := Node3D.new()
+	n.position = at
+	n.rotation.x = tilt
+	n.scale = Vector3.ONE * scale_k
+	parent.add_child(n)
+	var chars := maxi(text.length(), sub.length())
+	var w := chars * 0.2 + 0.8
+	var h := 0.62 if sub == "" else 0.86
+	_sub(n, _boxm(Vector3(w + 0.14, h + 0.14, 0.08)), Vector3(0, 0, -0.03), _gold)
+	_sub(n, _boxm(Vector3(w, h, 0.1)), Vector3.ZERO, _stone2)
+	for x in [-w * 0.5 - 0.02, w * 0.5 + 0.02]:
+		var tip := SphereMesh.new()
+		tip.radius = 0.09
+		tip.height = 0.18
+		_sub(n, tip, Vector3(x, 0, 0.04), _gold)
+	var l := Label3D.new()
+	l.text = text
+	l.font = UiStyle.title_font()
+	l.font_size = 48
+	l.pixel_size = 0.0075
+	l.modulate = color
+	l.outline_size = 10
+	l.outline_modulate = Color(0.02, 0.03, 0.06, 1.0)
+	l.position = Vector3(0, 0.0 if sub == "" else 0.13, 0.065)
+	l.double_sided = false
+	n.add_child(l)
+	if sub != "":
+		var s := Label3D.new()
+		s.text = sub
+		s.font = UiStyle.title_font()
+		s.font_size = 34
+		s.pixel_size = 0.0075
+		s.modulate = Color(0.62, 0.68, 0.78)
+		s.outline_size = 8
+		s.outline_modulate = Color(0.02, 0.03, 0.06, 1.0)
+		s.position = Vector3(0, -0.2, 0.065)
+		n.add_child(s)
+
+
+## Poste dourado com a placa em cima (estações do salão).
+func _post_sign(at: Vector3, text: String, color: Color) -> void:
+	_cyl(at + Vector3(0, 0.08, 0), 0.32, 0.16, _stone, 16)
+	_cyl(at + Vector3(0, 0.95, 0), 0.07, 1.8, _gold, 12)
+	_plaque(self, at + Vector3(0, 2.05, 0), text, "", color)
 
 
 func _world_label(text: String, at: Vector3, color: Color) -> void:

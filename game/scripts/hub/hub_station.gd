@@ -13,6 +13,8 @@ var action_text := "ABRIR"
 var region := ""
 var label_color := Color("ffd98a")
 var label_height := 3.2
+## Nome flutuando em cima (o Salão dos Portais usa placas fixas no lugar).
+var show_label := true
 
 
 static func create(id: StringName, station_title: String, action: String) -> HubStation:
@@ -36,6 +38,9 @@ func _ready() -> void:
 	shape.position.y = 1.5
 	add_child(shape)
 
+	if not show_label:
+		_connect_presence()
+		return
 	var label := Label3D.new()
 	label.text = title
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -49,6 +54,10 @@ func _ready() -> void:
 	label.position = Vector3(0, label_height, 0)
 	add_child(label)
 
+	_connect_presence()
+
+
+func _connect_presence() -> void:
 	body_entered.connect(func(body: Node3D) -> void:
 		if body.is_in_group("player"):
 			presence_changed.emit(self, true))

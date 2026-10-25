@@ -43,7 +43,7 @@ func _ready() -> void:
 		wave.width = WAVE_WIDTH * width_mult
 		wave.damage = maxi(int(round(weapon_damage * WAVE_DAMAGE * (1.0 if side < 0.0 else 1.5))), 1)
 		wave.slam_damage = wave.damage
-		wave.throw = 1.5  # leva junto, sem arremessar longe (o redemoinho é que puxa)
+		wave.throw = 0.0  # não arremessa (quem puxa é o redemoinho)
 		wave.max_length = maxf(to_meet.length() - 0.6, 1.0)
 		wave.speed = WAVE_SPEED
 		wave.on_arrive = _on_wave_arrived

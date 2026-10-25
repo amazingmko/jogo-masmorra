@@ -10,11 +10,11 @@ config_version=5
 
 [application]
 
-config/name="Jogo de Masmorra"
+config/name="Encante"
 config/description="Jogo mobile 3D low-poly de exploração de masmorras (nome provisório)."
-run/main_scene="res://game/scenes/hub.tscn"
+run/main_scene="res://game/scenes/title.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
-config/icon="res://icon.svg"
+config/icon="res://game/ui/marca/icone_encante.png"
 
 [autoload]
 
