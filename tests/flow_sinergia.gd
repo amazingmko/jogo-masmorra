@@ -61,6 +61,11 @@ func _run() -> void:
 	check(absi(p.stats.max_health - int(round(hp0 * 1.10))) <= 1, "Raízes: Druida com +10%% de vida (%d -> %d)" % [hp0, p.stats.max_health])
 	check(is_equal_approx(p.move_speed, spd0), "sem Água ×2: velocidade igual")
 	check(m._hud._synergy_row.visible and m._hud._synergy_row.get_child_count() == 1, "HUD mostra o selo de sinergia")
+	check(m._hud._party_rows.size() == 2 and m._hud._party_box.visible, "barra do grupo: os 2 parceiros aparecem")
+	a2.health.health = int(a2.health.max_health * 0.2)
+	await _frames(3)
+	var crit_fill: StyleBoxFlat = m._hud._party_rows[1].fill
+	check(crit_fill.bg_color.r > 0.8 and crit_fill.bg_color.g < 0.5, "parceiro abaixo de 35% fica vermelho na barra do grupo")
 
 	# Provocação do tanque: bicho mais perto do Encantado, mas a Icamiaba a 5 m chama
 	var tank = load("res://game/scenes/player.tscn").instantiate()

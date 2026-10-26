@@ -22,7 +22,7 @@ func _run() -> void:
 	var m = current_scene
 	var db = root.get_node("ItemDB")
 	var allies: Array = []
-	for id in [&"mateira", &"encantado"]:
+	for id in [&"mateira", &"encantado", &"icamiaba"]:
 		var a = load("res://game/scenes/player.tscn").instantiate()
 		m.add_child(a)
 		a.set_hero(db.get_hero(id))
@@ -30,7 +30,10 @@ func _run() -> void:
 		allies.append(a)
 	m.sim_allies = allies
 	m._apply_synergy()
-	for i in 40:
+	allies[0].health.health = int(allies[0].health.max_health * 0.8)
+	allies[1].health.health = int(allies[1].health.max_health * 0.25)
+	allies[2].health.health = int(allies[2].health.max_health * 0.5)
+	for i in 160:
 		await process_frame
 	root.get_viewport().get_texture().get_image().save_png("%s/sinergia.png" % _out)
 	quit(0)

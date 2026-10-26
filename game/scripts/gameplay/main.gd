@@ -1272,6 +1272,18 @@ func _tick_solo_rest(delta: float) -> void:
 		_rest_acc -= int(_rest_acc)
 
 
+## Barra do grupo no HUD: os parceiros (aliados do simulador ou dos outros aparelhos).
+func _refresh_party_frames() -> void:
+	var others: Array = []
+	for a in sim_allies:
+		if is_instance_valid(a):
+			others.append(a)
+	for peer in _replicas:
+		if is_instance_valid(_replicas[peer]):
+			others.append(_replicas[peer])
+	_hud.set_party(others)
+
+
 ## Sinergia elemental: o bônus vale para todos do grupo (sozinho não liga nada).
 func _apply_synergy() -> void:
 	var heroes := party_heroes()
@@ -1283,6 +1295,7 @@ func _apply_synergy() -> void:
 			a.set_synergy(heroes)
 	var list := Synergy.active(heroes)
 	_hud.set_synergies(list)
+	_refresh_party_frames()
 	if not list.is_empty() and _hud.has_method("show_toast"):
 		_hud.show_toast("Sinergia: " + ", ".join(list.map(func(sy): return "%s ×%d" % [sy.name, int(sy.heroes)])), Color(list[0].color))
 

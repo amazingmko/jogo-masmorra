@@ -105,6 +105,66 @@ func hide_boss() -> void:
 func _process(_delta: float) -> void:
 	_refresh_status()
 	_update_kit_buttons()
+	_update_party(_delta)
+
+
+# ---------- barra do grupo ----------
+## Os parceiros, discretos, no lado esquerdo abaixo da vida: rosto pequeno + barra fina verde.
+## Abaixo de 35% a barra fica vermelha e pisca (quem precisa de cura agora); caído fica cinza.
+const PARTY_CRITICAL := 0.35
+var _party_box: VBoxContainer
+var _party_rows: Array = []  # [{hero: Player, face, bar, fill}]
+var _party_t := 0.0
+
+
+func set_party(members: Array) -> void:
+	if _party_box == null:
+		_party_box = VBoxContainer.new()
+		_party_box.add_theme_constant_override("separation", 5)
+		_party_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_party_box.position = Vector2(18, 178)
+		add_child(_party_box)
+	for ch in _party_box.get_children():
+		ch.queue_free()
+	_party_rows.clear()
+	for m in members:
+		if not is_instance_valid(m) or m.hero == null:
+			continue
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var face := UiStyle.portrait(String(m.hero_id), 34)
+		row.add_child(face)
+		var bar := UiStyle.bar(Color("5fd67a"), 118, 11)
+		bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(bar)
+		_party_box.add_child(row)
+		_party_rows.append({"hero": m, "face": face, "bar": bar, "fill": bar.get_theme_stylebox("fill")})
+	_party_box.visible = not _party_rows.is_empty()
+	_update_party(1.0)
+
+
+func _update_party(delta: float) -> void:
+	if _party_rows.is_empty():
+		return
+	_party_t += delta
+	for r in _party_rows:
+		var m = r.hero
+		if not is_instance_valid(m):
+			continue
+		var h: Health = m.health
+		var frac := float(h.health) / float(maxi(h.max_health, 1))
+		UiStyle.set_bar(r.bar, h.health, h.max_health, "")
+		var fill: StyleBoxFlat = r.fill
+		if h.is_dead:
+			r.face.modulate = Color(0.45, 0.45, 0.45, 0.8)
+		elif frac < PARTY_CRITICAL:
+			var pulse := 0.6 + 0.4 * absf(sin(_party_t * 6.0))
+			fill.bg_color = Color("ff4d4d") * Color(1, 1, 1, 1).lerp(Color(1.3, 1.3, 1.3), pulse - 0.6)
+			r.face.modulate = Color(1.0, 0.55 + 0.45 * pulse, 0.55 + 0.45 * pulse)
+		else:
+			fill.bg_color = Color("5fd67a") if frac >= 0.6 else Color("f2c14e")
+			r.face.modulate = Color.WHITE
 
 
 ## Botões de habilidade e ultimate: nome do poder, anel de recarga/carga, apagado quando não dá.
