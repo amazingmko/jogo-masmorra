@@ -491,6 +491,7 @@ func _build_controls() -> void:
 	attack_button.offset_right = -60
 	attack_button.offset_bottom = -60
 	add_child(attack_button)
+	attack_button.frame = UiStyle.texture_or_null("botao_ataque")
 
 	form_button = TouchButton.new()
 	form_button.text = "FORMA"
@@ -505,6 +506,7 @@ func _build_controls() -> void:
 	form_button.visible = false
 	form_button.font_size = 16
 	form_button.font = UiStyle.button_font()
+	form_button.frame = UiStyle.texture_or_null("botao_habilidade")
 	form_button.pressed_changed.connect(func(pressed: bool) -> void:
 		if pressed and _player:
 			_player.touch_form = true)
@@ -515,6 +517,7 @@ func _build_controls() -> void:
 	ultimate_button.color = Color("e8c26a")
 	ultimate_button.font_size = 18
 	ultimate_button.font = UiStyle.button_font()
+	ultimate_button.frame = UiStyle.texture_or_null("botao_habilidade")
 	ultimate_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
 	ultimate_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	ultimate_button.grow_vertical = Control.GROW_DIRECTION_BEGIN
