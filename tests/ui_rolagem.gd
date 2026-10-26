@@ -1,7 +1,7 @@
 extends SceneTree
 ## Rolagem no celular: arrastar a lista da Oficina rola (sem escolher a peça onde o dedo começou),
 ## o embalo continua depois de soltar, e um toque curto continua escolhendo a peça.
-##   godot --path . --script res://tests/flow_rolagem.gd   (precisa de tela/xvfb: usa a interface)
+##   godot --path . --script res://tests/ui_rolagem.gd   (precisa de tela/xvfb: usa a interface)
 
 var _fails := 0
 
