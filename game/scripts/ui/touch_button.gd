@@ -16,6 +16,10 @@ var dimmed := false
 var font: Font
 ## Arte do botão (aro de bronze); sem ela, o círculo desenhado de antes.
 var frame: Texture2D
+## Ícone do poder no meio do botão (com ele, o nome não aparece; só o selo pequeno embaixo).
+var icon: Texture2D
+## Texto pequeno embaixo do ícone (cargas "×2", carga da ultimate "88%").
+var badge := ""
 
 var is_pressed := false
 var _touch_index := -1
@@ -68,6 +72,17 @@ func _draw() -> void:
 		var pr := r * 0.8 if frame else r - 5.0
 		draw_arc(center, pr, -PI * 0.5, -PI * 0.5 + TAU * clampf(progress, 0.0, 1.0), 48, color.lightened(0.3), 6.0, true)
 	var f: Font = font if font else get_theme_default_font()
+	if icon:
+		var ir := r * 0.52
+		var tint := Color(0.5, 0.5, 0.5, 0.7) if dimmed else Color.WHITE
+		draw_texture_rect(icon, Rect2(center - Vector2(ir, ir), Vector2(ir, ir) * 2.0), false, tint)
+		if badge != "":
+			var bs := int(maxf(font_size * 0.75, 13.0))
+			var bsize := f.get_string_size(badge, HORIZONTAL_ALIGNMENT_CENTER, -1, bs)
+			var bat := center + Vector2(-bsize.x * 0.5, r * 0.62)
+			draw_string_outline(f, bat, badge, HORIZONTAL_ALIGNMENT_CENTER, -1, bs, 5, Color(0.03, 0.03, 0.05, 0.9))
+			draw_string(f, bat, badge, HORIZONTAL_ALIGNMENT_CENTER, -1, bs, Color(1, 1, 1, 0.75 if dimmed else 1.0))
+		return
 	var text_size := f.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
 	var at := center - Vector2(text_size.x * 0.5, -font_size * 0.35)
 	draw_string_outline(f, at, text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, 5, Color(0.03, 0.03, 0.05, 0.85 if not dimmed else 0.5))
@@ -75,9 +90,11 @@ func _draw() -> void:
 
 
 ## Atualiza o desenho só quando algo muda.
-func set_state(new_progress: float, new_dimmed: bool, new_text: String) -> void:
-	if is_equal_approx(new_progress, progress) and new_dimmed == dimmed and new_text == text:
+func set_state(new_progress: float, new_dimmed: bool, new_text: String, new_badge := "", new_icon: Texture2D = null) -> void:
+	if is_equal_approx(new_progress, progress) and new_dimmed == dimmed and new_text == text and new_badge == badge and new_icon == icon:
 		return
+	badge = new_badge
+	icon = new_icon
 	progress = new_progress
 	dimmed = new_dimmed
 	text = new_text

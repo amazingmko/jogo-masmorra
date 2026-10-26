@@ -117,13 +117,27 @@ func _update_kit_buttons() -> void:
 		var cd := kit.skill_cooldown_ratio()
 		form_button.color = kit.skill_color()
 		var skill_text := kit.skill_name().to_upper()
-		if kit.max_charges() > 1:
-			skill_text += " ×%d" % kit.charges()
-		form_button.set_state(1.0 - cd if cd > 0.0 else -1.0, cd > 0.0, skill_text)
+		var charges := "×%d" % kit.charges() if kit.max_charges() > 1 else ""
+		var sk_icon := _kit_icon(kit.skill_icon())
+		if sk_icon == null and charges != "":
+			skill_text += " " + charges
+		form_button.set_state(1.0 - cd if cd > 0.0 else -1.0, cd > 0.0, skill_text, charges, sk_icon)
 	if ultimate_button.visible:
 		var ready := kit.ultimate_ready()
 		var label := kit.ultimate_name().to_upper() if ready else "%d%%" % int(kit.charge)
-		ultimate_button.set_state(kit.charge / 100.0, not ready, label)
+		ultimate_button.set_state(kit.charge / 100.0, not ready, label, "" if ready else "%d%%" % int(kit.charge), _kit_icon(kit.ultimate_icon()))
+
+
+var _icon_cache := {}
+
+
+func _kit_icon(name: String) -> Texture2D:
+	if name == "":
+		return null
+	if not _icon_cache.has(name):
+		var path := "res://game/ui/icones/%s.png" % name
+		_icon_cache[name] = load(path) if ResourceLoader.exists(path) else null
+	return _icon_cache[name]
 
 
 func _refresh_status() -> void:

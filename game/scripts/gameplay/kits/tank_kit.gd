@@ -52,6 +52,14 @@ func skill_color() -> Color:
 	return Color("ff9f43")
 
 
+func skill_icon() -> String:
+	return "s_spec_guardia"
+
+
+func ultimate_icon() -> String:
+	return "s_spec_protecao"
+
+
 func ultimate_name() -> String:
 	return "Muralha"
 

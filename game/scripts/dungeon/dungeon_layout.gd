@@ -18,8 +18,22 @@ var goal_index := 0  # saída (andares comuns) ou chefe (último andar)
 var is_boss_floor := false
 
 
-## Gera a planta. room_count inclui início e saída/chefe.
+## A saída (ou o chefe) fica no fundo do andar: pelo menos esta quantidade de portas desde o
+## início (com 4 salas, todas no caminho). Assim não dá para achar a saída logo na entrada.
+static func min_goal_depth(room_count: int) -> int:
+	return clampi(maxi(3, room_count - 2), 1, maxi(room_count - 1, 1))
+
+
+## Gera a planta. room_count inclui início e saída/chefe. Refaz até a saída ficar no fundo.
 func generate(rng: RandomNumberGenerator, room_count: int, boss_floor: bool) -> void:
+	var need := min_goal_depth(maxi(room_count, 4))
+	for attempt in 60:
+		_generate_once(rng, room_count, boss_floor)
+		if rooms[goal_index].depth >= need:
+			return
+
+
+func _generate_once(rng: RandomNumberGenerator, room_count: int, boss_floor: bool) -> void:
 	rooms.clear()
 	is_boss_floor = boss_floor
 	room_count = maxi(room_count, 4)

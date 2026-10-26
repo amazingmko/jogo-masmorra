@@ -51,6 +51,15 @@ func ultimate_name() -> String:
 	return ""
 
 
+## Ícone do botão da habilidade e da ultimate (nome em game/ui/icones/<nome>.png).
+func skill_icon() -> String:
+	return ""
+
+
+func ultimate_icon() -> String:
+	return ""
+
+
 ## Texto curto de cada poder, para a tela do herói.
 func describe() -> PackedStringArray:
 	return PackedStringArray()

@@ -46,6 +46,14 @@ func skill_color() -> Color:
 	return COLOR
 
 
+func skill_icon() -> String:
+	return "s_spec_espelho"
+
+
+func ultimate_icon() -> String:
+	return "s_spec_pororoca"
+
+
 func ultimate_name() -> String:
 	return "Encontro" if t("encontro_aguas") > 0 else "Pororoca"
 

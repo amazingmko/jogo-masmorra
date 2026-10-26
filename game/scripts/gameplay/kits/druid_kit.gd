@@ -93,6 +93,14 @@ func skill_color() -> Color:
 	return Color("f29ccb")
 
 
+func skill_icon() -> String:
+	return "s_funcao_healer"  # Florescer: a flor que cura
+
+
+func ultimate_icon() -> String:
+	return "s_spec_canto"
+
+
 func ultimate_name() -> String:
 	return "Boto"
 
