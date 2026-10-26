@@ -63,6 +63,8 @@ func _run() -> void:
 	m._on_prop_activated(portal)
 	await _frames(40)
 	check(m.floor_number == 6, "portal do acampamento: desceu para o andar 6 (andar %d)" % m.floor_number)
+	check(m._loading.visible, "a tela de carregamento fica aberta um tempo (não pisca)")
+	await _frames(120)
 	check(not m._loading.visible, "a tela de carregamento sumiu (não congelou)")
 	# 2) fogueira -> Voltar -> fim da run; o portal não faz nada
 	r = await _camp_floor()

@@ -167,7 +167,7 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	_player.touch_move = _hud.move_vector()
 	_player.touch_attack = _hud.attack_held()
-	_update_loading()
+	_update_loading(_delta)
 	_tick_solo_rest(_delta)
 	if Net.active:
 		_net_tick(_delta)
@@ -200,26 +200,91 @@ func _exit_tree() -> void:
 
 # ---------- tela de carregamento ----------
 
+## Tela de carregamento entre andares: fundo de folhas, "Andar 3 de 10" em ouro, a dificuldade,
+## uma dica e a barra de preparo. Fica no mínimo LOADING_MIN s (antes piscava em 3 quadros e o
+## andar novo "pulava" na cara) e usa esse tempo para deixar os modelos dos bichos prontos.
+const LOADING_MIN := 1.1
+const LOADING_TIPS := [
+	"Salas de combate fecham as portas até o último bicho cair.",
+	"Em grupo a vida não volta sozinha: quem segura o grupo é o healer.",
+	"O grupo tem 3 levantadas por andar. As da Druida não contam.",
+	"Sozinho, a vida volta devagar quando a luta acaba.",
+	"Heróis do mesmo elemento ligam uma sinergia para o grupo todo.",
+	"Perto da Icamiaba, os bichos preferem atacar ela.",
+	"O Covil Furioso aparece em vermelho no mapa: perigoso, mas o baú compensa.",
+	"Bicho encharcado pelo Encantado leva o dobro da Pororoca.",
+	"O aviso no chão mostra onde o golpe vai cair: saia dele.",
+	"A saída fica no fundo do andar. Não tem atalho.",
+]
+var _loading_tip: Label
+var _loading_bar: ProgressBar
+var _loading_diff: HBoxContainer
+var _loading_started := 0
+var _loading_rigs0 := 0
+var _loading_elapsed := 0.0  # tempo de jogo com a tela aberta (conta o tempo mínimo)
+
+
 func _build_loading() -> void:
 	_loading = CanvasLayer.new()
 	_loading.layer = 50
 	_loading.name = "Carregando"
 	add_child(_loading)
 	_loading_fade = ColorRect.new()
-	_loading_fade.color = Color("0d140c")
+	_loading_fade.color = Color("070b10")
 	_loading_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_loading_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_loading.add_child(_loading_fade)
+	var bg := TextureRect.new()
+	bg.texture = load("res://game/ui/fundo_folhas.png")
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	bg.modulate = Color(0.35, 0.6, 0.45, 0.35)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_loading_fade.add_child(bg)
+	var col := VBoxContainer.new()
+	col.set_anchors_preset(Control.PRESET_CENTER)
+	col.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	col.grow_vertical = Control.GROW_DIRECTION_BOTH
+	col.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.add_theme_constant_override("separation", 14)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_loading_fade.add_child(col)
+	var plate := PanelContainer.new()
+	plate.add_theme_stylebox_override("panel", UiStyle.plate())
+	plate.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(plate)
 	_loading_label = Label.new()
-	_loading_label.set_anchors_preset(Control.PRESET_CENTER)
 	_loading_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_loading_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_loading_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_loading_label.grow_vertical = Control.GROW_DIRECTION_BOTH
-	_loading_label.add_theme_font_size_override("font_size", 34)
-	_loading_label.add_theme_color_override("font_color", Color("cfe8b0"))
-	_loading_fade.add_child(_loading_label)
+	UiStyle.title_label(_loading_label, 40, UiStyle.GOLD)
+	plate.add_child(_loading_label)
+	_loading_diff = HBoxContainer.new()
+	_loading_diff.alignment = BoxContainer.ALIGNMENT_CENTER
+	_loading_diff.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(_loading_diff)
+	_loading_bar = UiStyle.bar(Color("6fd6a0"), 420, 14)
+	_loading_bar.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	col.add_child(_loading_bar)
+	_loading_tip = UiStyle.label("", 19, UiStyle.TEXT_DIM)
+	_loading_tip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_loading_tip.custom_minimum_size = Vector2(760, 0)
+	_loading_tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	col.add_child(_loading_tip)
 	_loading.visible = false
+
+
+## Preenche a tela (título, dificuldade, dica) e zera o relógio do tempo mínimo.
+func _prepare_loading(title: String) -> void:
+	_loading_label.text = title
+	for ch in _loading_diff.get_children():
+		ch.queue_free()
+	_loading_diff.add_child(UiStyle.chip(Difficulty.name_of(difficulty), "chefe", Difficulty.color_of(difficulty)))
+	_loading_tip.text = LOADING_TIPS[randi() % LOADING_TIPS.size()]
+	UiStyle.set_bar(_loading_bar, 0, 100, "")
+	_loading_started = Time.get_ticks_msec()
+	_loading_elapsed = 0.0
+	_loading_rigs0 = 0
 
 
 func _show_loading() -> void:
@@ -227,27 +292,44 @@ func _show_loading() -> void:
 		return
 	_loading.visible = true
 	_loading_fade.modulate.a = 1.0
-	_loading_label.text = "Andar %d" % floor_number
+	if _loading_started == 0 or Time.get_ticks_msec() - _loading_started > 5000:
+		_prepare_loading("Andar %d de %d" % [floor_number, FLOORS])
+	else:
+		_loading_label.text = "Andar %d de %d" % [floor_number, FLOORS]
 	_loading_frames = 0
 	if not _warmed:
 		_warmed = true
 		_warmup = Warmup.start(self, _player)
 
 
-func _update_loading() -> void:
+func _update_loading(delta: float = 0.016) -> void:
 	if _loading == null or not _loading.visible:
 		return
 	_loading_frames += 1
-	var warming := (is_instance_valid(_warmup) and not _warmup.done()) or RigPool.missing() > 0
-	# some quando já passaram 3 quadros e o aquecimento (efeitos e reserva de modelos) acabou;
-	# antes só sumia exatamente no 3º quadro, e se o aquecimento passasse dele a tela ficava presa
-	if _loading_frames >= 3 and not warming and not _loading_hiding:
+	var missing := RigPool.missing()
+	_loading_rigs0 = maxi(_loading_rigs0, missing)
+	var warming := (is_instance_valid(_warmup) and not _warmup.done()) or missing > 0
+	_loading_elapsed += delta
+	var elapsed := _loading_elapsed
+	var ready_frac := 1.0 - float(missing) / float(maxi(_loading_rigs0, 1)) if not warming else minf(0.9, 1.0 - float(missing) / float(maxi(_loading_rigs0, 1)))
+	var shown := minf(elapsed / LOADING_MIN, 1.0) * 0.5 + ready_frac * 0.5
+	if _loading_bar and not _loading_hiding:
+		UiStyle.set_bar(_loading_bar, maxf(_loading_bar.value, shown * 100.0), 100, "")
+	# some depois do tempo mínimo, com o aquecimento (efeitos e reserva de modelos) pronto e o
+	# andar já desenhado alguns quadros (sem tranco logo que a tela abre)
+	# enquanto o portal ainda está escurecendo e o andar novo nem foi montado, não some (antes
+	# sumia aqui mesmo, e o andar novo "pulava" na cara sem tela de carregamento)
+	if _changing_floor:
+		return
+	if _loading_frames >= 6 and elapsed >= LOADING_MIN and not warming and not _loading_hiding:
 		_loading_hiding = true
+		UiStyle.set_bar(_loading_bar, 100, 100, "")
 		var t := create_tween()
-		t.tween_property(_loading_fade, "modulate:a", 0.0, 0.35)
+		t.tween_property(_loading_fade, "modulate:a", 0.0, 0.4)
 		t.tween_callback(func() -> void:
 			_loading.visible = false
-			_loading_hiding = false)
+			_loading_hiding = false
+			_loading_started = 0)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -343,9 +425,9 @@ func _portal_to_next_floor() -> void:
 	if _loading:
 		_loading.visible = true
 		_loading_fade.modulate.a = 0.0
-		_loading_label.text = "Andar %d" % (floor_number + 1)
+		_prepare_loading("Andar %d de %d" % [floor_number + 1, FLOORS])
 		var t := create_tween()
-		t.tween_property(_loading_fade, "modulate:a", 1.0, 0.15)
+		t.tween_property(_loading_fade, "modulate:a", 1.0, 0.3)
 		await t.finished
 		await get_tree().process_frame
 	if run == _run_id and not _run_over:

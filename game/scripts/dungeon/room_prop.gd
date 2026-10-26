@@ -203,7 +203,10 @@ func _build_fountain_model() -> void:
 
 func _build_portal_model() -> void:
 	var arch := RoomDecor._instance("portal")
-	add_child(arch)  # o arco fica de frente para a câmera (a passagem é de norte a sul)
+	add_child(arch)
+	# o modelo do arco vem com a frente para -Z: gira para a frente (a passagem com o brilho)
+	# ficar virada para a câmera (sul), senão o jogador via as costas do arco
+	arch.rotation.y = PI
 	var size: Vector3 = RoomDecor._piece("portal").mesh.get_aabb().size
 	var k: float = RoomDecor.SIZE["portal"][1] / maxf(size.x, size.z)
 	var h: float = size.y * k
@@ -213,6 +216,7 @@ func _build_portal_model() -> void:
 	_glow_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_glow_mat.albedo_texture = Vfx.tex("onda_choque")
 	_glow_mat.albedo_color = Color(0.35, 0.75, 1.0, 0.85)
+	_glow_mat.cull_mode = BaseMaterial3D.CULL_DISABLED  # a passagem brilha dos dois lados
 	_swirl = Node3D.new()
 	_swirl.position = Vector3(0, h * 0.42, 0)
 	add_child(_swirl)

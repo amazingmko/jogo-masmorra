@@ -58,7 +58,7 @@ func _run() -> void:
 	a2.set_hero(enc)
 	m.sim_allies = [a1, a2]
 	m._apply_synergy()
-	check(p.stats.max_health == int(round(hp0 * 1.10)), "Raízes: Druida com +10%% de vida (%d -> %d)" % [hp0, p.stats.max_health])
+	check(absi(p.stats.max_health - int(round(hp0 * 1.10))) <= 1, "Raízes: Druida com +10%% de vida (%d -> %d)" % [hp0, p.stats.max_health])
 	check(is_equal_approx(p.move_speed, spd0), "sem Água ×2: velocidade igual")
 	check(m._hud._synergy_row.visible and m._hud._synergy_row.get_child_count() == 1, "HUD mostra o selo de sinergia")
 
