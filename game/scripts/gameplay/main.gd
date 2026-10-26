@@ -55,6 +55,14 @@ const DEN_WAVES := 2
 const MP_HEALTH := [1.0, 1.0, 2.3, 3.6, 4.8]
 ## Em grupo os bichos batem bem mais forte: sem quem cure ou proteja, a equipe não aguenta.
 const MP_DAMAGE := [1.0, 1.0, 3.6, 5.5, 6.5]
+## No Normal o grupo aprende o jogo: os bichos batem bem menos (o healer ajuda, não é obrigatório).
+## Do Difícil para cima vale o MP_DAMAGE: sem healer, o grupo não segura.
+const MP_DAMAGE_NORMAL := [1.0, 1.0, 2.0, 2.6, 3.0]
+const MP_BOSS_PER_EXTRA_NORMAL := 0.6
+## Andares 1 a 3 do Normal mais leves (dano dos bichos), para aprender; o aperto começa no 4.
+const EARLY_FLOOR_DAMAGE_NORMAL := [0.7, 0.8, 0.9]
+## Derrota: XP extra pelo andar alcançado (andar/10 de metade da XP da vitória).
+const XP_DEFEAT_SHARE := 0.5
 const MP_WAVE := [1.0, 1.0, 1.4, 1.75, 2.1]
 const MP_ELITE := [0.0, 0.0, 0.12, 0.18, 0.24]
 const MP_BOSS_PER_EXTRA := 0.9
@@ -438,6 +446,8 @@ func _portal_to_next_floor() -> void:
 func _next_floor() -> void:
 	floor_number += 1
 	lifts_used = 0
+	if floor_number == STARTER_KIT_FLOOR:
+		_give_starter_kit.call_deferred()
 	_clear_floor()
 	if Net.active:
 		# todos os aparelhos montam o mesmo andar: a semente vem da run e do número do andar
@@ -860,11 +870,17 @@ func _spawn(enemy_id: StringName, room: DungeonRoom, at: Vector3 = Vector3.INF, 
 	# O chefe já é desenhado para o último andar: não recebe o reforço por andar.
 	var level := 0 if data.is_boss else floor_number - 1
 	var n := party_size()
-	var mp_hp: float = (1.0 + MP_BOSS_PER_EXTRA * (n - 1)) if data.is_boss else MP_HEALTH[n]
+	var boss_extra := MP_BOSS_PER_EXTRA_NORMAL if difficulty == 0 else MP_BOSS_PER_EXTRA
+	var mp_hp: float = (1.0 + boss_extra * (n - 1)) if data.is_boss else MP_HEALTH[n]
+	if data.id == MINIBOSS_ID and difficulty == 0 and n > 1:
+		mp_hp = 1.0 + MP_BOSS_PER_EXTRA_NORMAL * (n - 1)
+	var mp_dmg: float = MP_DAMAGE_NORMAL[n] if difficulty == 0 else MP_DAMAGE[n]
+	if difficulty == 0 and floor_number >= 1 and floor_number <= EARLY_FLOOR_DAMAGE_NORMAL.size():
+		mp_dmg *= EARLY_FLOOR_DAMAGE_NORMAL[floor_number - 1]
 	if data.id == MINIBOSS_ID and difficulty == 0:
 		mp_hp *= MINIBOSS_NORMAL  # Onça Alfa mais branda no Normal (o 1º muro do jogador novo)
 	var enemy := Enemy.create(data, (1.0 + HEALTH_PER_FLOOR * level) * Difficulty.HEALTH_MULT[difficulty] * mp_hp * extra_hp,
-		(1.0 + DAMAGE_PER_FLOOR * level) * Difficulty.DAMAGE_MULT[difficulty] * MP_DAMAGE[n] * extra_dmg)
+		(1.0 + DAMAGE_PER_FLOOR * level) * Difficulty.DAMAGE_MULT[difficulty] * mp_dmg * extra_dmg)
 	enemy.is_summon = summoned
 	enemy.threat = room_threat(room, data.is_boss)
 	if elite and not data.is_boss:
@@ -1146,6 +1162,9 @@ func _finish(victory: bool, camp := false) -> void:
 	_run_over = true
 	if camp:
 		_give_xp(XP_RUN_VICTORY / 2)
+	if not victory and not camp:
+		# derrota não é tempo perdido: XP pelo andar alcançado (o loot pego já ficou na bolsa)
+		_give_xp(int(round(XP_RUN_VICTORY * XP_DEFEAT_SHARE * floor_number / float(FLOORS))))
 	if victory:
 		_give_xp(XP_RUN_VICTORY)
 		var first_clear := GameState.highest_cleared < difficulty
@@ -1190,6 +1209,33 @@ func _finish(victory: bool, camp := false) -> void:
 		lines.append("Subiu do nível %d para o %d!" % [_stats.level_start, level_now])
 	_hud.set_panel_chips(tags)
 	_hud.show_panel("Vitória!" if victory else ("De volta do acampamento" if camp else "Você caiu"), "\n".join(lines), "Voltar à base")
+
+
+## Kit da primeira arma: enquanto ninguém venceu o Normal, ao chegar no andar 3 o herói ganha
+## (uma vez só) os reagentes que faltam para fabricar a arma comum dele na Oficina.
+const STARTER_KIT_FLOOR := 3
+
+
+func _give_starter_kit() -> void:
+	if trial_tier > 0 or GameState.highest_cleared >= 0 or _player.hero == null:
+		return
+	var prog := GameState.progress(_player.hero_id)
+	if bool(prog.get("starter_kit", false)):
+		return
+	var recipe := ItemDB.get_recipe(StringName("%s_comum" % String(_player.hero.starting_weapon_id)))
+	if recipe == null:
+		return
+	prog["starter_kit"] = true
+	var got := 0
+	for id in recipe.ingredients:
+		var item := ItemDB.get_item(StringName(id))
+		var need: int = int(recipe.ingredients[id]) - GameState.inventory.count(StringName(id))
+		if item and need > 0:
+			GameState.inventory.add(item, need)
+			got += need
+	GameState.save()
+	if got > 0:
+		_hud.show_toast("Kit da primeira arma: reagentes para a %s na bolsa (fabrique na Oficina)" % recipe.display_name.split(" (")[0], Color("ffd98a"))
 
 
 ## Heróis do grupo (HeroData): o meu, os dos outros jogadores e os aliados do simulador.

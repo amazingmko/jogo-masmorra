@@ -292,6 +292,7 @@ func _test_druida() -> void:
 	_clear()
 	await _frames(2)
 	var e = _dummy(Vector3(2.0, 0, 0))
+	var base_mult: float = e.damage_multiplier  # (o andar 1 do Normal já bate mais fraco)
 	_hold(e)
 	_seed_at(Vector3(2.0, 0, 0))
 	await _frames(1)
@@ -302,7 +303,7 @@ func _test_druida() -> void:
 	check(heal == int(round(_player.health.max_health * 0.04 * 1.45)), "Seiva Forte: a flor cura 5,8%% (%d)" % heal)
 	var expect := int(round(int(round(_player.weapon_stats.damage * 0.5 * 1.5)) * 1.3))
 	check(hp - e.health.health >= expect, "Raiz Afiada + Espinho: a flor bateu %d (>= %d)" % [hp - e.health.health, expect])
-	check(e.is_weakened() and is_equal_approx(e.damage_multiplier, 0.7), "Espinho de Tucumã: inimigo bate 30% mais fraco")
+	check(e.is_weakened() and is_equal_approx(e.damage_multiplier, base_mult * 0.7), "Espinho de Tucumã: inimigo bate 30% mais fraco")
 	check(e._slow_left > 0.0 and is_equal_approx(e._slow_factor, 0.6), "Flor de Maracujá: 40% mais lento")
 
 	# Muda Viva: cura parada perto da muda; Muda Carnívora: morde quem encosta
