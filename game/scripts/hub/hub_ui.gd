@@ -699,7 +699,7 @@ func _fill_artisan() -> void:
 	columns.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	inner.add_child(columns)
 	# esquerda: as peças, com ícone (borda na maior raridade que você já tem)
-	var left_scroll := ScrollContainer.new()
+	var left_scroll := UiStyle.scroll_box()
 	left_scroll.custom_minimum_size = Vector2(300, 0)
 	left_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	columns.add_child(left_scroll)
@@ -738,7 +738,7 @@ func _fill_artisan() -> void:
 			_refresh_open_panel())
 		left.add_child(b)
 	# direita: as receitas da peça (uma por raridade)
-	var right_scroll := ScrollContainer.new()
+	var right_scroll := UiStyle.scroll_box()
 	right_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	columns.add_child(right_scroll)

@@ -4,8 +4,8 @@ extends RefCounted
 ## Os valores seguem replica/progressao.md, seção 1.
 
 ## Vida e dano dos inimigos (o chefe também).
-const HEALTH_MULT := [1.0, 1.8, 3.2, 5.6]
-const DAMAGE_MULT := [1.0, 1.5, 2.2, 3.2]
+const HEALTH_MULT := [1.0, 1.8, 3.2, 7.5]
+const DAMAGE_MULT := [1.0, 1.5, 2.2, 7.5]
 ## Somado ao perigo das salas (inimigos emendam mais ataques, esquivam e soltam mais magia).
 const THREAT_BONUS := [0.0, 0.15, 0.3, 0.45]
 const XP_MULT := [1.0, 2.0, 4.0, 8.0]

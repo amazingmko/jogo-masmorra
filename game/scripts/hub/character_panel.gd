@@ -291,7 +291,7 @@ func _bag() -> Control:
 	var inner := VBoxContainer.new()
 	inner.add_theme_constant_override("separation", 10)
 	frame.add_child(inner)
-	var scroll := ScrollContainer.new()
+	var scroll := UiStyle.scroll_box()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.custom_minimum_size = Vector2(0, SLOT * 2 + 16)
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL

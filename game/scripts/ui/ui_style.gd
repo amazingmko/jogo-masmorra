@@ -46,6 +46,18 @@ static func dir() -> String:
 	return "res://game/ui/%s/" % palette
 
 
+## Lista que rola: barra larga (tema) + arrastar com o dedo em qualquer lugar (TouchScroll).
+static func scroll_box() -> ScrollContainer:
+	var s := ScrollContainer.new()
+	s.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	var bar := s.get_v_scroll_bar()
+	var t := theme()
+	for k in ["grabber", "grabber_highlight", "grabber_pressed", "scroll"]:
+		bar.add_theme_stylebox_override(k, t.get_stylebox(k, "VScrollBar"))
+	TouchScroll.attach(s)
+	return s
+
+
 ## Textura da paleta (game/ui/<paleta>/<nome>.png), ou null se essa paleta não tem.
 static func texture_or_null(name: String) -> Texture2D:
 	var path := dir() + name + ".png"
@@ -207,18 +219,24 @@ static func theme() -> Theme:
 	t.set_color("font_hover_color", "Button", Color.WHITE)
 	t.set_color("font_outline_color", "Button", OUTLINE)
 	t.set_constant("outline_size", "Button", 5)
+	# barra de rolagem larga (fácil de pegar com o dedo) e bem visível; arrastar a lista também rola
 	var grab := StyleBoxFlat.new()
-	grab.bg_color = c("line").lightened(0.25)
-	grab.set_corner_radius_all(4)
-	grab.content_margin_left = 5
-	grab.content_margin_right = 5
+	grab.bg_color = Color(GOLD, 0.75)
+	grab.set_corner_radius_all(9)
+	grab.content_margin_left = 10
+	grab.content_margin_right = 10
+	grab.content_margin_top = 22
+	grab.content_margin_bottom = 22
+	var grab_on := grab.duplicate()
+	grab_on.bg_color = GOLD
 	var track := StyleBoxFlat.new()
-	track.bg_color = Color(0, 0, 0, 0.3)
-	track.set_corner_radius_all(4)
-	track.content_margin_left = 5
-	track.content_margin_right = 5
-	for s in ["grabber", "grabber_highlight", "grabber_pressed"]:
-		t.set_stylebox(s, "VScrollBar", grab)
+	track.bg_color = Color(0, 0, 0, 0.35)
+	track.set_corner_radius_all(9)
+	track.content_margin_left = 10
+	track.content_margin_right = 10
+	t.set_stylebox("grabber", "VScrollBar", grab)
+	for s in ["grabber_highlight", "grabber_pressed"]:
+		t.set_stylebox(s, "VScrollBar", grab_on)
 	t.set_stylebox("scroll", "VScrollBar", track)
 	var edit := StyleBoxFlat.new()
 	edit.bg_color = Color(0, 0, 0, 0.45)
