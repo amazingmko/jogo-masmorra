@@ -158,6 +158,18 @@ func set_maximums(new_max_health: int, new_max_armor: int) -> void:
 	_emit_changed()
 
 
+func since_hit() -> float:
+	return _since_hit
+
+
+## Vida que volta descansando (não é cura: não dispara "healed").
+func restore(amount: int) -> void:
+	if is_dead or amount <= 0:
+		return
+	health = mini(health + amount, max_health)
+	_emit_changed()
+
+
 func heal(amount: int) -> void:
 	if is_dead or amount <= 0:
 		return

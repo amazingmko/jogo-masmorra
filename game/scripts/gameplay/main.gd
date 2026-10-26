@@ -168,6 +168,7 @@ func _process(_delta: float) -> void:
 	_player.touch_move = _hud.move_vector()
 	_player.touch_attack = _hud.attack_held()
 	_update_loading()
+	_tick_solo_rest(_delta)
 	if Net.active:
 		_net_tick(_delta)
 		_track_boss_participation(_delta)
@@ -1122,21 +1123,30 @@ func party_heroes() -> Array:
 	return out.filter(func(h): return h != null)
 
 
-## Em grupo o escudo volta mais devagar (quem segura a vida do grupo é o healer).
-const SHIELD_REGEN_SOLO := 10
-const SHIELD_REGEN_GROUP := 4
-const SHIELD_DELAY_SOLO := 4.0
-const SHIELD_DELAY_GROUP := 6.0
+## Sozinho (sem healer), a vida volta devagar fora de luta: 3%/s depois de 6 s sem apanhar e
+## sem bicho acordado. Em grupo não volta: quem cura é o healer (e as Garrafadas, a fogueira).
+const SOLO_REST_DELAY := 6.0
+const SOLO_REST_REGEN := 0.03
+var _rest_acc := 0.0
+
+
+func _tick_solo_rest(delta: float) -> void:
+	if party_size() > 1 or _player.health.is_dead or _run_over or _alive > 0:
+		_rest_acc = 0.0
+		return
+	var h := _player.health
+	if h.health >= h.max_health or h.since_hit() < SOLO_REST_DELAY:
+		_rest_acc = 0.0
+		return
+	_rest_acc += h.max_health * SOLO_REST_REGEN * delta
+	if _rest_acc >= 1.0:
+		h.restore(int(_rest_acc))
+		_rest_acc -= int(_rest_acc)
 
 
 ## Sinergia elemental: o bônus vale para todos do grupo (sozinho não liga nada).
 func _apply_synergy() -> void:
 	var heroes := party_heroes()
-	var group := heroes.size() > 1
-	for h in [_player] + _replicas.values() + sim_allies:
-		if is_instance_valid(h):
-			h.health.armor_regen_amount = SHIELD_REGEN_GROUP if group else SHIELD_REGEN_SOLO
-			h.health.armor_regen_delay = SHIELD_DELAY_GROUP if group else SHIELD_DELAY_SOLO
 	_player.set_synergy(heroes)
 	for peer in _replicas:
 		_replicas[peer].set_synergy(heroes)

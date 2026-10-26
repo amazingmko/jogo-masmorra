@@ -15,7 +15,8 @@ extends Resource
 @export_group("Atributos base (nível 1, sem equipamento)")
 @export var max_health: int = 100
 ## Escudo que absorve dano e se regenera fora de combate.
-@export var max_shield: int = 30
+## Escudo que se regenera: saiu do jogo (só vida + proteção temporária das habilidades). Fica 0.
+@export var max_shield: int = 0
 @export var base_primary: int = 10
 @export var max_energy: int = 150
 @export var move_speed: float = 5.0

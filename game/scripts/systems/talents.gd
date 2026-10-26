@@ -22,7 +22,7 @@ const TREES := {
 			{"id": "couro_anta", "name": "Couro de Anta", "row": 0, "max": 3, "per": 4, "desc": "+{v}% de armadura"},
 			{"id": "escudo_firme", "name": "Escudo Firme", "row": 0, "max": 3, "per": 3, "desc": "+{v}% de chance de bloqueio"},
 			{"id": "casco_vivo", "name": "Casco Vivo", "row": 1, "max": 2, "per": 1.5, "desc": "Muralha de Casco dura +{v} s"},
-			{"id": "pele_pedra", "name": "Pele de Pedra Verde", "row": 1, "max": 1, "per": 30, "desc": "Quando o escudo zera: {v}% menos dano por 3 s (no máximo a cada 20 s)"},
+			{"id": "pele_pedra", "name": "Pele de Pedra Verde", "row": 1, "max": 1, "per": 30, "desc": "Quando a vida fica abaixo de 30%: {v}% menos dano por 4 s (no máximo a cada 20 s)"},
 			{"id": "guarda_imovel", "name": "Guarda Imóvel", "row": 2, "max": 2, "per": 5, "desc": "Parada, bloqueia +{v}%"},
 			{"id": "muiraquita_ancestral", "name": "Muiraquitã Ancestral", "row": 2, "max": 1, "per": 2, "desc": "O Muiraquitã salva {v} vezes por andar"},
 			{"id": "muralha_espelhada", "name": "Muralha Espelhada", "row": 3, "max": 1, "per": 40, "desc": "Durante a Muralha, cada golpe segurado devolve {v}% do dano ao atacante"},
@@ -87,7 +87,7 @@ const TREES := {
 		]},
 		{"id": "espelho", "name": "Espelho", "role": "mobilidade e cópia", "talents": [
 			{"id": "passo_agua", "name": "Passo d'Água", "row": 0, "max": 2, "per": 1, "desc": "Espelho recarrega {v} s mais rápido"},
-			{"id": "bolha_protetora", "name": "Bolha Protetora", "row": 0, "max": 2, "per": 6, "desc": "Ao usar o Espelho, escudo de {v}% da vida por 3 s"},
+			{"id": "bolha_protetora", "name": "Bolha Protetora", "row": 0, "max": 2, "per": 6, "desc": "Ao usar o Espelho, proteção temporária de {v}% da vida por 3 s"},
 			{"id": "copia_atiradora", "name": "Cópia Atiradora", "row": 1, "max": 1, "per": 30, "desc": "A cópia de água atira junto com você ({v}% do dano)"},
 			{"id": "copia_teimosa", "name": "Cópia Teimosa", "row": 1, "max": 2, "per": 2, "desc": "A cópia dura +{v} s e atrai os inimigos próximos"},
 			{"id": "explosao_funda", "name": "Explosão Funda", "row": 2, "max": 2, "per": 1, "desc": "Explosão da cópia com +{v} m de raio"},

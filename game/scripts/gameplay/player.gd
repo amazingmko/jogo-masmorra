@@ -88,7 +88,8 @@ var _fill_light: OmniLight3D
 ## Animações do modelo em camadas (pernas, tronco, morte). Null se o modelo não tiver animações.
 var _animator: HeroAnimator
 ## Dano extra recebido com o escudo zerado.
-const EXPOSED_BONUS := 0.25
+const EXPOSED_BONUS := 0.25  # (sem uso: o escudo que regenera saiu do jogo)
+const LOW_HEALTH := 0.3
 ## Altura em que a flecha voa (a da mão do arco na hora de soltar).
 const ARROW_HEIGHT := 1.25
 ## Velocidade enquanto golpeia ou puxa a corda (andar atacando é mais lento: sem patinar).
@@ -133,10 +134,7 @@ func _ready() -> void:
 	health.damaged.connect(_on_damaged)
 	health.died.connect(_on_died)
 	health.armor_regen_amount = 10
-	# Sem escudo, o herói fica exposto e toma mais dano (o escudo vale a pena proteger).
-	health.exposed_bonus = EXPOSED_BONUS
 	health.hit_blocked.connect(_on_blocked)
-	health.shield_broken.connect(_on_shield_broken)
 	health.death_saved.connect(_on_death_saved)
 	status.name = "StatusEffects"
 	status.health = health
@@ -539,6 +537,11 @@ func _on_damaged(amount: int) -> void:
 		_animator.hurt(_ground_speed() > 0.15)
 	if kit:
 		kit.on_damaged(amount)
+		# vida passou de 30% para baixo (Pele de Pedra Verde e afins)
+		var frac := float(health.health) / float(maxi(health.max_health, 1))
+		var before := float(health.health + amount) / float(maxi(health.max_health, 1))
+		if frac < LOW_HEALTH and before >= LOW_HEALTH and not health.is_dead:
+			kit.on_low_health()
 	Fx.damage_number(get_parent(), global_position + Vector3(0, 2.0, 0), amount, false, Color("ff6b6b"))
 
 
@@ -685,10 +688,6 @@ func on_enemy_killed(elite: bool) -> void:
 		kit.on_kill(elite)
 
 
-func _on_shield_broken() -> void:
-	Fx.float_text(get_parent(), global_position + Vector3(0, 2.9, 0), "SEM ESCUDO! +%d%% de dano" % int(EXPOSED_BONUS * 100), Color("ff9f43"))
-	if kit:
-		kit.on_shield_broken()
 
 
 # ---------- marcador de alvo ----------

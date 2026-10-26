@@ -229,7 +229,6 @@ func _stats() -> Control:
 	box.add_child(col)
 	var rows := [
 		["Vida", str(st.max_health), Color("ff7a7a")],
-		["Escudo", str(st.max_shield), Color("a9c4ff")],
 		[GameEnums.PRIMARY_NAMES[hero.primary_stat], str(st.primary), UiStyle.TEXT],
 		["Vigor", str(st.vigor), UiStyle.TEXT],
 		["Armadura", "%d  (-%d%%)" % [st.armor, int(round(st.damage_reduction * 100))], UiStyle.TEXT],

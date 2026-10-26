@@ -28,6 +28,7 @@ var _panel_loot_items: Array = []
 var _hero_label: Label
 var _portrait: Control
 var _synergy_row: HBoxContainer
+var _armor_row: Control  # agora: a proteção temporária (some quando não tem)
 var _wave_label: Label
 var _help_label: Label
 ## Provação: o objetivo, numa linha centralizada embaixo do medidor.
@@ -367,10 +368,11 @@ func on_loot_collected(item: ItemData, qty: int, instance: Dictionary = {}) -> v
 func _on_health_changed(health: int, max_health: int, armor: int, max_armor: int) -> void:
 	_health_bar.max_value = max_health
 	_health_bar.value = health
-	_armor_bar.max_value = maxi(max_armor, 1)
-	_armor_bar.value = armor
-	UiStyle.set_bar(_health_bar, health, max_health, "%d / %d" % [health, max_health])
-	UiStyle.set_bar(_armor_bar, armor, maxi(max_armor, 1), "%d / %d" % [armor, max_armor] if max_armor > 0 else "")
+	# proteção temporária (Bolha e afins): barra branca embaixo da vida, só enquanto dura
+	var shield: int = _player.health.bubble if _player else 0
+	UiStyle.set_bar(_health_bar, health, max_health, "%d / %d" % [health, max_health] + ("  +%d" % shield if shield > 0 else ""))
+	UiStyle.set_bar(_armor_bar, shield, max_health, "")
+	_armor_row.visible = shield > 0
 
 
 func _on_hero_changed(hero: HeroData) -> void:
@@ -419,7 +421,7 @@ func _build_status() -> void:
 	_hero_chips.add_theme_constant_override("separation", 4)
 	head.add_child(_hero_chips)
 	# vida e escudo: barras com o número dentro e o ícone ao lado
-	for spec in [["vida", Color("e05555"), 22], ["escudo", Color("7f9be0"), 16]]:
+	for spec in [["vida", Color("e05555"), 22], ["escudo", Color("eef3ff"), 10]]:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 4)
 		box.add_child(row)
@@ -436,6 +438,8 @@ func _build_status() -> void:
 			_health_bar = bar
 		else:
 			_armor_bar = bar
+			_armor_row = row
+			row.visible = false
 	_health_label = _make_label(16)
 	_health_label.visible = false
 	_status_row = HBoxContainer.new()

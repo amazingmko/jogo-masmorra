@@ -6,6 +6,6 @@
 script = ExtResource("1_pbqj2")
 id = &"pele_de_pedra"
 display_name = "Pele de Pedra"
-description = "+10 de escudo máximo."
-stat = &"max_shield"
-amount = 10.0
+description = "+15 de vida máxima."
+stat = &"max_health"
+amount = 15.0

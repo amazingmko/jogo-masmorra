@@ -232,13 +232,13 @@ func on_death_saved() -> void:
 		player.health.death_save = true
 
 
-func on_shield_broken() -> void:
-	# Pele de Pedra Verde: o corpo endurece quando o escudo cai.
+func on_low_health() -> void:
+	# Pele de Pedra Verde: o corpo endurece quando a vida fica abaixo de 30%.
 	if t("pele_pedra") <= 0 or _stone_cd > 0.0:
 		return
 	if _stone_left <= 0.0:
 		player.health.extra_reduction += tv("pele_pedra") / 100.0
-	_stone_left = 3.0
+	_stone_left = 4.0
 	_stone_cd = 20.0
 	Fx.float_text(player.get_parent(), player.global_position + Vector3(0, 3.3, 0), "PELE DE PEDRA!", Color("6fdc7b"))
 

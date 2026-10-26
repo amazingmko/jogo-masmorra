@@ -530,8 +530,8 @@ func _test_items_and_stats(catalog: ItemCatalog) -> void:
 		"escudo só para tanques")
 	var ranger := HeroStats.compute(catalog.get_hero(&"mateira"), 5, {GameEnums.Slot.OFFHAND: shield}, catalog)
 	check(ranger.block_chance == 0.0, "quem não é tanque não bloqueia")
-	check(guardian.max_shield > catalog.get_hero(&"mateira").max_shield and guardian.max_health > catalog.get_hero(&"mateira").max_health,
-		"tanque tem mais vida e escudo maior")
+	check(guardian.max_shield == 0 and guardian.max_health > catalog.get_hero(&"mateira").max_health,
+		"tanque tem mais vida (ninguém tem escudo que regenera)")
 	var fury: BuffData = catalog.buffs.get(&"furia")
 	var buffed := HeroStats.compute(guardian, 5, {}, catalog, [fury])
 	check(buffed.weapon.damage > leveled.weapon.damage, "bênção Fúria aumenta o dano")

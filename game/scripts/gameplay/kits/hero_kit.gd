@@ -229,7 +229,8 @@ func shoot_move_factor(base: float) -> float:
 	return base
 
 
-func on_shield_broken() -> void:
+## A vida caiu abaixo de 30% (Player.LOW_HEALTH).
+func on_low_health() -> void:
 	pass
 
 
