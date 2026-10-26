@@ -11,8 +11,8 @@ config_version=5
 [application]
 
 config/name="Encante"
-config/version="0.14"
 config/description="Jogo mobile 3D low-poly de exploração de masmorras (nome provisório)."
+config/version="0.14"
 run/main_scene="res://game/scenes/title.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
 config/icon="res://game/ui/marca/icone_encante.png"
