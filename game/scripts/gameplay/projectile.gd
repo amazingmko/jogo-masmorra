@@ -7,6 +7,7 @@ const ELEMENT_COLORS := {
 	GameEnums.Element.FIRE: Color("ff8a3d"),
 	GameEnums.Element.WATER: Color("4db8ff"),
 	GameEnums.Element.NATURE: Color("8be06b"),
+	GameEnums.Element.EARTH: Color("c9a26b"),
 }
 
 var direction := Vector3.FORWARD

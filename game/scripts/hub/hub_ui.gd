@@ -1005,6 +1005,7 @@ func _build_controls() -> void:
 
 	action_button = TouchButton.new()
 	action_button.color = Color("4db8ff")
+	action_button.frame = UiStyle.texture_or_null("botao_ataque")
 	action_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
 	action_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	action_button.grow_vertical = Control.GROW_DIRECTION_BEGIN

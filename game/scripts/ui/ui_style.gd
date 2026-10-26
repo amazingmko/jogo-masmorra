@@ -7,7 +7,8 @@ extends RefCounted
 ## Paletas em teste: "obsidiana" (preto + ouro), "pedra_lunar" (ardósia + prata) e "abissal"
 ## (azul-marinho + linhas claras). Fontes: Lilita One (títulos/botões) + Nunito (texto).
 
-static var palette := "abissal"
+## "encante" (escolhida): arte do Gemini, madeira azul-noite + bronze + pedra de muiraquitã.
+static var palette := "encante"
 ## Fonte dos títulos e botões: Marcellus SC (escolhida). "aventura" volta para a Lilita One.
 static var variant := "classico"
 ## Fundo sutil das janelas (marca d'água): "folhas" (escolhido), "emblema", "constelacao" ou "".
@@ -20,6 +21,7 @@ const BAD := Color("ff6b6b")
 const PALETTES := {
 	"obsidiana": {"text": Color("efe6d2"), "dim": Color("a39c8c"), "title": Color("f3cf72"), "accent": Color("40c4d6"), "line": Color("6b5428"), "row": Color(1, 1, 1, 0.04), "gold_text": Color("2b1a04")},
 	"pedra_lunar": {"text": Color("e9eef6"), "dim": Color("9aa6ba"), "title": Color("dfe8f5"), "accent": Color("60ded6"), "line": Color("4f5d75"), "row": Color(1, 1, 1, 0.045), "gold_text": Color("0b2b2c")},
+	"encante": {"text": Color("f2e8d4"), "dim": Color("b3a68a"), "title": Color("f2c56b"), "accent": Color("7fd8b0"), "line": Color("6b5634"), "row": Color(1.0, 0.9, 0.7, 0.05), "gold_text": Color("2b1a04")},
 	"abissal": {"text": Color("e6f4ff"), "dim": Color("8eaecb"), "title": Color("ffd98a"), "accent": Color("8fdcff"), "line": Color("2c5a86"), "row": Color(0.5, 0.8, 1.0, 0.05), "gold_text": Color("2b1a04")},
 }
 
@@ -42,6 +44,12 @@ static var GOLD: Color:
 
 static func dir() -> String:
 	return "res://game/ui/%s/" % palette
+
+
+## Textura da paleta (game/ui/<paleta>/<nome>.png), ou null se essa paleta não tem.
+static func texture_or_null(name: String) -> Texture2D:
+	var path := dir() + name + ".png"
+	return load(path) if ResourceLoader.exists(path) else null
 
 
 static func _font(file: String, weight := 0) -> Font:
@@ -117,11 +125,15 @@ static func _tex_box(file: String, margin: Vector4, content: Vector4) -> StyleBo
 
 ## Moldura grande (janelas, diálogos).
 static func panel() -> StyleBoxTexture:
+	if palette == "encante":
+		return _tex_box("moldura.png", Vector4(76, 76, 76, 76), Vector4(40, 36, 40, 34))
 	return _tex_box("moldura.png", Vector4(84, 84, 84, 84), Vector4(34, 30, 34, 28))
 
 
 ## Placa do título da janela e faixa dos avisos.
 static func plate() -> StyleBoxTexture:
+	if palette == "encante":
+		return _tex_box("placa.png", Vector4(58, 22, 58, 22), Vector4(60, 8, 60, 10))
 	return _tex_box("placa.png", Vector4(44, 20, 44, 20), Vector4(52, 6, 52, 9))
 
 
@@ -417,16 +429,28 @@ static func bar(fill: Color, width := 260.0, height := 20.0) -> ProgressBar:
 	var b := ProgressBar.new()
 	b.custom_minimum_size = Vector2(width, height)
 	b.show_percentage = false
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0.02, 0.04, 0.08, 0.85)
-	bg.border_color = Color(c("line"), 1.0).lightened(0.15)
-	bg.set_border_width_all(2)
-	bg.set_corner_radius_all(6)
+	var bg: StyleBox
 	var fg := StyleBoxFlat.new()
 	fg.bg_color = fill
 	fg.border_color = fill.lightened(0.4)
 	fg.border_width_top = 3
 	fg.set_corner_radius_all(5)
+	if ResourceLoader.exists(dir() + "barra.png"):
+		# moldura de bronze pintada; a cor da vida fica por dentro do aro
+		bg = _tex_box("barra.png", Vector4(12, 7, 12, 7), Vector4(0, 0, 0, 0))
+		var inset := clampf(height * 0.2, 3.0, 5.0)
+		fg.expand_margin_left = -inset
+		fg.expand_margin_right = -inset
+		fg.expand_margin_top = -inset
+		fg.expand_margin_bottom = -inset
+		fg.set_corner_radius_all(int(height * 0.35))
+	else:
+		var flat := StyleBoxFlat.new()
+		flat.bg_color = Color(0.02, 0.04, 0.08, 0.85)
+		flat.border_color = Color(c("line"), 1.0).lightened(0.15)
+		flat.set_border_width_all(2)
+		flat.set_corner_radius_all(6)
+		bg = flat
 	b.add_theme_stylebox_override("background", bg)
 	b.add_theme_stylebox_override("fill", fg)
 	b.mouse_filter = Control.MOUSE_FILTER_IGNORE

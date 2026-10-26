@@ -185,7 +185,7 @@ var synergy_buffs: Array = []
 var synergy_reduction := 0.0
 ## Provocação natural do tanque: bichos a até esta distância preferem atacar este herói.
 var threat_radius := 0.0
-const TANK_THREAT_RADIUS := 6.0
+const TANK_THREAT_RADIUS := 4.0
 
 
 func set_synergy(heroes: Array) -> void:

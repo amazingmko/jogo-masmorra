@@ -65,6 +65,9 @@ const REVIVE_TIME := 5.0
 const REVIVE_HP := 0.25
 const REVIVE_TIME_HEALER := 2.0
 const REVIVE_HP_HEALER := 0.6
+## O grupo tem 3 levantadas por andar; as da Druida (healer) não gastam.
+const LIFTS_PER_FLOOR := 3
+var lifts_used := 0
 ## Quem caiu volta sozinho no andar novo, mas fraco.
 const FLOOR_REVIVE_HP := 0.25
 const REVIVE_RANGE := 1.8
@@ -351,6 +354,7 @@ func _portal_to_next_floor() -> void:
 
 func _next_floor() -> void:
 	floor_number += 1
+	lifts_used = 0
 	_clear_floor()
 	if Net.active:
 		# todos os aparelhos montam o mesmo andar: a semente vem da run e do número do andar
@@ -1032,7 +1036,7 @@ func _on_player_died() -> void:
 		return
 	if Net.active and not _replicas.is_empty():
 		# no grupo: cai e espera um parceiro levantar (a run só acaba se todos caírem)
-		_hud.show_toast("Você caiu! Um parceiro pode te levantar (ficar perto de você por %d s; a Druida, %d s)." % [int(REVIVE_TIME), int(REVIVE_TIME_HEALER)], Color("ff6b6b"))
+		_hud.show_toast("Você caiu! Um parceiro pode te levantar (%d s perto de você; a Druida, %d s). Levantadas no andar: %d" % [int(REVIVE_TIME), int(REVIVE_TIME_HEALER), lifts_left()], Color("ff6b6b"))
 		_send_hero_state()
 		return
 	_finish(false)
@@ -1247,11 +1251,44 @@ func _send_enemy_state() -> void:
 
 ## Quanto tempo quem está levantando leva, e com quanto da vida o parceiro volta.
 static func revive_time(reviver: Player) -> float:
-	return REVIVE_TIME_HEALER if reviver.hero and reviver.hero.hero_class == GameEnums.HeroClass.DRUID else REVIVE_TIME
+	return REVIVE_TIME_HEALER if is_healer(reviver) else REVIVE_TIME
+
+
+static func is_healer(p: Player) -> bool:
+	return p.hero != null and p.hero.hero_class == GameEnums.HeroClass.DRUID
+
+
+func lifts_left() -> int:
+	return maxi(LIFTS_PER_FLOOR - lifts_used, 0)
+
+
+## Pode levantar agora? (a Druida sempre pode)
+func can_lift(reviver: Player) -> bool:
+	return is_healer(reviver) or lifts_left() > 0
+
+
+## Conta a levantada (se não foi a Druida) e avisa os outros aparelhos.
+func use_lift(reviver: Player) -> void:
+	if is_healer(reviver):
+		return
+	lifts_used += 1
+	Net.send("net_lift_used", [])
+	_lift_toast()
+
+
+func _lift_toast() -> void:
+	var left := lifts_left()
+	_hud.show_toast("Levantadas no andar: %d de %d" % [left, LIFTS_PER_FLOOR] + ("" if left > 0 else " (só a Druida levanta agora)"),
+		Color("6fdc7b") if left > 0 else Color("ff6b6b"))
+
+
+func net_lift_used(_sender: int) -> void:
+	lifts_used += 1
+	_lift_toast()
 
 
 static func revive_hp(reviver: Player) -> float:
-	return REVIVE_HP_HEALER if reviver.hero and reviver.hero.hero_class == GameEnums.HeroClass.DRUID else REVIVE_HP
+	return REVIVE_HP_HEALER if is_healer(reviver) else REVIVE_HP
 
 
 ## Levantar parceiro: ficar perto de quem caiu por alguns segundos.
@@ -1264,6 +1301,9 @@ func _tick_revive(delta: float) -> void:
 		if not r.health.is_dead or r.global_position.distance_to(_player.global_position) > REVIVE_RANGE:
 			_revive_t.erase(peer)
 			continue
+		if not can_lift(_player):
+			_revive_t.erase(peer)
+			continue
 		var before: float = _revive_t.get(peer, 0.0)
 		var now := before + delta
 		_revive_t[peer] = now
@@ -1272,6 +1312,7 @@ func _tick_revive(delta: float) -> void:
 			Fx.float_text(self, r.global_position + Vector3(0, 1.6, 0), "levantando %d%%" % int(minf(now / need, 1.0) * 100), Color("6fdc7b"))
 		if now >= need:
 			_revive_t.erase(peer)
+			use_lift(_player)
 			Net.send_to(peer, "net_revive", [revive_hp(_player)])
 
 
