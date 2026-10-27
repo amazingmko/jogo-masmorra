@@ -43,7 +43,7 @@ const TREES := {
 			{"id": "folego_curto", "name": "Fôlego Curto", "row": 1, "max": 1, "per": 3, "desc": "O Provocar recarrega {v} s mais rápido"},
 			{"id": "guarda_vingativa", "name": "Guarda Vingativa", "row": 2, "max": 2, "per": 3, "desc": "+{v}% de armadura por inimigo provocado, enquanto durar"},
 			{"id": "muralha_avancada", "name": "Muralha Avançada", "row": 2, "max": 1, "per": 4, "desc": "Ao ativar a Muralha, empurra para longe os inimigos a até {v} m"},
-			{"id": "grito_amazonas", "name": "Grito das Amazonas", "row": 3, "max": 1, "per": 20, "desc": "Provocados recebem +{v}% de dano; cada Provocar carrega +10 da ultimate"},
+			{"id": "grito_amazonas", "name": "Grito das Amazonas", "row": 3, "max": 1, "per": 20, "desc": "Provocados recebem +{v}% de dano, e cada Provocar carrega +10 da ultimate"},
 		]},
 	],
 	&"mateira": [
@@ -51,7 +51,7 @@ const TREES := {
 			{"id": "corda_tensa", "name": "Corda Tensa", "row": 0, "max": 3, "per": 4, "desc": "+{v}% de dano das flechas"},
 			{"id": "mao_firme", "name": "Mão Firme", "row": 0, "max": 3, "per": 3, "desc": "+{v}% de crítico"},
 			{"id": "olho_gaviao", "name": "Olho de Gavião", "row": 1, "max": 2, "per": 1, "desc": "Olho de Caçadora vale {v} m mais perto e dá +5% de crítico por ponto"},
-			{"id": "flecha_perfurante", "name": "Flecha Perfurante", "row": 1, "max": 1, "per": 60, "desc": "A flecha atravessa o primeiro inimigo; o segundo leva {v}%"},
+			{"id": "flecha_perfurante", "name": "Flecha Perfurante", "row": 1, "max": 1, "per": 60, "desc": "A flecha atravessa o primeiro inimigo e acerta o segundo com {v}%"},
 			{"id": "tiro_certeiro", "name": "Tiro Certeiro", "row": 2, "max": 2, "per": 15, "desc": "O crítico causa +{v}% de dano"},
 			{"id": "respiracao_calma", "name": "Respiração Calma", "row": 2, "max": 1, "per": 1.5, "desc": "Depois de {v} s parada, o próximo tiro é crítico garantido"},
 			{"id": "chuva_flechas", "name": "Chuva de Flechas", "row": 3, "max": 1, "per": 5, "desc": "A cada {v} tiros, o seguinte sai como 3 flechas em leque"},
@@ -68,11 +68,11 @@ const TREES := {
 		{"id": "mata", "name": "Mata", "role": "movimento e harpia", "talents": [
 			{"id": "pes_leves", "name": "Pés Leves", "row": 0, "max": 3, "per": 3, "desc": "+{v}% de velocidade"},
 			{"id": "rastro_longo", "name": "Rastro Longo", "row": 0, "max": 2, "per": 1, "desc": "Rastro Leve dura +{v} s"},
-			{"id": "atirar_correndo", "name": "Atirar Correndo", "row": 1, "max": 2, "per": 15, "desc": "Atirando andando, mantém +{v}% da velocidade (55% → 70% → 85%)"},
+			{"id": "atirar_correndo", "name": "Atirar Correndo", "row": 1, "max": 2, "per": 15, "desc": "Atirando andando, mantém +{v}% da velocidade (55%, 70% e 85%)"},
 			{"id": "pena_gaviao", "name": "Pena de Gavião", "row": 1, "max": 1, "per": 3, "desc": "A Harpia dura +{v} s"},
 			{"id": "garras_afiadas", "name": "Garras Afiadas", "row": 2, "max": 2, "per": 20, "desc": "Mergulhos da Harpia causam +{v}% de dano"},
 			{"id": "vinculo", "name": "Vínculo", "row": 2, "max": 1, "per": 1, "desc": "Cada abate com a Harpia ativa a mantém +{v} s"},
-			{"id": "revoada", "name": "Revoada", "row": 3, "max": 1, "per": 40, "desc": "A Harpia acompanha sempre ({v}% do dano); a ultimate vira Fúria da Harpia: dano em dobro por 8 s"},
+			{"id": "revoada", "name": "Revoada", "row": 3, "max": 1, "per": 40, "desc": "A Harpia acompanha sempre ({v}% do dano). A ultimate vira Fúria da Harpia, com dano em dobro por 8 s"},
 		]},
 	],
 	&"encantado": [

@@ -66,7 +66,7 @@ func describe() -> PackedStringArray:
 	return PackedStringArray([
 		"Encharcar (passiva): cada disparo deixa o inimigo encharcado por %d s." % SOAK_TIME,
 		"Espelho do Rio (habilidade, %d s): teletransporta %d m para onde aponta e deixa uma cópia de água que explode quando um inimigo encosta." % [BLINK_COOLDOWN, BLINK_DISTANCE],
-		"Pororoca (ultimate): uma onda atravessa a sala e joga os inimigos contra a parede; bater na parede dói, e o dobro em quem está encharcado.",
+		"Pororoca (ultimate): uma onda atravessa a sala e joga os inimigos contra a parede. Bater na parede dói, e dói o dobro em quem está encharcado.",
 		"Ricochete (passiva): a cada %d disparos, o seguinte quica em mais %d inimigos." % [RICOCHET_EVERY, RICOCHET_BOUNCES],
 	])
 

@@ -91,7 +91,7 @@ func _show_resume_dialog() -> void:
 	UiStyle.title_label(title, 30)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(title)
-	var info := _label("%s · Andar %d de 10 · %s" % [hero.display_name, int(r.get("floor", 1)), Difficulty.name_of(int(r.get("difficulty", 0)))], 20, TEXT)
+	var info := _label("%s no andar %d de 10 (%s)" % [hero.display_name, int(r.get("floor", 1)), Difficulty.name_of(int(r.get("difficulty", 0)))], 20, TEXT)
 	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(info)
 	var note := _label("O jogo fechou no meio da run. Você volta no começo desse andar, com o que já tinha pego.", 16, MUTED, true)
@@ -192,7 +192,7 @@ func _refresh_open_panel() -> void:
 ## Regiões do portal, agrupadas por bioma. world: índice em Difficulty.WORLDS (-1 = em breve).
 const REGIONS := [
 	{"biome": "Amazônia", "id": "terra_firme", "name": "Terra Firme", "world": 0, "boss": "Mapinguari",
-		"desc": "Mata fechada de terra firme. Bichos deixam ouro; os reagentes vêm dos chefes, dos baús e, às vezes, dos furiosos."},
+		"desc": "Mata fechada de terra firme. Os bichos deixam ouro, e os reagentes vêm dos chefes, dos baús e às vezes dos furiosos."},
 	{"biome": "Amazônia", "id": "igapo", "name": "Várzea e Igapó", "world": 1, "boss": "Iara", "soon": true,
 		"desc": "Floresta alagada: a água sobe e desce no meio da luta."},
 	{"biome": "Amazônia", "id": "urnas", "name": "Cidade das Urnas", "world": -1, "boss": "Anhangá",
@@ -330,8 +330,9 @@ func _portal_right() -> Control:
 func _set_requirement_row(d: int, hero: HeroData) -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 6)
-	row.add_child(UiStyle.chip("Para o %s" % Difficulty.name_of(d), "cadeado", Difficulty.color_of(d)))
 	var need: int = Difficulty.SET_RARITY[d]
+	var need_names: String = ["Comuns", "Raras", "Épicas", "Lendárias"][need]
+	row.add_child(UiStyle.chip("%s: peças %s" % [Difficulty.name_of(d), need_names], "cadeado", Difficulty.color_of(d)))
 	var equipped := GameState.equipped_items(hero.id)
 	for st in Difficulty.set_status(need, equipped):
 		var inst: Dictionary = equipped.get(st.slot, {})
@@ -346,17 +347,9 @@ func _set_requirement_row(d: int, hero: HeroData) -> Control:
 		slot.add_child(mark)
 		slot.tooltip_text = GameEnums.SLOT_NAMES[st.slot]
 		row.add_child(slot)
-	var need_name: String = ["Comum", "Rara", "Épica", "Lendária"][need]
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 6)
-	box.add_child(row)
-	var row2 := HBoxContainer.new()
-	row2.add_theme_constant_override("separation", 6)
-	row2.add_child(UiStyle.chip("cada peça %s ou melhor" % need_name, "", GameEnums.rarity_color(need)))
 	if GameState.highest_cleared < d - 1:
-		row2.add_child(UiStyle.chip("vencer o %s" % Difficulty.name_of(d - 1), "chefe", UiStyle.TEXT_DIM))
-	box.add_child(row2)
-	return box
+		row.add_child(UiStyle.chip("vencer o %s" % Difficulty.name_of(d - 1), "chefe", UiStyle.TEXT_DIM))
+	return row
 
 
 func _tab_button(text: String, active: bool, on_press: Callable) -> Button:
@@ -399,9 +392,8 @@ func _fill_expedition() -> void:
 	name_l.text = r.name
 	UiStyle.title_label(name_l, 30)
 	_modal_body.add_child(name_l)
-	_modal_body.add_child(UiStyle.chips([["%d andares" % 10, "mapa"], ["Chefe: %s" % r.boss, "chefe", Color("ff8a6a")], ["Reagentes", "chance", Color("8fe38f")]]))
 	if r.desc != "":
-		var d := UiStyle.label(r.desc, 16, UiStyle.TEXT_DIM)
+		var d := UiStyle.label("%s O chefe é o %s." % [r.desc, r.boss], 16, UiStyle.TEXT_DIM)
 		d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		d.custom_minimum_size = Vector2(400, 0)
 		_modal_body.add_child(d)
@@ -434,11 +426,9 @@ func _fill_expedition() -> void:
 			_difficulty = dd
 			_refresh_open_panel())
 		drow.add_child(b)
-	_modal_body.add_child(UiStyle.chips([
-		["Vida ×%s" % _num(Difficulty.HEALTH_MULT[_difficulty]), "vida", Color("ff8a8a")],
-		["Dano ×%s" % _num(Difficulty.DAMAGE_MULT[_difficulty]), "espada", Color("ffcf6b")],
-		["XP ×%s" % _num(Difficulty.XP_MULT[_difficulty]), "xp", Color("8fe38f")],
-		["Reagentes ×%s" % _num(Difficulty.REWARD_MULT[_difficulty]), "chance", Color("8fe38f")]]))
+	# só o que muda para o jogador: quanto rende (a dificuldade já diz que os bichos apertam)
+	if _difficulty > 0:
+		_modal_body.add_child(UiStyle.chips([["Reagentes ×%s e XP ×%s" % [_num(Difficulty.REWARD_MULT[_difficulty]), _num(Difficulty.XP_MULT[_difficulty])], "chance", Color("8fe38f")]]))
 	# próxima dificuldade trancada: o que falta (as 6 peças com ✓/✗ e vencer a anterior)
 	for d in range(1, 4):
 		if GameState.difficulty_lock(d, hero.id) != "":
@@ -448,7 +438,13 @@ func _fill_expedition() -> void:
 	var erow := HBoxContainer.new()
 	erow.add_theme_constant_override("separation", 10)
 	_modal_body.add_child(erow)
-	erow.add_child(UiStyle.chip("Energia", "energia", Color("ffd84a")))
+	var eic := TextureRect.new()
+	eic.texture = load("res://game/ui/icones/s_energia.png")
+	eic.custom_minimum_size = Vector2(26, 26)
+	eic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	eic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	eic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	erow.add_child(eic)
 	var pips := UiStyle.pips(energy, GameState.MAX_ENERGY, Color("ffd84a"), 18)
 	pips.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	erow.add_child(pips)
@@ -736,15 +732,12 @@ func _fill_artisan() -> void:
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 10)
 	inner.add_child(top)
-	top.add_child(UiStyle.chip("Nível %d" % lvl, "nivel", Color("ffd25a")))
-	var xp := UiStyle.bar(Color("4fbf7a"), 260, 20)
+	# nível e XP numa barra só (a descrição da profissão fica na dica da aba)
+	var xp := UiStyle.bar(Color("4fbf7a"), 300, 22)
 	xp.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	UiStyle.set_bar(xp, GameState.professions.xp_of(_craft_prof), prof.xp_to_next(lvl), "XP %d / %d" % [GameState.professions.xp_of(_craft_prof), prof.xp_to_next(lvl)])
+	UiStyle.set_bar(xp, GameState.professions.xp_of(_craft_prof), prof.xp_to_next(lvl), "Nível %d" % lvl)
+	xp.tooltip_text = prof.description
 	top.add_child(xp)
-	var pd := UiStyle.label(prof.description, 15, UiStyle.TEXT_DIM)
-	pd.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	pd.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	top.add_child(pd)
 	if _craft_msg != "":
 		var msg := UiStyle.label(_craft_msg, 16, _craft_msg_color)
 		msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -858,32 +851,25 @@ func _recipe_card(recipe: RecipeData) -> Control:
 	box.add_child(col)
 	var streak := GameState.craft_streak(recipe.id)
 	var chance := Crafting.success_chance(recipe, GameState.professions, streak)
+	# cabeçalho enxuto: a raridade é o título (a peça já está escolhida na lista ao lado) e a
+	# chance; o ouro vai no botão; nível e peça-base só aparecem quando faltam
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 6)
 	col.add_child(head)
 	var nl := Label.new()
-	nl.text = item.display_name if item.is_equipment() else recipe.display_name
+	nl.text = GameEnums.rarity_name(r) if item.is_equipment() else recipe.display_name
 	UiStyle.title_label(nl, 19, color)
 	nl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(nl)
-	if item.is_equipment():
-		head.add_child(UiStyle.chip(GameEnums.rarity_name(r), "", color))
-		head.add_child(UiStyle.chip("%d" % GameEnums.RARITY_GEAR_POWER[r], "poder"))
-	head.add_child(UiStyle.chip("%d%%" % int(round(chance * 100)), "chance", UiStyle.OK if chance >= 0.5 else Color("ffcf6b")))
 	var cost := Economy.craft_cost(recipe, ItemDB.catalog)
-	head.add_child(UiStyle.chip("%d" % cost, "ouro", Color("ffd84a") if GameState.coins >= cost else UiStyle.BAD))
-	var notes := HBoxContainer.new()
-	notes.add_theme_constant_override("separation", 6)
 	var lvl := GameState.professions.level_of(recipe.profession_id)
 	if lvl < recipe.required_level:
-		notes.add_child(UiStyle.chip("Nível %d na profissão" % recipe.required_level, "cadeado", UiStyle.BAD))
-	if recipe.requires_base:
-		var base := Crafting.find_base(recipe, GameState.inventory, GameState.worn_uids())
-		notes.add_child(UiStyle.chip("Base: %s" % GameEnums.rarity_name(r - 1), "", UiStyle.OK if not base.is_empty() else UiStyle.BAD))
-	if streak > 0:
-		notes.add_child(UiStyle.chip("+%d%% (falhas)" % (streak * 10), "", Color("ffcf6b")))
-	if notes.get_child_count() > 0:
-		col.add_child(notes)
+		head.add_child(UiStyle.chip("Nível %d" % recipe.required_level, "cadeado", UiStyle.BAD))
+	elif recipe.requires_base and Crafting.find_base(recipe, GameState.inventory, GameState.worn_uids()).is_empty():
+		head.add_child(UiStyle.chip("Precisa da %s" % GameEnums.rarity_name(r - 1), "", UiStyle.BAD))
+	else:
+		var ctext := "%d%%" % int(round(chance * 100)) + (" (+%d%%)" % (streak * 10) if streak > 0 else "")
+		head.add_child(UiStyle.chip(ctext, "chance", UiStyle.OK if chance >= 0.5 else Color("ffcf6b")))
 	# reagentes: ícone com tem/precisa
 	var bottom := HBoxContainer.new()
 	bottom.add_theme_constant_override("separation", 6)
@@ -892,7 +878,9 @@ func _recipe_card(recipe: RecipeData) -> Control:
 		var need := int(recipe.ingredients[ing_id])
 		var have := GameState.inventory.count(StringName(ing_id))
 		var ing := ItemDB.get_item(StringName(ing_id))
-		var slot := _mini_slot(CharacterPanel.icon_name(ing), -1, 50, "%s/%d" % [_count(have), need], UiStyle.OK if have >= need else UiStyle.BAD)
+		# basta: só o que precisa; falta: tem/precisa em vermelho
+		var ctext := str(need) if have >= need else "%s/%d" % [_count(have), need]
+		var slot := _mini_slot(CharacterPanel.icon_name(ing), -1, 50, ctext, UiStyle.OK if have >= need else UiStyle.BAD)
 		slot.tooltip_text = ing.display_name if ing else String(ing_id)
 		slot.mouse_filter = Control.MOUSE_FILTER_PASS
 		bottom.add_child(slot)
@@ -902,8 +890,12 @@ func _recipe_card(recipe: RecipeData) -> Control:
 	var reason := Crafting.check(recipe, GameState.inventory, GameState.professions, GameState.worn_uids())
 	if reason == "" and GameState.coins < cost:
 		reason = "Falta ouro."
-	var make := _button("Fabricar", 20, TEXT, false, "ouro" if reason == "" else "normal")
-	make.custom_minimum_size = Vector2(150, 54)
+	var make := _button("Fabricar  %d" % cost, 20, TEXT, false, "ouro" if reason == "" else "normal")
+	make.icon = UiStyle.icon("s_ouro")
+	make.expand_icon = true
+	make.icon_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	make.add_theme_constant_override("icon_max_width", 22)
+	make.custom_minimum_size = Vector2(170, 54)
 	make.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	make.disabled = reason != ""
 	make.tooltip_text = reason

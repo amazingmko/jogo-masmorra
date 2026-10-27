@@ -78,7 +78,11 @@ func _test_drops(catalog: ItemCatalog) -> void:
 	for i in n:
 		if table.roll(rng).is_empty():
 			empty += 1
-	var expected := 30.0 / 120.0
+	var weights := 0
+	for entry in table.entries:
+		if entry.min_difficulty <= 99:
+			weights += entry.weight
+	var expected := float(table.nothing_weight) / float(table.nothing_weight + weights)
 	check(absf(float(empty) / n - expected) < 0.02, "taxa de drop vazio ~%.2f (obtido %.3f)" % [expected, float(empty) / n])
 
 	# Chefe sorteia 3 vezes e nunca vem vazio.

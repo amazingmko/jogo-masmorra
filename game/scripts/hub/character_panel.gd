@@ -87,14 +87,12 @@ func _doll() -> Control:
 	mid.add_child(_slot_column(LEFT_SLOTS, equipped, hero))
 	mid.add_child(_hero_view(hero))
 	mid.add_child(_slot_column(RIGHT_SLOTS, equipped, hero))
-	# arma embaixo, no meio, entre os selos da classe
+	# arma embaixo, no meio
 	var bottom := HBoxContainer.new()
 	bottom.alignment = BoxContainer.ALIGNMENT_CENTER
 	bottom.add_theme_constant_override("separation", 14)
 	inner.add_child(bottom)
-	bottom.add_child(UiStyle.chip(GameEnums.PRIMARY_NAMES[hero.primary_stat], UiStyle.primary_icon(hero.primary_stat)))
-	bottom.add_child(_equip_slot(GameEnums.Slot.WEAPON, equipped, hero))
-	bottom.add_child(UiStyle.chip(GameEnums.ARMOR_NAMES[hero.armor_type()], UiStyle.armor_icon(hero.armor_type())))
+	bottom.add_child(_equip_slot(GameEnums.Slot.WEAPON, equipped, hero))  # (atributo e armadura já estão nos atributos e nas peças)
 	return box
 
 

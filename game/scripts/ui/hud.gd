@@ -494,7 +494,7 @@ func _on_hero_changed(hero: HeroData) -> void:
 	}
 	var form_text := ""
 	if _player and _player.form_name() != "":
-		form_text = " · forma: %s" % _player.form_name()
+		form_text = "forma: %s" % _player.form_name()
 	_hero_label.text = hero.display_name
 	UiStyle.set_portrait(_portrait, String(hero.id))
 	for ch in _hero_chips.get_children():

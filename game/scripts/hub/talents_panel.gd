@@ -50,9 +50,11 @@ func _refresh() -> void:
 	top.custom_minimum_size = Vector2(0, 46)
 	add_child(top)
 	top.add_child(UiStyle.header(hero.display_name))
-	top.add_child(UiStyle.chip("Nível %d" % GameState.level_of(hero.id), "nivel", Color("ffd25a")))
-	top.add_child(UiStyle.chip("%d pontos livres" % maxi(free, 0), "poder", UiStyle.OK if free > 0 else UiStyle.TEXT_DIM))
-	top.add_child(UiStyle.chip("1 ponto a cada 3 níveis", "", UiStyle.TEXT_DIM, 13))
+	# um selo só: os pontos livres (a regra de 1 ponto a cada 3 níveis fica na dica)
+	var pts_chip := UiStyle.chip(("%d ponto livre" if maxi(free, 0) == 1 else "%d pontos livres") % maxi(free, 0), "poder", UiStyle.OK if free > 0 else UiStyle.TEXT_DIM)
+	pts_chip.tooltip_text = "Nível %d. Ganha 1 ponto a cada 3 níveis." % GameState.level_of(hero.id)
+	pts_chip.mouse_filter = Control.MOUSE_FILTER_PASS
+	top.add_child(pts_chip)
 	var fill := Control.new()
 	fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(fill)
@@ -146,10 +148,12 @@ func _spec_card(b: Dictionary, talents: Dictionary) -> Control:
 	n.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	n.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	top.add_child(n)
+	# ativa: um pontinho verde antes do número de pontos; as funções só com o ícone
+	var pl := UiStyle.label(("●  " if b.id == GameState.active_spec(hero.id) else "") + "%d" % pts, 17, UiStyle.GOLD if pts > 0 else UiStyle.TEXT_DIM)
 	if b.id == GameState.active_spec(hero.id):
-		top.add_child(UiStyle.chip("Ativa", "", UiStyle.OK, 13))
-	top.add_child(UiStyle.chip("%d" % pts, "", UiStyle.GOLD if pts > 0 else UiStyle.TEXT_DIM, 14))
-	v.add_child(SpecInfo.role_chips(String(b.id), 13))
+		pl.add_theme_color_override("font_color", UiStyle.OK)
+	top.add_child(pl)
+	top.add_child(SpecInfo.role_icons(String(b.id), 24))
 	var rt := String(b.role)
 	var role := UiStyle.label(rt.left(1).to_upper() + rt.substr(1), 14, UiStyle.TEXT_DIM)
 	v.add_child(role)

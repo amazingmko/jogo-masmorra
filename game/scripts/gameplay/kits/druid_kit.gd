@@ -111,7 +111,7 @@ func describe() -> PackedStringArray:
 		"Florescer (habilidade, %d s): todas as mudas abrem em flor: cada flor cura %d%% da vida de quem estiver perto dela (você e o grupo) e machuca os inimigos em volta." % [BLOOM_COOLDOWN, int(FLOWER_HEAL * 100)],
 		"Cuidado da Mata (passiva): em luta, a cada %d s o herói mais ferido a até %d m (você ou um aliado) recupera %d%% da vida." % [int(CARE_EVERY), int(CARE_RANGE), int(CARE_HEAL * 100)],
 		"Rastro de Seiva (passiva): andando em luta, planta uma muda atrás de você a cada %d m." % int(trail_step()),
-		"Despertar do Boto (ultimate, %d s): vira o Boto numa bolha de água, mais rápida e imune a lentidão e raízes; o Canto atravessa os inimigos e cura o grupo a cada acerto. No fim, toda muda floresce." % BOTO_TIME,
+		"Despertar do Boto (ultimate, %d s): vira o Boto numa bolha de água, mais rápida e imune a lentidão e raízes. O Canto atravessa os inimigos e cura o grupo a cada acerto. No fim, toda muda floresce." % BOTO_TIME,
 	])
 
 

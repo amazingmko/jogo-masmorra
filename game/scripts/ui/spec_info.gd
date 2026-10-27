@@ -58,6 +58,22 @@ static func role_chips(branch_id: String, size := 14) -> HBoxContainer:
 	return h
 
 
+## Só os ícones das funções (sem o nome; o nome aparece ao segurar o dedo / passar o mouse).
+static func role_icons(branch_id: String, size := 24) -> HBoxContainer:
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 2)
+	for r in roles(branch_id):
+		var spec: Array = ROLE.get(r, ["espada", Color.WHITE])
+		var t := TextureRect.new()
+		t.texture = load("res://game/ui/icones/s_%s.png" % spec[0])
+		t.custom_minimum_size = Vector2(size, size)
+		t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		t.tooltip_text = r
+		h.add_child(t)
+	return h
+
+
 ## As funções que o herói cobre (somando os 3 ramos, sem repetir), na ordem dos ramos.
 static func hero_roles(hero_id: StringName) -> Array:
 	var out := []

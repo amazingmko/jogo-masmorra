@@ -6,7 +6,7 @@
 script = ExtResource("1_f7sq5")
 id = &"cajado_raiz"
 display_name = "Cajado de Raiz"
-description = "Raiz viva que chama os espíritos da mata. Lança sementes que viram mudas; a Druida as faz florescer para curar."
+description = "Raiz viva que chama os espíritos da mata. Lança sementes que viram mudas, e a Druida as faz florescer para curar."
 kind = 1
 max_stack = 1
 stats = {

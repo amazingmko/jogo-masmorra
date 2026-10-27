@@ -79,7 +79,7 @@ static func gear_power(instance: Dictionary) -> int:
 	return GameEnums.RARITY_GEAR_POWER[clampi(int(instance.get("rarity", 0)), 0, 3)]
 
 
-## Lista curta de atributos: "+12 Força · +8 Vigor · 30 Armadura".
+## Lista curta de atributos: "+12 Força, +8 Vigor, 30 Armadura".
 static func describe_stats(stats: Dictionary) -> String:
 	var parts := PackedStringArray()
 	var order := ["damage", "strength", "agility", "intellect", "vigor", "armor", "block", "crit", "haste", "luck"]
@@ -94,7 +94,7 @@ static func describe_stats(stats: Dictionary) -> String:
 			parts.append("%d %s" % [value, label])
 		else:
 			parts.append("+%d %s" % [value, label])
-	return " · ".join(parts)
+	return ", ".join(parts)
 
 
 ## Se um herói pode vestir/usar esta peça.

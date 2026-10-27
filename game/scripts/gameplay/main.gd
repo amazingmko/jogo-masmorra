@@ -1192,7 +1192,7 @@ func _on_player_died() -> void:
 		return
 	if Net.active and not _replicas.is_empty():
 		# no grupo: cai e espera um parceiro levantar (a run só acaba se todos caírem)
-		_hud.show_toast("Você caiu! Um parceiro pode te levantar (%d s perto de você; a Druida, %d s). Levantadas no andar: %d" % [int(REVIVE_TIME), int(REVIVE_TIME_HEALER), lifts_left()], Color("ff6b6b"))
+		_hud.show_toast("Você caiu! Um parceiro te levanta ficando %d s perto de você (a Druida leva %d s). Levantadas no andar: %d" % [int(REVIVE_TIME), int(REVIVE_TIME_HEALER), lifts_left()], Color("ff6b6b"))
 		_send_hero_state()
 		return
 	_finish(false)

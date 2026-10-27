@@ -38,9 +38,6 @@ func _refresh() -> void:
 	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	center.add_theme_constant_override("separation", 0)
 	add_child(center)
-	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0, 46)
-	center.add_child(spacer)
 	var body := UiStyle.column_body()
 	center.add_child(body)
 	var v := HeroPreview.new().setup(hero, Vector2(260, 380))
@@ -52,10 +49,6 @@ func _list() -> Control:
 	var col := VBoxContainer.new()
 	col.custom_minimum_size = Vector2(392, 0)
 	col.add_theme_constant_override("separation", 0)
-	var h := HBoxContainer.new()
-	h.custom_minimum_size = Vector2(0, 46)
-	h.add_child(UiStyle.header("Escolha seu herói"))
-	col.add_child(h)
 	var body := UiStyle.column_body()
 	col.add_child(body)
 	var list := VBoxContainer.new()
@@ -110,16 +103,12 @@ func _hero_card(hero: HeroData) -> Control:
 	n.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	n.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	top.add_child(n)
+	# uma linha só embaixo do nome: o nível (e se é o herói em uso)
+	var sub := UiStyle.label("Nível %d" % GameState.level_of(hero.id), 15, UiStyle.TEXT_DIM)
 	if chosen:
-		top.add_child(UiStyle.chip("Em uso", "", UiStyle.GOLD, 13))
-	top.add_child(UiStyle.chip("%d" % GameState.level_of(hero.id), "nivel", Color("ffd25a"), 13))
-	var roles := HBoxContainer.new()
-	roles.add_theme_constant_override("separation", 0)
-	roles.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for r in SpecInfo.hero_roles(hero.id).slice(0, 3):
-		var spec: Array = SpecInfo.ROLE[r]
-		roles.add_child(UiStyle.chip(r, spec[0], spec[1], 11))
-	v.add_child(roles)
+		sub.text = "Nível %d, em uso" % GameState.level_of(hero.id)
+		sub.add_theme_color_override("font_color", UiStyle.GOLD)
+	v.add_child(sub)
 	var hid := hero.id
 	b.pressed.connect(func() -> void:
 		viewing = hid
@@ -132,9 +121,6 @@ func _info(hero: HeroData) -> Control:
 	var col := VBoxContainer.new()
 	col.custom_minimum_size = Vector2(380, 0)
 	col.add_theme_constant_override("separation", 0)
-	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0, 46)
-	col.add_child(spacer)
 	var body := UiStyle.column_body()
 	col.add_child(body)
 	var v := VBoxContainer.new()
@@ -144,16 +130,12 @@ func _info(hero: HeroData) -> Control:
 	n.text = hero.display_name
 	UiStyle.title_label(n, 30)
 	v.add_child(n)
-	var origin := SpecInfo.origin(hero.id)
-	v.add_child(UiStyle.chips([[origin[1], "mapa", Color("e8d29a")], [origin[0], "", Color("8fe38f")]]))
-	v.add_child(UiStyle.chips([[GameEnums.PRIMARY_NAMES[hero.primary_stat], UiStyle.primary_icon(hero.primary_stat)],
-		[GameEnums.ARMOR_NAMES[hero.armor_type()], UiStyle.armor_icon(hero.armor_type())],
-		["%d" % p.level, "nivel", Color("ffd25a")]]))
 	var xp := UiStyle.bar(Color("4fbf7a"), 100, 22)
 	xp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var pending := GameState.trial_pending(hero.id)
-	UiStyle.set_bar(xp, p.xp, Progression.xp_to_next(p.level), "Provação para passar do %d" % pending if pending > 0
-		else "XP %d / %d" % [p.xp, Progression.xp_to_next(p.level)])
+	# o nível vai dentro da barra de XP
+	UiStyle.set_bar(xp, p.xp, Progression.xp_to_next(p.level), "Nível %d: falta a Provação" % p.level if pending > 0
+		else "Nível %d" % p.level)
 	v.add_child(xp)
 	var done := []
 	for t in GameState.TRIAL_LEVELS:
@@ -194,9 +176,8 @@ func _info(hero: HeroData) -> Control:
 		UiStyle.title_label(bl, 17, UiStyle.GOLD if active else UiStyle.TEXT)
 		bl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(bl)
-		if active:
-			row.add_child(UiStyle.chip("Ativa", "", UiStyle.OK, 12))
-		row.add_child(SpecInfo.role_chips(String(b.id), 13))
+		# ativa = nome em dourado; as funções só com o ícone
+		row.add_child(SpecInfo.role_icons(String(b.id), 24))
 		specs.add_child(row)
 	var fill := Control.new()
 	fill.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -265,8 +246,7 @@ func _trial_box(hero: HeroData, tier: int) -> Control:
 	UiStyle.title_label(t, 19, UiStyle.GOLD)
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(t)
-	top.add_child(UiStyle.chip("Provação", "coroa", Color("ffd84a"), 12))
-	v.add_child(UiStyle.chips([[info.goal, info.icon, UiStyle.TEXT]]))
+	v.add_child(UiStyle.label(info.goal, 15, UiStyle.TEXT_DIM))
 	var b := Button.new()
 	b.custom_minimum_size = Vector2(0, 50)
 	b.focus_mode = Control.FOCUS_NONE
@@ -278,7 +258,7 @@ func _trial_box(hero: HeroData, tier: int) -> Control:
 	if not can:
 		v.add_child(UiStyle.chips([["Só sozinho" if Net.active else "Faltam %d de ouro" % (cost - GameState.coins), "cadeado", UiStyle.TEXT_DIM]]))
 	else:
-		v.add_child(UiStyle.label("O ouro só sai se vencer.", 13, UiStyle.TEXT_DIM))
+		b.tooltip_text = "O ouro só sai se vencer."
 	var hid := hero.id
 	b.pressed.connect(func() -> void: trial_requested.emit(hid, tier))
 	return box

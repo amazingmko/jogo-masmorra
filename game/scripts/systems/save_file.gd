@@ -54,7 +54,7 @@ static func read(path: String) -> Dictionary:
 	if data.is_empty():
 		data = _read_json(path + ".bak")
 		if not data.is_empty():
-			push_warning("Save principal ilegível; carregado o backup.")
+			push_warning("O save principal não abriu. Foi carregada a cópia de segurança.")
 	return migrate(data)
 
 

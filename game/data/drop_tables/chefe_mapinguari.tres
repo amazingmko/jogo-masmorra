@@ -34,6 +34,7 @@ max_qty = 5
 [sub_resource type="Resource" id="Resource_hat7q"]
 script = ExtResource("1_vadal")
 item_id = &"latex_seringueira"
+weight = 14
 min_qty = 2
 max_qty = 3
 
