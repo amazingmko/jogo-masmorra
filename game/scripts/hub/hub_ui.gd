@@ -63,6 +63,63 @@ func setup(player: Player) -> void:
 			Net.refresh_profile()  # a sala vê a peça/herói novo (requisito da dificuldade)
 		_refresh_open_panel())
 	_refresh_top_bar()
+	if not GameState.run_resume.is_empty() and not Net.active:
+		_show_resume_dialog.call_deferred()
+
+
+## Continuar run: o app fechou no meio de uma run sozinho. Volta no começo do andar onde parou.
+var _resume_box: PanelContainer
+
+
+func _show_resume_dialog() -> void:
+	var r: Dictionary = GameState.run_resume
+	var hero := ItemDB.get_hero(StringName(r.get("hero", "")))
+	if hero == null:
+		GameState.run_resume = {}
+		return
+	_resume_box = PanelContainer.new()
+	_resume_box.add_theme_stylebox_override("panel", UiStyle.panel())
+	_resume_box.set_anchors_preset(Control.PRESET_CENTER)
+	_resume_box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_resume_box.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_resume_box.custom_minimum_size = Vector2(560, 0)
+	add_child(_resume_box)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 14)
+	_resume_box.add_child(col)
+	var title := _label("Run em andamento", 30, GOLD)
+	UiStyle.title_label(title, 30)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(title)
+	var info := _label("%s · Andar %d de 10 · %s" % [hero.display_name, int(r.get("floor", 1)), Difficulty.name_of(int(r.get("difficulty", 0)))], 20, TEXT)
+	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(info)
+	var note := _label("O jogo fechou no meio da run. Você volta no começo desse andar, com o que já tinha pego.", 16, MUTED, true)
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	note.custom_minimum_size = Vector2(500, 0)
+	col.add_child(note)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 16)
+	col.add_child(row)
+	var give_up := _button("Desistir", 20)
+	give_up.custom_minimum_size = Vector2(190, 58)
+	give_up.pressed.connect(func() -> void:
+		GameState.run_resume = {}
+		GameState.save()
+		_resume_box.queue_free())
+	row.add_child(give_up)
+	var go := _button("Continuar", 20, Color(0, 0, 0, 0), false, "ouro")
+	go.custom_minimum_size = Vector2(190, 58)
+	go.pressed.connect(func() -> void:
+		GameState.selected_hero = StringName(r.get("hero", ""))
+		GameState.run_difficulty = int(r.get("difficulty", 0))
+		GameState.run_full_rewards = bool(r.get("full", true))
+		GameState.run_trial = {}
+		GameState.resume_now = true
+		_resume_box.queue_free()
+		enter_dungeon_requested.emit())
+	row.add_child(go)
 
 
 func _on_coins_changed(_v: int) -> void:

@@ -6,6 +6,8 @@ extends CanvasLayer
 
 signal restart_requested
 signal buff_chosen(buff: BuffData)
+## Tocou no próprio retrato: pedido de cura para o grupo.
+signal help_requested
 
 var joystick: TouchJoystick
 var attack_button: TouchButton
@@ -108,6 +110,37 @@ func _process(_delta: float) -> void:
 	_update_party(_delta)
 
 
+# ---------- pedido de cura ----------
+const HELP_COOLDOWN := 4.0
+const HELP_TIME := 4.0
+var _help_cd := 0.0
+
+
+func _input(event: InputEvent) -> void:
+	if not (event is InputEventScreenTouch and event.pressed) or _portrait == null or not _portrait.is_visible_in_tree():
+		return
+	if _party_rows.is_empty() or _help_cd > 0.0:
+		return
+	if _portrait.get_global_rect().grow(6).has_point(event.position):
+		_help_cd = HELP_COOLDOWN
+		help_requested.emit()
+		_flash_portrait(_portrait)
+		get_viewport().set_input_as_handled()
+
+
+## Alguém pediu cura: o rosto dele na barra do grupo pisca e ganha um "+" por HELP_TIME s.
+func mark_help(member: Node) -> void:
+	for r in _party_rows:
+		if r.hero == member:
+			r["help"] = HELP_TIME
+
+
+func _flash_portrait(p: Control) -> void:
+	var t := p.create_tween()
+	t.tween_property(p, "scale", Vector2(1.12, 1.12), 0.08)
+	t.tween_property(p, "scale", Vector2.ONE, 0.15)
+
+
 # ---------- barra do grupo ----------
 ## Os parceiros, discretos, no lado esquerdo abaixo da vida: rosto pequeno + barra fina verde.
 ## Abaixo de 35% a barra fica vermelha e pisca (quem precisa de cura agora); caído fica cinza.
@@ -138,8 +171,14 @@ func set_party(members: Array) -> void:
 		var bar := UiStyle.bar(Color("5fd67a"), 118, 11)
 		bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(bar)
+		var cross := Label.new()  # pediu cura
+		cross.text = "+ CURA"
+		UiStyle.title_label(cross, 15, Color("6fdc7b"))
+		cross.visible = false
+		cross.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(cross)
 		_party_box.add_child(row)
-		_party_rows.append({"hero": m, "face": face, "bar": bar, "fill": bar.get_theme_stylebox("fill")})
+		_party_rows.append({"hero": m, "face": face, "bar": bar, "fill": bar.get_theme_stylebox("fill"), "cross": cross})
 	_party_box.visible = not _party_rows.is_empty()
 	_update_party(1.0)
 
@@ -148,6 +187,7 @@ func _update_party(delta: float) -> void:
 	if _party_rows.is_empty():
 		return
 	_party_t += delta
+	_help_cd = maxf(_help_cd - delta, 0.0)
 	for r in _party_rows:
 		var m = r.hero
 		if not is_instance_valid(m):
@@ -156,6 +196,13 @@ func _update_party(delta: float) -> void:
 		var frac := float(h.health) / float(maxi(h.max_health, 1))
 		UiStyle.set_bar(r.bar, h.health, h.max_health, "")
 		var fill: StyleBoxFlat = r.fill
+		var help: float = float(r.get("help", 0.0))
+		if help > 0.0:
+			r["help"] = help - delta
+			r.cross.visible = true
+			r.cross.modulate.a = 0.5 + 0.5 * absf(sin(_party_t * 8.0))
+		else:
+			r.cross.visible = false
 		if h.is_dead:
 			r.face.modulate = Color(0.45, 0.45, 0.45, 0.8)
 		elif frac < PARTY_CRITICAL:
@@ -225,13 +272,16 @@ func set_wave(text: String) -> void:
 
 
 ## Topo da tela: "Andar 3/10" na placa e, ao lado, a dificuldade (e o aviso de sem energia).
-func set_floor(floor_number: int, total: int, difficulty: int, full_rewards: bool) -> void:
+func set_floor(floor_number: int, total: int, difficulty: int, full_rewards: bool, group_bonus := 0) -> void:
 	_wave_label.text = "Andar %d/%d" % [floor_number, total]
 	for ch in _wave_chips.get_children():
 		ch.queue_free()
 	_wave_chips.add_child(UiStyle.chip(Difficulty.name_of(difficulty), "chefe", Difficulty.color_of(difficulty)))
 	if not full_rewards:
 		_wave_chips.add_child(UiStyle.chip("Sem energia", "energia", UiStyle.TEXT_DIM))
+	if group_bonus > 0:
+		# Força da Aldeia: em grupo, mais reagentes para cada um
+		_wave_chips.add_child(UiStyle.chip("Aldeia +%d%%" % group_bonus, "suporte", Color("ffd98a")))
 	_wave_chips.visible = true
 
 

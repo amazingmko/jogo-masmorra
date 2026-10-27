@@ -59,6 +59,10 @@ const MP_DAMAGE := [1.0, 1.0, 3.6, 5.5, 6.5]
 ## Do Difícil para cima vale o MP_DAMAGE: sem healer, o grupo não segura.
 const MP_DAMAGE_NORMAL := [1.0, 1.0, 2.0, 2.6, 3.0]
 const MP_BOSS_PER_EXTRA_NORMAL := 0.6
+## Sozinho no Heroico e no Mítico os bichos também apertam (senão ir solo seria o caminho fácil
+## do topo e ninguém chamaria o grupo). Índice = dificuldade.
+const SOLO_DAMAGE := [1.0, 1.0, 1.8, 2.8]
+const SOLO_HEALTH := [1.0, 1.0, 1.15, 1.3]
 ## Andares 1 a 3 do Normal mais leves (dano dos bichos), para aprender; o aperto começa no 4.
 const EARLY_FLOOR_DAMAGE_NORMAL := [0.7, 0.8, 0.9]
 ## Derrota: XP extra pelo andar alcançado (andar/10 de metade da XP da vitória).
@@ -151,6 +155,7 @@ func _ready() -> void:
 	add_to_group("loot_listeners")
 	_hud.bind_player(_player)
 	_hud.restart_requested.connect(_back_to_hub)
+	_hud.help_requested.connect(_on_help_requested)
 	GameState.leveled_up.connect(_on_leveled_up)
 	_player.died.connect(_on_player_died)
 	# Atmosfera da Terra Firme (luz, neblina, vagalumes e folhas em volta da heroína).
@@ -413,7 +418,44 @@ func new_run(seed: int = 0) -> void:
 	if trial_tier > 0:
 		_start_trial()
 		return
+	var resume: Dictionary = GameState.run_resume if GameState.resume_now and not Net.active else {}
+	GameState.resume_now = false
+	GameState.run_resume = {}
+	if not resume.is_empty():
+		_restore_run(resume)
+		return
 	_next_floor()
+
+
+## Continuar run: volta no começo do andar onde parou, com a vida, a carga e o placar de antes.
+func _restore_run(r: Dictionary) -> void:
+	floor_number = clampi(int(r.get("floor", 1)), 1, FLOORS) - 1
+	_stats.kills = int(r.get("kills", 0))
+	_stats.xp = int(r.get("xp", 0))
+	_stats.gold = int(r.get("gold", 0))
+	_stats.elites = int(r.get("elites", 0))
+	_stats.loot = (r.get("loot", {}) as Dictionary).duplicate()
+	_stats.started = Time.get_ticks_msec() - int(r.get("seconds", 0)) * 1000
+	_stats.level_start = int(r.get("level_start", _stats.level_start))
+	_next_floor()
+	_player.health.set_current(maxi(int(_player.health.max_health * float(r.get("hp", 1.0))), 1), _player.health.max_health)
+	if _player.kit:
+		_player.kit.charge = float(r.get("charge", 0.0))
+	_hud.show_toast("Run retomada no andar %d" % floor_number, Color("ffd98a"))
+
+
+## Grava a run sozinho no começo de cada andar (o app pode fechar no meio: ligação, bateria).
+func _save_run_state() -> void:
+	if Net.active or not sim_allies.is_empty() or trial_tier > 0 or _run_over:
+		GameState.run_resume = {}
+		return
+	GameState.run_resume = {"hero": String(_player.hero_id), "difficulty": difficulty,
+		"full": full_rewards, "floor": floor_number, "kills": int(_stats.kills), "xp": int(_stats.xp),
+		"gold": int(_stats.get("gold", 0)), "elites": int(_stats.get("elites", 0)),
+		"loot": (_stats.loot as Dictionary).duplicate(), "level_start": int(_stats.level_start),
+		"seconds": (Time.get_ticks_msec() - int(_stats.started)) / 1000,
+		"hp": float(_player.health.health) / float(maxi(_player.health.max_health, 1)),
+		"charge": float(_player.kit.charge) if _player.kit else 0.0}
 
 
 ## Atalho para testes: pula direto para um andar (ex.: 5 para enfrentar o chefe).
@@ -498,9 +540,10 @@ func _next_floor() -> void:
 	_plan_rig_pool()
 	_show_loading()
 	_hud.minimap.show_layout(layout)
-	_hud.set_floor(floor_number, FLOORS, difficulty, full_rewards)
+	_hud.set_floor(floor_number, FLOORS, difficulty, full_rewards, int(round((group_reward_mult() - 1.0) * 100.0)))
 	_hud.show_toast("Encontre %s" % ["o chefe" if floor_number == FLOORS else ("a Onça Alfa" if floor_number == MINIBOSS_FLOOR else "o portal azul")], Color("4db8ff"))
-	GameState.save()
+	_save_run_state.call_deferred()
+	GameState.save.call_deferred()
 
 
 ## Provação: uma clareira só, sem portas, e a prova do herói (Trial) dentro dela.
@@ -875,6 +918,9 @@ func _spawn(enemy_id: StringName, room: DungeonRoom, at: Vector3 = Vector3.INF, 
 	if data.id == MINIBOSS_ID and difficulty == 0 and n > 1:
 		mp_hp = 1.0 + MP_BOSS_PER_EXTRA_NORMAL * (n - 1)
 	var mp_dmg: float = MP_DAMAGE_NORMAL[n] if difficulty == 0 else MP_DAMAGE[n]
+	if n == 1:
+		mp_dmg *= SOLO_DAMAGE[difficulty]
+		mp_hp *= SOLO_HEALTH[difficulty]
 	if difficulty == 0 and floor_number >= 1 and floor_number <= EARLY_FLOOR_DAMAGE_NORMAL.size():
 		mp_dmg *= EARLY_FLOOR_DAMAGE_NORMAL[floor_number - 1]
 	if data.id == MINIBOSS_ID and difficulty == 0:
@@ -1045,11 +1091,21 @@ func on_loot_collected(item: ItemData, qty: int, instance: Dictionary = {}) -> v
 		_stats.best = instance
 
 
+## Força da Aldeia: em grupo cada jogador leva mais reagentes e troféus (+15% por parceiro; com 4,
+## +45%). Ir junto rende mais que ir sozinho, mesmo com os bichos mais fortes.
+const GROUP_REWARD_PER_EXTRA := 0.15
+
+
+func group_reward_mult() -> float:
+	return 1.0 + GROUP_REWARD_PER_EXTRA * (party_size() - 1)
+
+
 ## Contexto de loot: dificuldade (mais reagentes e troféus) e energia (recompensa completa ou não).
 func _loot_context(profile: String) -> Dictionary:
 	var ilvl := clampi(floor_number - _rng.randi_range(0, 1), 1, 10)
 	return {"ilvl": ilvl, "profile": profile, "hero": _player.hero, "difficulty": difficulty,
 		"reward_mult": Difficulty.REWARD_MULT[difficulty] * (NIGHT_REWARD if night and night.is_night else 1.0)
+			* group_reward_mult()
 			* (FIRST_CLEAR_REWARD if difficulty == 0 and GameState.highest_cleared < 0 else 1.0),
 		"full_rewards": full_rewards, "night": night != null and night.is_night}
 
@@ -1122,6 +1178,7 @@ func _on_leveled_up(hero_id: StringName, new_level: int) -> void:
 func _back_to_hub() -> void:
 	get_tree().paused = false
 	GameState.run_trial = {}
+	GameState.run_resume = {}  # voltou de propósito: a run acabou
 	HeroStats.rarity_cap = 3
 	if Net.active:
 		Net.leave()
@@ -1160,6 +1217,7 @@ func _finish(victory: bool, camp := false) -> void:
 	if _run_over:
 		return
 	_run_over = true
+	GameState.run_resume = {}
 	if camp:
 		_give_xp(XP_RUN_VICTORY / 2)
 	if not victory and not camp:
@@ -1273,6 +1331,21 @@ func _tick_solo_rest(delta: float) -> void:
 
 
 ## Barra do grupo no HUD: os parceiros (aliados do simulador ou dos outros aparelhos).
+func _on_help_requested() -> void:
+	Fx.float_text(self, _player.global_position + Vector3(0, 2.8, 0), "PRECISO DE CURA!", Color("6fdc7b"))
+	if Net.active:
+		Net.send("net_help", [])
+
+
+## Um parceiro pediu cura: texto em cima dele e o rosto pisca na barra do grupo.
+func net_help(sender: int) -> void:
+	var r: Player = _replicas.get(sender)
+	if r == null or not is_instance_valid(r):
+		return
+	Fx.float_text(self, r.global_position + Vector3(0, 2.8, 0), "PRECISO DE CURA!", Color("6fdc7b"))
+	_hud.mark_help(r)
+
+
 func _refresh_party_frames() -> void:
 	var others: Array = []
 	for a in sim_allies:

@@ -137,6 +137,10 @@ const TRIAL_LEVELS := [10, 20, 30]
 const TRIAL_GOLD := [500, 2000, 6000]
 ## Provação em andamento (na cena da masmorra): {"hero": id, "tier": 10}.
 var run_trial := {}
+## Continuar run (só sozinho): o estado da run no começo do último andar, gravado no save. Vazio =
+## nenhuma run aberta. resume_now: a próxima cena da masmorra deve retomar esta run.
+var run_resume := {}
+var resume_now := false
 
 
 func trial_passed(hero_id: StringName, tier: int) -> bool:
@@ -484,6 +488,7 @@ func to_dict() -> Dictionary:
 		"selected_difficulty": selected_difficulty,
 		"craft_streaks": craft_streaks.duplicate(),
 		"debug_talent_points": debug_talent_points,
+		"run_resume": run_resume.duplicate(true),
 	}
 
 
@@ -523,6 +528,9 @@ func from_dict(data: Dictionary) -> void:
 		craft_streaks[String(key)] = int(streaks[key])
 	if ItemDB.get_hero(selected_hero) == null:
 		selected_hero = StringName(STARTING_HEROES[0])
+	run_resume = (data.get("run_resume", {}) as Dictionary).duplicate(true)
+	if not run_resume.is_empty() and ItemDB.get_hero(StringName(run_resume.get("hero", ""))) == null:
+		run_resume = {}
 	coins_changed.emit(coins)
 
 

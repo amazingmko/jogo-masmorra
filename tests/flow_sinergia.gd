@@ -66,6 +66,20 @@ func _run() -> void:
 	await _frames(3)
 	var crit_fill: StyleBoxFlat = m._hud._party_rows[1].fill
 	check(crit_fill.bg_color.r > 0.8 and crit_fill.bg_color.g < 0.5, "parceiro abaixo de 35% fica vermelho na barra do grupo")
+	# pedido de cura: tocar no próprio retrato avisa o grupo; o rosto de quem pediu pisca com "+ CURA"
+	var asked := [false]
+	m._hud.help_requested.connect(func() -> void: asked[0] = true)
+	var tap := InputEventScreenTouch.new()
+	tap.pressed = true
+	tap.position = m._hud._portrait.get_global_rect().get_center()
+	m._hud._input(tap)
+	check(asked[0], "tocar no retrato pede cura")
+	asked[0] = false
+	m._hud._input(tap)
+	check(not asked[0], "não dá para repetir o pedido na hora (espera 4 s)")
+	m._hud.mark_help(a1)
+	await _frames(2)
+	check(m._hud._party_rows[0].cross.visible, "o rosto de quem pediu ganha o + CURA na barra do grupo")
 
 	# Provocação do tanque: bicho mais perto do Encantado, mas a Icamiaba a 5 m chama
 	var tank = load("res://game/scenes/player.tscn").instantiate()
