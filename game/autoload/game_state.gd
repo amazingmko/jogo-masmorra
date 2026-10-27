@@ -140,6 +140,12 @@ var run_trial := {}
 ## Continuar run (só sozinho): o estado da run no começo do último andar, gravado no save. Vazio =
 ## nenhuma run aberta. resume_now: a próxima cena da masmorra deve retomar esta run.
 var run_resume := {}
+
+
+## Botões de teste (pular para a Provação, +5 pontos de talento): só rodando pelo editor do Godot
+## ou com "-- dev" na linha de comando. O APK, mesmo sendo de teste, não mostra.
+func dev_tools() -> bool:
+	return OS.has_feature("editor") or OS.get_cmdline_user_args().has("dev")
 var resume_now := false
 
 

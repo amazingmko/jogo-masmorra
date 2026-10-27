@@ -77,6 +77,10 @@ func _show_resume_dialog() -> void:
 	if hero == null:
 		GameState.run_resume = {}
 		return
+	# enquanto a pergunta está na tela, o herói do hub não anda
+	joystick.release()
+	joystick.visible = false
+	action_button.visible = false
 	_resume_box = PanelContainer.new()
 	_resume_box.add_theme_stylebox_override("panel", UiStyle.panel())
 	_resume_box.set_anchors_preset(Control.PRESET_CENTER)
@@ -107,7 +111,9 @@ func _show_resume_dialog() -> void:
 	give_up.pressed.connect(func() -> void:
 		GameState.run_resume = {}
 		GameState.save()
-		_resume_box.queue_free())
+		_resume_box.queue_free()
+		joystick.visible = true
+		action_button.visible = _station != null)
 	row.add_child(give_up)
 	var go := _button("Continuar", 20, Color(0, 0, 0, 0), false, "ouro")
 	go.custom_minimum_size = Vector2(190, 58)
@@ -1035,7 +1041,7 @@ func _build_top_bar() -> void:
 	_energy_box.add_theme_constant_override("separation", 4)
 	row2.add_child(_energy_box)
 
-	var help := UiStyle.label("Ande até um ponto e toque no botão  (PC: E)", 15, MUTED)
+	var help := UiStyle.label("Ande até um ponto e toque no botão" + ("" if OS.has_feature("mobile") else "  (PC: E)"), 15, MUTED)
 	help.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	help.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	help.offset_right = -20

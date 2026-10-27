@@ -21,7 +21,7 @@ const BAD := Color("ff6b6b")
 const PALETTES := {
 	"obsidiana": {"text": Color("efe6d2"), "dim": Color("a39c8c"), "title": Color("f3cf72"), "accent": Color("40c4d6"), "line": Color("6b5428"), "row": Color(1, 1, 1, 0.04), "gold_text": Color("2b1a04")},
 	"pedra_lunar": {"text": Color("e9eef6"), "dim": Color("9aa6ba"), "title": Color("dfe8f5"), "accent": Color("60ded6"), "line": Color("4f5d75"), "row": Color(1, 1, 1, 0.045), "gold_text": Color("0b2b2c")},
-	"encante": {"text": Color("f2e8d4"), "dim": Color("b3a68a"), "title": Color("f2c56b"), "accent": Color("7fd8b0"), "line": Color("6b5634"), "row": Color(1.0, 0.9, 0.7, 0.05), "gold_text": Color("2b1a04")},
+	"encante": {"text": Color("f2e8d4"), "dim": Color("b3a68a"), "title": Color("f2c56b"), "accent": Color("7fd8b0"), "line": Color("6b5634"), "row": Color(1.0, 0.9, 0.7, 0.05), "gold_text": Color("140a01")},
 	"abissal": {"text": Color("e6f4ff"), "dim": Color("8eaecb"), "title": Color("ffd98a"), "accent": Color("8fdcff"), "line": Color("2c5a86"), "row": Color(0.5, 0.8, 1.0, 0.05), "gold_text": Color("2b1a04")},
 }
 
@@ -190,8 +190,9 @@ static func style_button(b: Button, kind := "normal", font_size := 20) -> void:
 	b.add_theme_color_override("font_hover_color", c("gold_text") if gold else Color.WHITE)
 	b.add_theme_color_override("font_pressed_color", TEXT)
 	b.add_theme_color_override("font_disabled_color", Color("8a8a8a"))
-	b.add_theme_color_override("font_outline_color", Color(1, 1, 1, 0.3) if gold else OUTLINE)
-	b.add_theme_constant_override("outline_size", 2 if gold else 5)
+	# no botão dourado: letra quase preta com um contorno claro (lê bem em cima do metal)
+	b.add_theme_color_override("font_outline_color", Color(1.0, 0.93, 0.72, 0.6) if gold else OUTLINE)
+	b.add_theme_constant_override("outline_size", 5 if gold else 5)
 
 
 static func ribbon() -> StyleBoxTexture:

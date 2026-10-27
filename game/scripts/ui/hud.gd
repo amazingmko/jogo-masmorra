@@ -591,6 +591,7 @@ func _build_status() -> void:
 
 	_help_label = _make_label(14)
 	_help_label.text = "PC   WASD anda   Espaço ataca   Q habilidade   F ultimate\nR nova run   G salva"
+	_help_label.visible = not OS.has_feature("mobile")  # no celular não tem teclado
 	_help_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_help_label.modulate.a = 0.7
 	_help_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)

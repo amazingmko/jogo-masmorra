@@ -58,7 +58,7 @@ func _refresh() -> void:
 	var fill := Control.new()
 	fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(fill)
-	if OS.is_debug_build():
+	if GameState.dev_tools():
 		var dbg := Button.new()
 		dbg.text = "+5 (teste)"
 		UiStyle.style_button(dbg, "normal", 15)

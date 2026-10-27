@@ -184,7 +184,7 @@ func _info(hero: HeroData) -> Control:
 	v.add_child(fill)
 	if pending > 0:
 		v.add_child(_trial_box(hero, pending))
-	elif OS.is_debug_build() and GameState.level_cap(hero.id) < Progression.MAX_LEVEL:
+	elif GameState.dev_tools() and GameState.level_cap(hero.id) < Progression.MAX_LEVEL:
 		# atalho de teste (não aparece no jogo final)
 		var dev := Button.new()
 		dev.text = "Teste: ir para a Provação do %d" % GameState.level_cap(hero.id)
